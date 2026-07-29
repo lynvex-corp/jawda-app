@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   Plus,
   Search,
@@ -41,7 +42,6 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link } from "@tanstack/react-router";
 import {
-  mockNCs,
   severityClasses,
   statusClasses,
   origensNC,
@@ -51,6 +51,7 @@ import {
   type Severity,
   type Origem,
 } from "@/lib/mock-data";
+import { useNCs, useUpdateNC } from "@/lib/queries/ncs";
 import { cn } from "@/lib/utils";
 
 const KANBAN_STATUSES: NCStatus[] = [
@@ -242,7 +243,8 @@ function KanbanCard({
 }
 
 export function NaoConformidadesPage() {
-  const [items, setItems] = useState<NC[]>(mockNCs);
+  const { data: items = [], isLoading, isError } = useNCs();
+  const updateNC = useUpdateNC();
   const [busca, setBusca] = useState("");
   const [origem, setOrigem] = useState<string>("all");
   const [periodo, setPeriodo] = useState<string>("all");
@@ -290,7 +292,15 @@ export function NaoConformidadesPage() {
 
   function handleDrop(status: NCStatus) {
     if (!draggingId) return;
-    setItems((prev) => prev.map((nc) => (nc.id === draggingId ? { ...nc, status } : nc)));
+    updateNC.mutate(
+      { id: draggingId, status },
+      {
+        onError: () =>
+          toast.error("Não foi possível mover a NC", {
+            description: "Tente novamente em instantes.",
+          }),
+      },
+    );
     setDraggingId(null);
     setDragOver(null);
   }
@@ -302,6 +312,26 @@ export function NaoConformidadesPage() {
     (gravidade !== "all" ? 1 : 0) +
     (reincidente ? 1 : 0) +
     (busca ? 1 : 0);
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-24 text-sm text-muted-foreground">
+          Carregando não conformidades…
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (isError) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-24 text-sm text-[color:var(--severity-critical)]">
+          Não foi possível carregar as não conformidades. Tente recarregar a página.
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>

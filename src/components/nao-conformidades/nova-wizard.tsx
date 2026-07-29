@@ -55,7 +55,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import {
-  mockNCs,
   usuariosMock,
   slaPorGravidade,
   severityClasses,
@@ -67,7 +66,15 @@ import {
   PREFIXO_NC_PADRAO,
   type Severity,
   type Origem,
+  type SetorOcorrencia,
 } from "@/lib/mock-data";
+import {
+  useCreateNC,
+  useNCs,
+  useUpdateNC,
+  type CategoriaNC,
+  type NCRecord,
+} from "@/lib/queries/ncs";
 import { cn } from "@/lib/utils";
 
 const DESCRICAO_EXEMPLOS = [
@@ -298,6 +305,10 @@ export function NovaNCWizard() {
   const [step, setStep] = useState(1);
   const [completed, setCompleted] = useState<Set<number>>(new Set());
   const [finalizado, setFinalizado] = useState(false);
+  const [createdNC, setCreatedNC] = useState<NCRecord | null>(null);
+  const createNC = useCreateNC();
+  const updateNC = useUpdateNC();
+  const { data: allNCs = [] } = useNCs();
 
   // Step 1
   const [dataOcorrencia, setDataOcorrencia] = useState<Date | undefined>(new Date("2026-07-14"));
@@ -411,13 +422,18 @@ export function NovaNCWizard() {
 
   const proximoPorqueHabilitado = (i: number) => i === 0 || porques[i - 1].trim().length > 0;
 
-  const codigoNC = useMemo(
+  // Antes da NC ser gravada, o código é só uma prévia local — o código real
+  // (sequencial por ano, por organização) é gerado no banco pela trigger
+  // set_nc_code_and_sla ao criar o registro (ver migração
+  // 20260729140300_ncs_triggers.sql).
+  const previewCodigo = useMemo(
     () =>
       origem
         ? ncCodigo(origem, NC_SEQ, NC_ANO, prefixo || PREFIXO_NC_PADRAO)
         : `${prefixo || PREFIXO_NC_PADRAO}_[ORIGEM]_${String(NC_SEQ).padStart(3, "0")}_${NC_ANO}`,
     [origem, prefixo],
   );
+  const codigoNC = createdNC?.codigo ?? previewCodigo;
 
   function setPorque(i: number, valor: string) {
     setPorques((prev) => {
@@ -464,11 +480,67 @@ export function NovaNCWizard() {
     setEvidences((prev) => prev.filter((e) => e.id !== id));
   }
 
-  function goNext() {
+  // Identificação (etapa 1) + Classificação (etapa 2) são os campos que
+  // existem de fato na tabela `ncs` nesta aba — Análise de Causa, Plano de
+  // Ação e Avaliação de Eficácia (etapas 3-5) ainda são simulação local,
+  // porque os módulos correspondentes (action_plans, etc.) não foram
+  // migrados ainda ("uma coisa de cada vez"). A NC é gravada ao sair da
+  // etapa 2, com os campos coletados até ali.
+  async function goNext() {
+    if (step === 2 && !createdNC) {
+      if (!origem || !descricao.trim() || !gravidade) {
+        toast.error("Preencha origem, descrição e gravidade antes de continuar", {
+          description: "Esses campos são obrigatórios para registrar a não conformidade.",
+        });
+        return;
+      }
+      try {
+        const nc = await createNC.mutateAsync({
+          origem,
+          descricao,
+          gravidade,
+          category: (categoria as CategoriaNC) || undefined,
+          setorOcorrencia: (setorOcorrencia as SetorOcorrencia) || undefined,
+          local,
+          dataOcorrencia,
+          reincidente,
+          previousNcId: reincidente ? ncsVinculadas[0] : undefined,
+        });
+        setCreatedNC(nc);
+        toast.success(`NC ${nc.codigo} registrada`, {
+          description: "Continue preenchendo as próximas etapas.",
+        });
+      } catch {
+        toast.error("Não foi possível registrar a não conformidade", {
+          description: "Tente novamente em instantes.",
+        });
+        return;
+      }
+    }
     setCompleted((prev) => new Set(prev).add(step));
     setStep((s) => Math.min(STEPS.length, s + 1));
   }
-  function encerrarNC() {
+
+  async function encerrarNC() {
+    if (createdNC) {
+      const statusFinal =
+        resultado === "aprovado"
+          ? "Encerrada"
+          : resultado === "reprovado"
+            ? "Plano em Execução"
+            : "Em Avaliação";
+      try {
+        await updateNC.mutateAsync({
+          id: createdNC.id,
+          status: statusFinal,
+          swotForwarded: ameacaFraqueza === "sim",
+        });
+      } catch {
+        toast.error("NC salva, mas não foi possível atualizar o status final", {
+          description: "Ajuste o status pela tela de detalhe da NC.",
+        });
+      }
+    }
     setCompleted((prev) => new Set(prev).add(5));
     setFinalizado(true);
     toast.success("Não conformidade encerrada", {
@@ -479,7 +551,7 @@ export function NovaNCWizard() {
     setStep((s) => Math.max(1, s - 1));
   }
 
-  const ncsCatalog = mockNCs.slice(0, 12);
+  const ncsCatalog = allNCs.slice(0, 12);
   const linkedNCs = ncsCatalog.filter((nc) => ncsVinculadas.includes(nc.id));
 
   return (
@@ -1369,6 +1441,7 @@ export function NovaNCWizard() {
             {step < STEPS.length ? (
               <Button
                 onClick={goNext}
+                disabled={createNC.isPending}
                 className="gap-1 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
               >
                 Salvar e continuar <ChevronRight className="h-4 w-4" />
@@ -1376,6 +1449,7 @@ export function NovaNCWizard() {
             ) : (
               <Button
                 onClick={encerrarNC}
+                disabled={updateNC.isPending}
                 className="gap-1.5 rounded-lg bg-[color:var(--success)] px-5 py-5 text-white hover:bg-[color:var(--success)]/90"
               >
                 <Check className="h-5 w-5" /> Encerrar Não Conformidade

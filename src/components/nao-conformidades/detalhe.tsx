@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useState } from "react";
 import { Link, useParams } from "@tanstack/react-router";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Check,
@@ -33,12 +34,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  mockNCs,
-  severityClasses,
-  statusClasses,
-  usuariosMock,
-} from "@/lib/mock-data";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { severityClasses, statusClasses, usuariosMock } from "@/lib/mock-data";
 import { mockPlanos, planoStatusClasses } from "@/lib/mock-data";
+import { useCancelNC, useNC, useNCs } from "@/lib/queries/ncs";
 import { cn } from "@/lib/utils";
 
 type StepStatus = "done" | "current" | "pending";
@@ -54,7 +62,49 @@ interface TimelineStep {
 
 export function NCDetailPage() {
   const { id } = useParams({ from: "/nao-conformidades/$id" });
-  const nc = useMemo(() => mockNCs.find((n) => n.id === id) ?? mockNCs[0], [id]);
+  const { data: nc, isLoading, isError } = useNC(id);
+  const { data: allNCs = [] } = useNCs();
+  const cancelNC = useCancelNC();
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-24 text-sm text-muted-foreground">
+          Carregando não conformidade…
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (isError || !nc) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-24 text-sm text-[color:var(--severity-critical)]">
+          Não foi possível carregar esta não conformidade.
+        </div>
+      </AppShell>
+    );
+  }
+
+  function handleConfirmCancel() {
+    if (!nc || !cancelReason.trim()) return;
+    cancelNC.mutate(
+      { id: nc.id, reason: cancelReason.trim() },
+      {
+        onSuccess: () => {
+          toast.success(`${nc.codigo} cancelada`, { description: cancelReason.trim() });
+          setCancelOpen(false);
+          setCancelReason("");
+        },
+        onError: () =>
+          toast.error("Não foi possível cancelar a NC", {
+            description: "Tente novamente em instantes.",
+          }),
+      },
+    );
+  }
 
   const criadoEm = new Date(nc.criadoEm);
   const prazo = new Date(nc.prazoSLA);
@@ -156,7 +206,7 @@ export function NCDetailPage() {
   ];
 
   const ncsRelacionadas = nc.reincidente
-    ? mockNCs.filter((n) => n.id !== nc.id && n.gravidade === nc.gravidade).slice(0, 3)
+    ? allNCs.filter((n) => n.id !== nc.id && n.gravidade === nc.gravidade).slice(0, 3)
     : [];
 
   const planoVinculado = mockPlanos.find((p) => p.vinculadoLink === nc.id);
@@ -205,7 +255,13 @@ export function NCDetailPage() {
                 <DropdownMenuItem>Reatribuir responsável</DropdownMenuItem>
                 <DropdownMenuItem>Vincular a plano de ação</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-[color:var(--severity-critical)]">Cancelar NC</DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={nc.status === "Cancelada" || nc.status === "Encerrada"}
+                  onSelect={() => setCancelOpen(true)}
+                  className="text-[color:var(--severity-critical)]"
+                >
+                  Cancelar NC
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -484,6 +540,38 @@ export function NCDetailPage() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar {nc.codigo}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Nada é apagado — a NC fica marcada como cancelada e permanece no histórico. O
+              motivo é obrigatório e fica registrado na trilha de auditoria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            placeholder="Descreva o motivo do cancelamento…"
+            rows={3}
+            className="rounded-lg"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCancelReason("")}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!cancelReason.trim() || cancelNC.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmCancel();
+              }}
+              className="bg-[color:var(--severity-critical)] text-white hover:bg-[color:var(--severity-critical)]/90"
+            >
+              Confirmar cancelamento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
