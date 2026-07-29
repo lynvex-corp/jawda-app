@@ -1,4 +1,5 @@
 import { Search, ChevronDown, LogOut, User } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,31 +14,65 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { empresas } from "@/lib/mock-data";
+import { useAuth } from "@/hooks/use-auth";
+
+const CARGO_POR_PAPEL: Record<string, string> = {
+  admin: "Administrador do Cliente",
+  quality_manager: "Gerente da Qualidade",
+  auditor: "Auditor",
+  area_manager: "Gestor de Área",
+  collaborator: "Colaborador",
+  viewer: "Somente Leitura",
+};
+
+function iniciais(nome: string): string {
+  const partes = nome.trim().split(/\s+/);
+  const primeiras = partes.length > 1 ? [partes[0], partes[partes.length - 1]] : [partes[0]];
+  return primeiras.map((p) => p[0]?.toUpperCase() ?? "").join("");
+}
 
 export function Topbar() {
+  const navigate = useNavigate();
+  const { profile, currentOrg, organizations, signOut, switchOrganization } = useAuth();
+
+  const nome = profile?.full_name ?? "…";
+  const cargo = currentOrg ? (CARGO_POR_PAPEL[currentOrg.role] ?? currentOrg.role) : "";
+
+  async function handleLogout() {
+    await signOut();
+    navigate({ to: "/login" });
+  }
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md md:px-6">
       <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="hidden h-9 gap-2 rounded-lg px-3 text-sm font-medium text-foreground hover:bg-brand-soft/60 md:inline-flex"
-          >
-            {empresas[0].nome}
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-72">
-          <DropdownMenuLabel>Trocar empresa / filial</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {empresas.map((e) => (
-            <DropdownMenuItem key={e.id}>{e.nome}</DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {organizations.length > 1 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="hidden h-9 gap-2 rounded-lg px-3 text-sm font-medium text-foreground hover:bg-brand-soft/60 md:inline-flex"
+            >
+              {currentOrg?.trade_name || currentOrg?.legal_name || "Selecionar empresa"}
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-72">
+            <DropdownMenuLabel>Trocar empresa</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {organizations.map((org) => (
+              <DropdownMenuItem
+                key={org.org_id}
+                disabled={org.is_current}
+                onClick={() => switchOrganization(org.org_id)}
+              >
+                {org.trade_name || org.legal_name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       <div className="relative ml-auto hidden max-w-md flex-1 md:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -48,8 +83,8 @@ export function Topbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-1 md:ml-0">
-      <ThemeToggle />
-      <NotificationsDrawer />
+        <ThemeToggle />
+        <NotificationsDrawer />
       </div>
 
       <DropdownMenu>
@@ -57,14 +92,12 @@ export function Topbar() {
           <button className="flex items-center gap-2 rounded-lg p-1 pr-2 hover:bg-brand-soft/60">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-brand text-brand-foreground text-xs font-semibold">
-                AR
+                {profile ? iniciais(profile.full_name) : "…"}
               </AvatarFallback>
             </Avatar>
             <div className="hidden text-left md:block">
-              <div className="text-xs font-medium leading-tight">Ana Ribeiro</div>
-              <div className="text-[11px] text-muted-foreground leading-tight">
-                Gerente da Qualidade
-              </div>
+              <div className="text-xs font-medium leading-tight">{nome}</div>
+              <div className="text-[11px] text-muted-foreground leading-tight">{cargo}</div>
             </div>
           </button>
         </DropdownMenuTrigger>
@@ -73,7 +106,10 @@ export function Topbar() {
             <User className="mr-2 h-4 w-4" /> Meu perfil
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive focus:text-destructive">
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={handleLogout}
+          >
             <LogOut className="mr-2 h-4 w-4" /> Sair
           </DropdownMenuItem>
         </DropdownMenuContent>

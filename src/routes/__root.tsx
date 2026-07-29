@@ -3,6 +3,7 @@ import {
   Outlet,
   Link,
   createRootRouteWithContext,
+  redirect,
   useRouter,
   HeadContent,
   Scripts,
@@ -13,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "sonner";
 import { JawdaProvider } from "../lib/jawda-store";
+import { getAuthState } from "../lib/supabase-server";
 
 function NotFoundComponent() {
   return (
@@ -113,6 +115,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
+  beforeLoad: async ({ location }) => {
+    const authState = await getAuthState();
+    const isLoginRoute = location.pathname === "/login";
+
+    if (!authState.authenticated && !isLoginRoute) {
+      throw redirect({ to: "/login" });
+    }
+    if (authState.authenticated && isLoginRoute) {
+      throw redirect({ to: "/" });
+    }
+
+    return { authState };
+  },
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
