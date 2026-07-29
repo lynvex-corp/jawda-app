@@ -285,6 +285,26 @@ Presets de configuração por segmento (construção civil, indústria) para ace
 - **CSRF, XSS, SQL injection** — TanStack Start + Supabase mitigam por padrão. Nunca construir SQL na mão no cliente.
 - **Todas as chaves em variáveis de ambiente.** Nunca commitar `.env`.
 - **RLS ativo em toda tabela.** Uma tabela sem RLS é um vazamento esperando acontecer.
+- **Toda tabela nova exige GRANT explícito.** Este projeto está com
+  `auto_expose_new_tables` desligado (é o novo padrão do Supabase — ver
+  `supabase/config.toml`), então uma tabela criada por migração **não** fica
+  alcançável pela API sozinha, mesmo com RLS correta: sem `GRANT` a
+  PostgREST devolve "permission denied" antes de qualquer política ser
+  avaliada. RLS é a segunda trava, não a primeira. Toda migração que cria
+  tabela de negócio precisa terminar com:
+  - `grant select, insert, update on <tabela> to authenticated;` (sem
+    `delete` quando a política já bloqueia exclusão — ver seção 2, "Nada é
+    apagado")
+  - `grant all on <tabela> to service_role;` (Edge Functions e automação de
+    backend dependem disso; `service_role` já ignora RLS por convenção da
+    plataforma, mas só chega na tabela se o `GRANT` existir)
+  - Tabela sem uso pela API (ex.: contador interno de sequência) deve ligar
+    RLS sem nenhuma política — isso já nega acesso por padrão a
+    `authenticated`/`anon`/`service_role`, e só a função `SECURITY DEFINER`
+    dona da tabela consegue gravar nela.
+  Gap descoberto na ABA 4 (módulo de NC): as tabelas de fundação da ABA 3
+  também não tinham `GRANT` pra `service_role`, corrigido em
+  `supabase/migrations/20260729140600_foundation_service_role_grants.sql`.
 - **Rate limiting** nas Edge Functions críticas (autenticação, IA, exportação).
 
 ## 19. Padrão de trabalho com Claude Code

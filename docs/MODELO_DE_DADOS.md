@@ -152,12 +152,33 @@ create table contract_norms (
 
 ## Módulo Não Conformidades
 
+> **Atualizado na ABA 4** (migração de NC para dado real) para refletir o
+> schema efetivamente aplicado em `supabase/migrations/20260729140100_ncs_table.sql`,
+> que agora é a fonte da verdade — este desenho original previa 3 pontos
+> diferentes do que a UI já construída (`src/components/nao-conformidades/`)
+> exigia, e foi ajustado para não quebrar telas existentes:
+>
+> - **`status`** ganhou o valor `em_analise`. O desenho original tinha 5
+>   estados; a UI do Kanban distingue "Em Classificação" de "Em Análise" como
+>   duas colunas separadas (antes e depois da ferramenta de causa raiz — 5
+>   Porquês/Ishikawa), então faltava um estado pra cobrir isso.
+> - **`category`** trocou os 4 valores originais (estilo "natureza do
+>   desvio": `falha_qualidade`, `descumprimento_procedimento`, ...) pelas 5
+>   categorias por área que o wizard já oferece (`qualidade`, `seguranca`,
+>   `meio_ambiente`, `regulatorio`, `financeiro`). Nenhuma tela usava os
+>   valores originais. Campo também deixou de ser obrigatório, como já era
+>   nos dados mockados.
+> - **`local`** é campo novo, texto livre sem CHECK. A UI distingue "Local de
+>   ocorrência" (Produção/Administrativo/Serviço/...) de "Setor de
+>   Ocorrência" (`sector`, que já batia com o desenho original) — são dois
+>   campos diferentes na tela, e só um estava previsto aqui.
+
 ```sql
 create table ncs (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   unit_id uuid references units(id),
-  code text not null,                     -- NC_AI_001_2026
+  code text not null,                     -- NC_AI_001_2026 — gerado por trigger, nunca pelo client
   origin text not null check (origin in (
     'auditoria_interna','auditoria_externa','rotina_processo','documental',
     'reclamacao_cliente','analise_critica_direcao','incidente_acidente',
@@ -165,30 +186,33 @@ create table ncs (
   )),
   description text not null,
   severity text not null check (severity in ('baixa','media','alta','critica')),
-  category text not null check (category in (
-    'falha_qualidade','descumprimento_procedimento','descumprimento_norma','comprometimento_seguranca'
+  category text check (category in (
+    'qualidade','seguranca','meio_ambiente','regulatorio','financeiro'
   )),
   sector text check (sector in (
     'operacao','planejamento','projeto','comercial','pos_venda',
     'administrativo','financeiro','rh','qualidade'
   )),
-  responsible_id uuid references profiles(id),
+  local text,                              -- texto livre — ver nota acima
+  occurred_at timestamptz,                 -- data da ocorrência (etapa 1 do wizard)
+  responsible_id uuid references profiles(id) default auth.uid(),
   status text not null default 'aberto' check (status in (
-    'aberto','em_tratativa','aguardando_verificacao','encerrado','cancelado'
+    'aberto','em_analise','em_tratativa','aguardando_verificacao','encerrado','cancelado'
   )),
-  sla_deadline timestamptz not null,
-  is_recurrent boolean default false,
+  sla_deadline timestamptz not null,       -- calculado por trigger a partir da gravidade
+  is_recurrent boolean not null default false,
   previous_nc_id uuid references ncs(id),  -- vínculo NC-nova ↔ NC-antiga (reincidência)
-  swot_forwarded boolean default false,    -- se foi marcada como ameaça/fraqueza
-  ai_authored boolean default false,       -- foi preenchida pela IA?
-  ai_approved_by uuid references profiles(id),  -- quem aprovou (se foi da IA)
+  swot_forwarded boolean not null default false,  -- se foi marcada como ameaça/fraqueza
+  ai_authored boolean not null default false,     -- foi preenchida pela IA?
+  ai_approved_by uuid references profiles(id),    -- quem aprovou (se foi da IA)
   ai_approved_at timestamptz,
   cancelled_at timestamptz,
   cancelled_by uuid references profiles(id),
   cancel_reason text,
-  created_at timestamptz default now(),
-  created_by uuid not null references profiles(id),
-  unique(org_id, code)
+  created_at timestamptz not null default now(),
+  created_by uuid not null references profiles(id) default auth.uid(),
+  unique(org_id, code),
+  check (status <> 'cancelado' or cancel_reason is not null)
 );
 
 create index on ncs(org_id);
@@ -196,7 +220,11 @@ create index on ncs(org_id, status);
 create index on ncs(org_id, unit_id);
 ```
 
-Segue a mesma lógica para `action_plans`, `audits`, `indicators`, etc — o Claude Code vai criar essas tabelas na sprint de cada módulo.
+Segue a mesma lógica para `action_plans`, `audits`, `indicators`, etc — o Claude Code vai criar essas tabelas na sprint de cada módulo. Se a tela já
+construída exigir um campo ou enum diferente do desenhado aqui, o padrão é o
+mesmo desta seção: ajustar o schema pra bater com a UI real, documentar o
+desvio e atualizar este arquivo — nunca forçar a UI a se adequar a um
+desenho especulativo que não foi testado contra tela nenhuma.
 
 ## Trilha de auditoria (activity log)
 
