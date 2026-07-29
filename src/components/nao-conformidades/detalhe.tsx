@@ -45,8 +45,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { severityClasses, statusClasses, usuariosMock } from "@/lib/mock-data";
-import { mockPlanos, planoStatusClasses } from "@/lib/mock-data";
+import { planoStatusClasses } from "@/lib/mock-data";
 import { useCancelNC, useNC, useNCs } from "@/lib/queries/ncs";
+import { useActionPlanByNc, ACTION_PLAN_STATUS_LABEL } from "@/lib/queries/action-plans";
 import { cn } from "@/lib/utils";
 
 type StepStatus = "done" | "current" | "pending";
@@ -64,6 +65,7 @@ export function NCDetailPage() {
   const { id } = useParams({ from: "/nao-conformidades/$id" });
   const { data: nc, isLoading, isError } = useNC(id);
   const { data: allNCs = [] } = useNCs();
+  const { data: planoVinculadoData } = useActionPlanByNc(id);
   const cancelNC = useCancelNC();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
@@ -138,7 +140,8 @@ export function NCDetailPage() {
       responsavel: { nome: "Ana Ribeiro", iniciais: "AR" },
       resumo: (
         <>
-          Registrada via <strong>{nc.origem}</strong> no setor <strong>{nc.local}</strong>. Tipo: real, ação corretiva. 3 evidências anexadas.
+          Registrada via <strong>{nc.origem}</strong> no setor <strong>{nc.local}</strong>. Tipo:
+          real, ação corretiva. 3 evidências anexadas.
         </>
       ),
     },
@@ -146,11 +149,14 @@ export function NCDetailPage() {
       key: "class",
       title: "Classificação",
       status: "done",
-      date: format(new Date(criadoEm.getTime() + 3600_000 * 4), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }),
+      date: format(new Date(criadoEm.getTime() + 3600_000 * 4), "dd/MM/yyyy 'às' HH:mm", {
+        locale: ptBR,
+      }),
       responsavel: { nome: "Beatriz Souza", iniciais: "BS" },
       resumo: (
         <>
-          Gravidade <strong>{nc.gravidade}</strong>, categoria Qualidade. SLA definido conforme matriz corporativa.
+          Gravidade <strong>{nc.gravidade}</strong>, categoria Qualidade. SLA definido conforme
+          matriz corporativa.
         </>
       ),
     },
@@ -158,11 +164,14 @@ export function NCDetailPage() {
       key: "causa",
       title: "Análise de Causa",
       status: nc.status === "Em Análise" ? "current" : "done",
-      date: format(new Date(criadoEm.getTime() + 86400_000), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }),
+      date: format(new Date(criadoEm.getTime() + 86400_000), "dd/MM/yyyy 'às' HH:mm", {
+        locale: ptBR,
+      }),
       responsavel: { nome: "Carlos Mendes", iniciais: "CM" },
       resumo: (
         <>
-          Ferramenta: 5 Porquês. Causa raiz: <em>"Falha no processo de gestão da calibração de equipamentos de medição."</em>
+          Ferramenta: 5 Porquês. Causa raiz:{" "}
+          <em>"Falha no processo de gestão da calibração de equipamentos de medição."</em>
         </>
       ),
     },
@@ -175,11 +184,14 @@ export function NCDetailPage() {
           : ["Em Avaliação", "Encerrada"].includes(nc.status)
             ? "done"
             : "pending",
-      date: format(new Date(criadoEm.getTime() + 86400_000 * 2), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }),
+      date: format(new Date(criadoEm.getTime() + 86400_000 * 2), "dd/MM/yyyy 'às' HH:mm", {
+        locale: ptBR,
+      }),
       responsavel: { nome: "Diego Almeida", iniciais: "DA" },
       resumo: (
         <>
-          Contenção imediata + detalhamento da ação aprovados. Prazo: {format(prazo, "dd/MM/yyyy", { locale: ptBR })}.
+          Contenção imediata + detalhamento da ação aprovados. Prazo:{" "}
+          {format(prazo, "dd/MM/yyyy", { locale: ptBR })}.
         </>
       ),
     },
@@ -209,7 +221,8 @@ export function NCDetailPage() {
     ? allNCs.filter((n) => n.id !== nc.id && n.gravidade === nc.gravidade).slice(0, 3)
     : [];
 
-  const planoVinculado = mockPlanos.find((p) => p.vinculadoLink === nc.id);
+  const planoVinculado = planoVinculadoData?.plan ?? null;
+  const planoVinculadoPercentual = planoVinculadoData?.percentual ?? 0;
 
   return (
     <AppShell>
@@ -224,14 +237,23 @@ export function NCDetailPage() {
             </Button>
             <div className="flex flex-wrap items-center gap-3">
               <span className="font-mono text-base font-semibold text-brand">{nc.codigo}</span>
-              <Badge variant="outline" className={cn("rounded-md border text-xs", statusClasses(nc.status))}>
+              <Badge
+                variant="outline"
+                className={cn("rounded-md border text-xs", statusClasses(nc.status))}
+              >
                 {nc.status}
               </Badge>
-              <Badge variant="outline" className={cn("rounded-md border text-xs", severityClasses(nc.gravidade))}>
+              <Badge
+                variant="outline"
+                className={cn("rounded-md border text-xs", severityClasses(nc.gravidade))}
+              >
                 Gravidade {nc.gravidade}
               </Badge>
               {nc.reincidente && (
-                <Badge variant="outline" className="gap-1 rounded-md border-[color:var(--severity-high)]/30 bg-[color:var(--severity-high)]/10 text-[color:var(--severity-high)]">
+                <Badge
+                  variant="outline"
+                  className="gap-1 rounded-md border-[color:var(--severity-high)]/30 bg-[color:var(--severity-high)]/10 text-[color:var(--severity-high)]"
+                >
                   <RefreshCcw className="h-3 w-3" /> Reincidente
                 </Badge>
               )}
@@ -273,14 +295,18 @@ export function NCDetailPage() {
             <Card className="rounded-xl border-border/80 shadow-sm">
               <CardContent className="space-y-4 p-6">
                 <div>
-                  <h1 className="text-lg font-semibold text-foreground">Descrição da Não Conformidade</h1>
+                  <h1 className="text-lg font-semibold text-foreground">
+                    Descrição da Não Conformidade
+                  </h1>
                   <p className="mt-2 text-sm leading-relaxed text-foreground/80">{nc.descricao}</p>
                 </div>
                 <Separator />
                 <div className="flex items-start gap-3 rounded-lg border border-brand/20 bg-brand-soft/40 p-3">
                   <Sparkles className="mt-0.5 h-4 w-4 text-brand" />
                   <div className="text-xs text-foreground/80">
-                    <span className="font-semibold text-brand">Insight da IA:</span> padrão de reincidência identificado em NCs relacionadas a calibração — considere revisar o cronograma preventivo.
+                    <span className="font-semibold text-brand">Insight da IA:</span> padrão de
+                    reincidência identificado em NCs relacionadas a calibração — considere revisar o
+                    cronograma preventivo.
                   </div>
                 </div>
               </CardContent>
@@ -290,7 +316,9 @@ export function NCDetailPage() {
               <CardContent className="space-y-1 p-6">
                 <div className="mb-4">
                   <h2 className="text-base font-semibold text-foreground">Trilha de Auditoria</h2>
-                  <p className="text-xs text-muted-foreground">Histórico completo das etapas do fluxo.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Histórico completo das etapas do fluxo.
+                  </p>
                 </div>
                 <div className="relative pl-8">
                   <div className="absolute left-3 top-2 bottom-2 w-px bg-border" />
@@ -303,9 +331,12 @@ export function NCDetailPage() {
                           <div
                             className={cn(
                               "absolute -left-8 top-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2",
-                              isDone && "border-[color:var(--success)] bg-[color:var(--success)] text-white",
+                              isDone &&
+                                "border-[color:var(--success)] bg-[color:var(--success)] text-white",
                               isCurrent && "border-brand bg-brand-soft text-brand animate-pulse",
-                              !isDone && !isCurrent && "border-border bg-muted text-muted-foreground",
+                              !isDone &&
+                                !isCurrent &&
+                                "border-border bg-muted text-muted-foreground",
                             )}
                           >
                             {isDone ? (
@@ -318,11 +349,19 @@ export function NCDetailPage() {
                           </div>
                           <div className="space-y-1.5">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className={cn("text-sm font-semibold", !isDone && !isCurrent && "text-muted-foreground")}>
+                              <span
+                                className={cn(
+                                  "text-sm font-semibold",
+                                  !isDone && !isCurrent && "text-muted-foreground",
+                                )}
+                              >
                                 {s.title}
                               </span>
                               {isCurrent && (
-                                <Badge variant="outline" className="rounded-md border-brand/30 bg-brand-soft text-[10px] text-brand">
+                                <Badge
+                                  variant="outline"
+                                  className="rounded-md border-brand/30 bg-brand-soft text-[10px] text-brand"
+                                >
                                   Em andamento
                                 </Badge>
                               )}
@@ -331,7 +370,14 @@ export function NCDetailPage() {
                               )}
                             </div>
                             {s.resumo && (
-                              <p className={cn("text-xs leading-relaxed", isDone || isCurrent ? "text-foreground/80" : "text-muted-foreground")}>
+                              <p
+                                className={cn(
+                                  "text-xs leading-relaxed",
+                                  isDone || isCurrent
+                                    ? "text-foreground/80"
+                                    : "text-muted-foreground",
+                                )}
+                              >
                                 {s.resumo}
                               </p>
                             )}
@@ -362,25 +408,46 @@ export function NCDetailPage() {
                 <CardContent className="space-y-3 p-5">
                   <div className="flex items-center gap-2">
                     <ListChecks className="h-4 w-4 text-brand" />
-                    <h3 className="text-sm font-semibold text-foreground">Plano de Ação Vinculado</h3>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Plano de Ação Vinculado
+                    </h3>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-semibold text-brand">{planoVinculado.codigo}</span>
-                    <Badge variant="outline" className={cn("rounded-md border text-[10px]", planoStatusClasses[planoVinculado.status].badge)}>
-                      {planoVinculado.status}
+                    <span className="font-mono text-xs font-semibold text-brand">
+                      {planoVinculado.code}
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "rounded-md border text-[10px]",
+                        planoStatusClasses[ACTION_PLAN_STATUS_LABEL[planoVinculado.status]].badge,
+                      )}
+                    >
+                      {ACTION_PLAN_STATUS_LABEL[planoVinculado.status]}
                     </Badge>
                   </div>
-                  <p className="line-clamp-2 text-xs text-foreground/80">{planoVinculado.descricao}</p>
+                  <p className="line-clamp-2 text-xs text-foreground/80">
+                    {planoVinculado.problem_description}
+                  </p>
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>Progresso</span>
-                      <span className="font-medium text-foreground">{planoVinculado.percentual}%</span>
+                      <span className="font-medium text-foreground">
+                        {planoVinculadoPercentual}%
+                      </span>
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                      <div className="h-full bg-brand transition-all" style={{ width: `${planoVinculado.percentual}%` }} />
+                      <div
+                        className="h-full bg-brand transition-all"
+                        style={{ width: `${planoVinculadoPercentual}%` }}
+                      />
                     </div>
                   </div>
-                  <Button asChild size="sm" className="w-full gap-1 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="w-full gap-1 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
+                  >
                     <Link to="/planos-de-acao/$id" params={{ id: planoVinculado.id }}>
                       Ver Plano Completo <ChevronRight className="h-3.5 w-3.5" />
                     </Link>
@@ -396,15 +463,20 @@ export function NCDetailPage() {
                     <h3 className="text-sm font-semibold text-foreground">Plano de Ação</h3>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Nenhum plano vinculado. Ao criar, a origem e a causa raiz desta NC já vão preenchidas
-                    direto na etapa de detalhamento da ação.
+                    Nenhum plano vinculado. Ao criar, a origem e a causa raiz desta NC já vão
+                    preenchidas direto na etapa de detalhamento da ação.
                   </p>
-                  <Button asChild size="sm" className="w-full gap-1 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="w-full gap-1 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
+                  >
                     <Link
                       to="/planos-de-acao/novo"
                       search={{
                         origem: "Não Conformidade",
                         vinculado: nc.codigo,
+                        ncId: nc.id,
                         problema: nc.descricao,
                       }}
                     >
@@ -430,8 +502,12 @@ export function NCDetailPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="text-sm font-medium text-foreground">{responsavelExt.nome}</div>
-                        <div className="text-[10px] text-muted-foreground">{responsavelExt.cargo}</div>
+                        <div className="text-sm font-medium text-foreground">
+                          {responsavelExt.nome}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {responsavelExt.cargo}
+                        </div>
                       </div>
                     </dd>
                   </div>
@@ -440,17 +516,24 @@ export function NCDetailPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Prazo SLA</span>
-                    <span className="font-medium text-foreground">{format(prazo, "dd/MM/yyyy", { locale: ptBR })}</span>
+                    <span className="font-medium text-foreground">
+                      {format(prazo, "dd/MM/yyyy", { locale: ptBR })}
+                    </span>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                    <div className={cn("h-full transition-all", slaColor)} style={{ width: `${Math.min(progresso, 100)}%` }} />
+                    <div
+                      className={cn("h-full transition-all", slaColor)}
+                      style={{ width: `${Math.min(progresso, 100)}%` }}
+                    />
                   </div>
-                  <div className={cn(
-                    "text-[11px] font-medium",
-                    nc.slaStatus === "vencido" && "text-[color:var(--severity-critical)]",
-                    nc.slaStatus === "proximo" && "text-[color:var(--severity-high)]",
-                    nc.slaStatus === "ok" && "text-[color:var(--success)]",
-                  )}>
+                  <div
+                    className={cn(
+                      "text-[11px] font-medium",
+                      nc.slaStatus === "vencido" && "text-[color:var(--severity-critical)]",
+                      nc.slaStatus === "proximo" && "text-[color:var(--severity-high)]",
+                      nc.slaStatus === "ok" && "text-[color:var(--success)]",
+                    )}
+                  >
                     {slaLabel}
                   </div>
                 </div>
@@ -461,11 +544,16 @@ export function NCDetailPage() {
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-foreground">Evidências</h3>
-                  <span className="text-[10px] text-muted-foreground">{evidencias.length} arquivos</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {evidencias.length} arquivos
+                  </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {evidencias.map((ev, i) => (
-                    <div key={i} className="aspect-square overflow-hidden rounded-lg border border-border/70 bg-muted">
+                    <div
+                      key={i}
+                      className="aspect-square overflow-hidden rounded-lg border border-border/70 bg-muted"
+                    >
                       {ev.kind === "image" ? (
                         <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-brand-soft to-brand/20 text-brand">
                           <ImageIcon className="h-8 w-8" />
@@ -504,12 +592,22 @@ export function NCDetailPage() {
                         className="block rounded-lg border border-border/70 bg-card p-2.5 transition-colors hover:border-brand/40 hover:bg-brand-soft/30"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-mono text-[11px] font-semibold text-brand">{r.codigo}</span>
-                          <Badge variant="outline" className={cn("rounded-md border text-[9px]", severityClasses(r.gravidade))}>
+                          <span className="font-mono text-[11px] font-semibold text-brand">
+                            {r.codigo}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "rounded-md border text-[9px]",
+                              severityClasses(r.gravidade),
+                            )}
+                          >
                             {r.gravidade}
                           </Badge>
                         </div>
-                        <p className="mt-1 line-clamp-2 text-xs text-foreground/80">{r.descricao}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-foreground/80">
+                          {r.descricao}
+                        </p>
                       </Link>
                     ))}
                   </div>
@@ -546,8 +644,8 @@ export function NCDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar {nc.codigo}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Nada é apagado — a NC fica marcada como cancelada e permanece no histórico. O
-              motivo é obrigatório e fica registrado na trilha de auditoria.
+              Nada é apagado — a NC fica marcada como cancelada e permanece no histórico. O motivo é
+              obrigatório e fica registrado na trilha de auditoria.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea

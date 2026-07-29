@@ -23,7 +23,6 @@ import {
   MessageSquare,
   Users as UsersIcon,
   Eye,
-  MoreHorizontal,
 } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
@@ -51,7 +50,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import {
   Bar,
   BarChart,
@@ -67,26 +71,27 @@ import {
   Legend,
 } from "recharts";
 import { Link } from "@tanstack/react-router";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
   planoStatusClasses,
   pdcaClasses,
   planosPorMes,
   eficaciaTrimestral,
-  planoBaseDate,
-  type PlanoAcao,
   type PlanoStatus,
   type PlanoOrigemTipo,
 } from "@/lib/mock-data";
-import { useJawda } from "@/lib/jawda-store";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  useCorrectiveActions,
+  useOrgMembers,
+  useUpdateCorrectiveActionStatus,
+  useApproveNextAttempt,
+  mapCorrectiveActionToView,
+  VERIFICATION_REASON_LABEL,
+  REQUIRED_APPROVAL_ROLE_LABEL,
+  type CorrectiveActionView,
+} from "@/lib/queries/action-plans";
+import { EffectivenessDialog } from "@/components/planos-de-acao/effectiveness-dialog";
 
 const STATUSES: PlanoStatus[] = [
   "Planejado",
@@ -125,26 +130,40 @@ const origemIcon: Record<PlanoOrigemTipo, typeof AlertTriangle> = {
   "Análise Crítica": Target,
   "Reclamação de Cliente": MessageSquare,
   "Melhoria Contínua": Sparkles,
-  "Estratégia": Target,
+  Estratégia: Target,
 };
 
 const origemBadge: Record<PlanoOrigemTipo, string> = {
-  "Não Conformidade": "bg-[color:var(--severity-critical)]/10 text-[color:var(--severity-critical)] border-[color:var(--severity-critical)]/30",
+  "Não Conformidade":
+    "bg-[color:var(--severity-critical)]/10 text-[color:var(--severity-critical)] border-[color:var(--severity-critical)]/30",
   "Auditoria Interna": "bg-brand-soft text-brand border-brand/20",
-  "Auditoria Externa": "bg-[color:var(--chart-2)]/15 text-[color:var(--chart-2)] border-[color:var(--chart-2)]/30",
-  "Risco/Oportunidade": "bg-[color:var(--severity-high)]/15 text-[color:var(--severity-high)] border-[color:var(--severity-high)]/30",
-  "Análise Crítica": "bg-[color:var(--warning)]/20 text-[color:var(--severity-high)] border-[color:var(--warning)]/40",
-  "Reclamação de Cliente": "bg-[color:var(--chart-3)]/15 text-[color:var(--chart-3)] border-[color:var(--chart-3)]/30",
-  "Melhoria Contínua": "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
-  "Estratégia": "bg-brand-soft text-brand border-brand/20",
+  "Auditoria Externa":
+    "bg-[color:var(--chart-2)]/15 text-[color:var(--chart-2)] border-[color:var(--chart-2)]/30",
+  "Risco/Oportunidade":
+    "bg-[color:var(--severity-high)]/15 text-[color:var(--severity-high)] border-[color:var(--severity-high)]/30",
+  "Análise Crítica":
+    "bg-[color:var(--warning)]/20 text-[color:var(--severity-high)] border-[color:var(--warning)]/40",
+  "Reclamação de Cliente":
+    "bg-[color:var(--chart-3)]/15 text-[color:var(--chart-3)] border-[color:var(--chart-3)]/30",
+  "Melhoria Contínua":
+    "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
+  Estratégia: "bg-brand-soft text-brand border-brand/20",
 };
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
 }
 
 function formatBRL(v: number) {
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  return v.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  });
 }
 
 function daysBetween(a: string, b: string) {
@@ -175,7 +194,9 @@ function KpiCard({
     <Card className="rounded-xl border-border/80 shadow-sm">
       <CardContent className="flex items-start justify-between p-5">
         <div>
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            {label}
+          </div>
           <div className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{value}</div>
           {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
         </div>
@@ -190,7 +211,10 @@ function KpiCard({
 function OrigemBadge({ tipo }: { tipo: PlanoOrigemTipo }) {
   const Icon = origemIcon[tipo];
   return (
-    <Badge variant="outline" className={cn("gap-1 rounded-md border font-normal", origemBadge[tipo])}>
+    <Badge
+      variant="outline"
+      className={cn("gap-1 rounded-md border font-normal", origemBadge[tipo])}
+    >
       <Icon className="h-3 w-3" />
       {tipo}
     </Badge>
@@ -201,34 +225,69 @@ function KanbanCard({
   p,
   onDragStart,
   atrasado,
+  canApprove,
+  onApprove,
+  onVerify,
 }: {
-  p: PlanoAcao;
+  p: CorrectiveActionView;
   onDragStart: (id: string) => void;
   atrasado: boolean;
+  canApprove: boolean;
+  onApprove: () => void;
+  onVerify: () => void;
 }) {
+  const aguardandoAprovacao = p.statusDb === "aguardando_aprovacao";
+  const aguardandoVerificacao = p.statusDb === "aguardando_verificacao";
   return (
     <div
-      draggable
+      draggable={!aguardandoAprovacao}
       onDragStart={(e) => {
-        onDragStart(p.id);
+        if (aguardandoAprovacao) return;
+        onDragStart(p.actionId);
         e.dataTransfer.effectAllowed = "move";
       }}
       className={cn(
-        "cursor-grab rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-brand/40 hover:shadow-md active:cursor-grabbing",
-        atrasado ? "border-[color:var(--severity-critical)]/60 ring-1 ring-[color:var(--severity-critical)]/30" : "border-border/80",
+        "rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-brand/40 hover:shadow-md",
+        aguardandoAprovacao ? "cursor-default" : "cursor-grab active:cursor-grabbing",
+        atrasado
+          ? "border-[color:var(--severity-critical)]/60 ring-1 ring-[color:var(--severity-critical)]/30"
+          : "border-border/80",
       )}
     >
       <div className="flex items-center justify-between">
         <span className="font-mono text-[11px] font-semibold text-brand">{p.codigo}</span>
-        <Badge variant="outline" className={cn("rounded-md border px-1.5 text-[10px]", pdcaClasses[p.pdca])}>{p.pdca}</Badge>
+        <Badge
+          variant="outline"
+          className={cn("rounded-md border px-1.5 text-[10px]", pdcaClasses[p.pdca])}
+        >
+          {p.pdca}
+        </Badge>
       </div>
       <p className="mt-2 line-clamp-2 text-sm text-foreground">{p.descricao}</p>
       {atrasado && (
-        <div className="mt-1 text-[10px] font-semibold text-[color:var(--severity-critical)]">Prazo vencido</div>
+        <div className="mt-1 text-[10px] font-semibold text-[color:var(--severity-critical)]">
+          Prazo vencido
+        </div>
       )}
-      {p.eficaciaAprovadaPrimeira === false && (
+      {p.restartReason && (
         <div className="mt-1 inline-flex rounded border border-[color:var(--severity-critical)]/40 bg-[color:var(--severity-critical)]/10 px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--severity-critical)]">
-          Reprovado na 1ª avaliação
+          Nova tentativa · {VERIFICATION_REASON_LABEL[p.restartReason].slice(0, 40)}
+        </div>
+      )}
+      {aguardandoAprovacao && p.requiredApprovalRole && (
+        <div className="mt-2 rounded-lg border border-[color:var(--warning)]/40 bg-[color:var(--warning)]/10 p-2">
+          <div className="text-[10px] font-semibold text-[color:var(--severity-high)]">
+            Aguardando aprovação de {REQUIRED_APPROVAL_ROLE_LABEL[p.requiredApprovalRole]}
+          </div>
+          {canApprove && (
+            <Button
+              size="sm"
+              className="mt-1.5 h-6 w-full rounded-md bg-brand text-[10px] text-brand-foreground hover:bg-brand/90"
+              onClick={onApprove}
+            >
+              Aprovar próxima tentativa
+            </Button>
+          )}
         </div>
       )}
       <div className="mt-3">
@@ -241,15 +300,41 @@ function KanbanCard({
       <div className="mt-3 flex items-center justify-between">
         <OrigemBadge tipo={p.origemTipo} />
         <Avatar className="h-6 w-6">
-          <AvatarFallback className="bg-brand-soft text-brand text-[10px] font-semibold">{p.responsavel.iniciais}</AvatarFallback>
+          <AvatarFallback className="bg-brand-soft text-brand text-[10px] font-semibold">
+            {p.responsavel.iniciais}
+          </AvatarFallback>
         </Avatar>
       </div>
+      {aguardandoVerificacao && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-2 h-7 w-full rounded-md border-brand/40 text-[11px] text-brand hover:bg-brand-soft"
+          onClick={onVerify}
+        >
+          Verificar eficácia
+        </Button>
+      )}
     </div>
   );
 }
 
 export function PlanosDeAcaoPage() {
-  const { planosDeAcao: items, updatePlano, updatePlanoStatus } = useJawda();
+  const { data: rows = [], isLoading } = useCorrectiveActions();
+  const { data: orgMembers = [] } = useOrgMembers();
+  const { user, currentOrg } = useAuth();
+  const updateStatus = useUpdateCorrectiveActionStatus();
+  const approveNext = useApproveNextAttempt();
+
+  const roleByUserId = useMemo(
+    () => Object.fromEntries(orgMembers.map((m) => [m.id, m.role])),
+    [orgMembers],
+  );
+  const items = useMemo(
+    () => rows.map((r) => mapCorrectiveActionToView(r, roleByUserId)),
+    [rows, roleByUserId],
+  );
+
   const [busca, setBusca] = useState("");
   const [origem, setOrigem] = useState("all");
   const [status, setStatus] = useState("all");
@@ -258,48 +343,96 @@ export function PlanosDeAcaoPage() {
   const [periodo, setPeriodo] = useState("all");
   const [somenteAtrasados, setSomenteAtrasados] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [evalTarget, setEvalTarget] = useState<PlanoAcao | null>(null);
-  const [evalJustif, setEvalJustif] = useState("");
 
-  const isAtrasado = (p: PlanoAcao) =>
-    p.status !== "Concluído" && p.status !== "Cancelado" && new Date(p.prazo).getTime() < new Date(planoBaseDate).getTime();
+  // Ação alvo do modal de verificação de eficácia (componente compartilhado
+  // — ver src/components/planos-de-acao/effectiveness-dialog.tsx).
+  const [evalTarget, setEvalTarget] = useState<CorrectiveActionView | null>(null);
+
+  const hoje = new Date();
+
+  const isAtrasado = (p: CorrectiveActionView) =>
+    p.status !== "Concluído" &&
+    p.status !== "Cancelado" &&
+    new Date(p.prazo).getTime() < hoje.getTime();
+
+  function openEfficacyDialog(action: CorrectiveActionView) {
+    setEvalTarget(action);
+  }
+
+  function closeEfficacyDialog() {
+    setEvalTarget(null);
+  }
 
   const handleDrop = (target: PlanoStatus) => {
     if (!draggingId) return;
-    const plano = items.find((p) => p.id === draggingId);
+    const action = items.find((p) => p.actionId === draggingId);
     setDraggingId(null);
-    if (!plano || plano.status === target) return;
-    if (target === "Em Avaliação") {
-      updatePlanoStatus(plano.id, target);
-      setEvalTarget({ ...plano, status: target });
-      setEvalJustif("");
+    if (!action || action.status === target) return;
+
+    if (action.statusDb === "aguardando_aprovacao") {
+      toast.error(
+        "Esta ação está aguardando aprovação da tentativa anterior — aprove antes de mover.",
+      );
       return;
     }
-    updatePlanoStatus(plano.id, target);
-    toast.success(`${plano.codigo} movido para ${target}.`);
+
+    if (target === "Em Avaliação") {
+      if (action.statusDb !== "em_execucao" && action.statusDb !== "planejada") {
+        toast.error(
+          "Só é possível solicitar verificação de eficácia a partir de uma ação planejada ou em execução.",
+        );
+        return;
+      }
+      updateStatus.mutate(
+        { id: action.actionId, status: "aguardando_verificacao" },
+        {
+          onSuccess: (row) => openEfficacyDialog(mapCorrectiveActionToView(row, roleByUserId)),
+          onError: (err) =>
+            toast.error("Não foi possível mover a ação.", {
+              description: err instanceof Error ? err.message : undefined,
+            }),
+        },
+      );
+      return;
+    }
+
+    if (target === "Em Execução" && action.statusDb === "planejada") {
+      updateStatus.mutate(
+        { id: action.actionId, status: "em_execucao" },
+        { onSuccess: () => toast.success(`${action.codigo} movido para Em Execução.`) },
+      );
+      return;
+    }
+
+    if (target === "Concluído") {
+      toast.error(
+        'Conclusão só acontece pela verificação de eficácia — arraste para "Em Avaliação".',
+      );
+      return;
+    }
+
+    toast.error("Movimento não permitido neste fluxo.");
   };
 
-  const confirmarEficacia = (aprovado: boolean) => {
-    if (!evalTarget) return;
-    if (aprovado) {
-      updatePlano(evalTarget.id, {
-        eficaciaAprovadaPrimeira: true,
-        status: "Concluído",
-        percentual: 100,
-        concluidoNoPrazo: new Date(evalTarget.prazo).getTime() >= new Date(planoBaseDate).getTime(),
-      });
-      toast.success(`${evalTarget.codigo} aprovado — plano concluído.`);
-    } else {
-      updatePlano(evalTarget.id, {
-        eficaciaAprovadaPrimeira: false,
-        status: "Em Execução",
-      });
-      toast.warning(`${evalTarget.codigo} reprovado — retornou para Em Execução.`, {
-        description: evalJustif || "Sem justificativa informada.",
-      });
-    }
-    setEvalTarget(null);
-  };
+  function canApprove(action: CorrectiveActionView) {
+    if (!action.requiredApprovalRole || !currentOrg) return false;
+    if (currentOrg.role === "admin") return true;
+    return currentOrg.role === action.requiredApprovalRole;
+  }
+
+  function handleApprove(action: CorrectiveActionView) {
+    if (!user) return;
+    approveNext.mutate(
+      { id: action.actionId, approvedBy: user.id },
+      {
+        onSuccess: () => toast.success(`${action.codigo} aprovada — pode seguir para execução.`),
+        onError: (err) =>
+          toast.error("Não foi possível aprovar.", {
+            description: err instanceof Error ? err.message : undefined,
+          }),
+      },
+    );
+  }
 
   const responsaveis = useMemo(
     () => Array.from(new Set(items.map((i) => i.responsavel.nome))).sort(),
@@ -311,7 +444,7 @@ export function PlanosDeAcaoPage() {
   );
 
   const filtered = useMemo(() => {
-    const now = new Date(planoBaseDate).getTime();
+    const now = hoje.getTime();
     const maxAge = periodo === "all" ? Infinity : Number(periodo) * 86_400_000;
     const q = busca.trim().toLowerCase();
     return items.filter((p) => {
@@ -330,11 +463,14 @@ export function PlanosDeAcaoPage() {
   const kpis = useMemo(() => {
     const total = filtered.length;
     const emExecucao = filtered.filter((p) => p.status === "Em Execução").length;
-    const concluidosNoPrazo = filtered.filter((p) => p.status === "Concluído" && p.concluidoNoPrazo).length;
+    const concluidosNoPrazo = filtered.filter(
+      (p) => p.status === "Concluído" && p.concluidoNoPrazo,
+    ).length;
     const atrasados = filtered.filter((p) => p.status === "Atrasado").length;
     const avaliados = filtered.filter((p) => p.eficaciaAprovadaPrimeira !== null);
     const aprovados = avaliados.filter((p) => p.eficaciaAprovadaPrimeira === true).length;
-    const taxaEficacia = avaliados.length === 0 ? 0 : Math.round((aprovados / avaliados.length) * 100);
+    const taxaEficacia =
+      avaliados.length === 0 ? 0 : Math.round((aprovados / avaliados.length) * 100);
     const custo = filtered.reduce((s, p) => s + p.custo, 0);
     return { total, emExecucao, concluidosNoPrazo, atrasados, taxaEficacia, custo };
   }, [filtered]);
@@ -365,7 +501,11 @@ export function PlanosDeAcaoPage() {
     const map = new Map<string, { nome: string; iniciais: string; ativos: number }>();
     filtered.forEach((p) => {
       if (p.status === "Concluído" || p.status === "Cancelado") return;
-      const cur = map.get(p.responsavel.nome) ?? { nome: p.responsavel.nome, iniciais: p.responsavel.iniciais, ativos: 0 };
+      const cur = map.get(p.responsavel.nome) ?? {
+        nome: p.responsavel.nome,
+        iniciais: p.responsavel.iniciais,
+        ativos: 0,
+      };
       cur.ativos += 1;
       map.set(p.responsavel.nome, cur);
     });
@@ -374,7 +514,7 @@ export function PlanosDeAcaoPage() {
 
   // Aging de atrasados
   const aging = useMemo(() => {
-    const now = new Date(planoBaseDate);
+    const now = hoje;
     const buckets = [
       { faixa: "1–7 dias", min: 1, max: 7, fill: "oklch(0.75 0.18 45)" },
       { faixa: "8–15 dias", min: 8, max: 15, fill: "oklch(0.68 0.20 35)" },
@@ -404,7 +544,7 @@ export function PlanosDeAcaoPage() {
   // Gantt bounds
   const ganttBounds = useMemo(() => {
     if (filtered.length === 0) {
-      const now = new Date(planoBaseDate).getTime();
+      const now = hoje.getTime();
       return { min: now - 30 * 86400000, max: now + 30 * 86400000 };
     }
     const mins = filtered.map((p) => new Date(p.inicio).getTime());
@@ -416,7 +556,7 @@ export function PlanosDeAcaoPage() {
     const t = new Date(iso).getTime();
     return ((t - ganttBounds.min) / (ganttBounds.max - ganttBounds.min)) * 100;
   }
-  const hojePct = ((new Date(planoBaseDate).getTime() - ganttBounds.min) / (ganttBounds.max - ganttBounds.min)) * 100;
+  const hojePct = ((hoje.getTime() - ganttBounds.min) / (ganttBounds.max - ganttBounds.min)) * 100;
 
   const donutConfig: ChartConfig = Object.fromEntries(
     STATUSES.map((s) => [s, { label: s, color: planoStatusClasses[s].fill }]),
@@ -430,7 +570,19 @@ export function PlanosDeAcaoPage() {
   };
   const eficaciaConfig: ChartConfig = { taxa: { label: "Eficácia %", color: "var(--brand)" } };
   const rankingConfig: ChartConfig = { ativos: { label: "Planos ativos", color: "var(--brand)" } };
-  const agingConfig: ChartConfig = { total: { label: "Planos", color: "var(--severity-critical)" } };
+  const agingConfig: ChartConfig = {
+    total: { label: "Planos", color: "var(--severity-critical)" },
+  };
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-24 text-sm text-muted-foreground">
+          Carregando planos de ação…
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -439,20 +591,30 @@ export function PlanosDeAcaoPage() {
           {/* Header */}
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">Planos de Ação</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                Planos de Ação
+              </h1>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Acompanhe a execução, o prazo e a eficácia de todas as ações corretivas, preventivas e de melhoria da organização.
+                Acompanhe a execução, o prazo e a eficácia de todas as ações corretivas, preventivas
+                e de melhoria da organização.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button asChild variant="outline" className="rounded-lg border-brand/30 text-brand hover:bg-brand-soft">
+              <Button
+                asChild
+                variant="outline"
+                className="rounded-lg border-brand/30 text-brand hover:bg-brand-soft"
+              >
                 <Link to="/planos-de-acao/novo">
-                <FilePlus2 className="mr-1 h-4 w-4" /> Plano em branco (avulso)
+                  <FilePlus2 className="mr-1 h-4 w-4" /> Plano em branco (avulso)
                 </Link>
               </Button>
-              <Button asChild className="rounded-lg bg-brand text-brand-foreground hover:bg-brand/90">
+              <Button
+                asChild
+                className="rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
+              >
                 <Link to="/planos-de-acao/novo">
-                <Plus className="mr-1 h-4 w-4" /> Novo Plano de Ação
+                  <Plus className="mr-1 h-4 w-4" /> Novo Plano de Ação
                 </Link>
               </Button>
             </div>
@@ -462,10 +624,32 @@ export function PlanosDeAcaoPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <KpiCard icon={ListChecks} label="Total no período" value={kpis.total} tone="default" />
             <KpiCard icon={Activity} label="Em execução" value={kpis.emExecucao} tone="info" />
-            <KpiCard icon={CheckCircle2} label="Concluídos no prazo" value={kpis.concluidosNoPrazo} tone="success" />
-            <KpiCard icon={AlertOctagon} label="Atrasados" value={kpis.atrasados} hint="Requer ação imediata" tone="danger" />
-            <KpiCard icon={Target} label="Taxa de eficácia" value={`${kpis.taxaEficacia}%`} hint="Aprovados na 1ª avaliação" tone="info" />
-            <KpiCard icon={DollarSign} label="Custo estimado" value={formatBRL(kpis.custo)} tone="warning" />
+            <KpiCard
+              icon={CheckCircle2}
+              label="Concluídos no prazo"
+              value={kpis.concluidosNoPrazo}
+              tone="success"
+            />
+            <KpiCard
+              icon={AlertOctagon}
+              label="Atrasados"
+              value={kpis.atrasados}
+              hint="Requer ação imediata"
+              tone="danger"
+            />
+            <KpiCard
+              icon={Target}
+              label="Taxa de eficácia"
+              value={`${kpis.taxaEficacia}%`}
+              hint="Aprovados na 1ª avaliação"
+              tone="info"
+            />
+            <KpiCard
+              icon={DollarSign}
+              label="Custo estimado"
+              value={formatBRL(kpis.custo)}
+              tone="warning"
+            />
           </div>
 
           {/* Gráficos — 2x3 */}
@@ -480,7 +664,15 @@ export function PlanosDeAcaoPage() {
                 <ChartContainer config={donutConfig} className="h-[280px] w-full">
                   <PieChart>
                     <ChartTooltip content={<ChartTooltipContent nameKey="status" />} />
-                    <Pie data={porStatus} dataKey="total" nameKey="status" innerRadius={55} outerRadius={95} paddingAngle={2} stroke="var(--card)">
+                    <Pie
+                      data={porStatus}
+                      dataKey="total"
+                      nameKey="status"
+                      innerRadius={55}
+                      outerRadius={95}
+                      paddingAngle={2}
+                      stroke="var(--card)"
+                    >
                       {porStatus.map((s) => (
                         <Cell key={s.status} fill={s.fill} />
                       ))}
@@ -500,9 +692,20 @@ export function PlanosDeAcaoPage() {
               <CardContent>
                 <ChartContainer config={barOrigemConfig} className="h-[280px] w-full">
                   <BarChart data={porOrigem} layout="vertical" margin={{ left: 8, right: 16 }}>
-                    <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="var(--border)" />
+                    <CartesianGrid
+                      horizontal={false}
+                      strokeDasharray="3 3"
+                      stroke="var(--border)"
+                    />
                     <XAxis type="number" tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="origem" tickLine={false} axisLine={false} width={140} style={{ fontSize: 11 }} />
+                    <YAxis
+                      type="category"
+                      dataKey="origem"
+                      tickLine={false}
+                      axisLine={false}
+                      width={140}
+                      style={{ fontSize: 11 }}
+                    />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar dataKey="total" fill="var(--color-total)" radius={[0, 6, 6, 0]} />
                   </BarChart>
@@ -513,7 +716,9 @@ export function PlanosDeAcaoPage() {
             {/* Combined bars + line */}
             <Card className="rounded-xl border-border/80 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold">Abertos x concluídos — 12 meses</CardTitle>
+                <CardTitle className="text-base font-semibold">
+                  Abertos x concluídos — 12 meses
+                </CardTitle>
                 <CardDescription>Com tendência de tempo médio de conclusão (dias)</CardDescription>
               </CardHeader>
               <CardContent>
@@ -522,11 +727,34 @@ export function PlanosDeAcaoPage() {
                     <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="mes" tickLine={false} axisLine={false} tickMargin={6} />
                     <YAxis yAxisId="left" tickLine={false} axisLine={false} width={30} />
-                    <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} width={30} />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tickLine={false}
+                      axisLine={false}
+                      width={30}
+                    />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar yAxisId="left" dataKey="abertos" fill="var(--color-abertos)" radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="left" dataKey="concluidos" fill="var(--color-concluidos)" radius={[4, 4, 0, 0]} />
-                    <Line yAxisId="right" type="monotone" dataKey="tempoMedio" stroke="var(--color-tempoMedio)" strokeWidth={2.5} dot={{ r: 3 }} />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="abertos"
+                      fill="var(--color-abertos)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="concluidos"
+                      fill="var(--color-concluidos)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="tempoMedio"
+                      stroke="var(--color-tempoMedio)"
+                      strokeWidth={2.5}
+                      dot={{ r: 3 }}
+                    />
                   </ComposedChart>
                 </ChartContainer>
               </CardContent>
@@ -535,17 +763,33 @@ export function PlanosDeAcaoPage() {
             {/* Eficácia trimestral */}
             <Card className="rounded-xl border-border/80 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold">Evolução da taxa de eficácia</CardTitle>
-                <CardDescription>% de planos aprovados na 1ª avaliação — trimestral</CardDescription>
+                <CardTitle className="text-base font-semibold">
+                  Evolução da taxa de eficácia
+                </CardTitle>
+                <CardDescription>
+                  % de planos aprovados na 1ª avaliação — trimestral
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={eficaciaConfig} className="h-[280px] w-full">
                   <LineChart data={eficaciaTrimestral}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="trimestre" tickLine={false} axisLine={false} tickMargin={6} />
-                    <YAxis domain={[0, 100]} tickLine={false} axisLine={false} width={35} tickFormatter={(v) => `${v}%`} />
+                    <YAxis
+                      domain={[0, 100]}
+                      tickLine={false}
+                      axisLine={false}
+                      width={35}
+                      tickFormatter={(v) => `${v}%`}
+                    />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Line type="monotone" dataKey="taxa" stroke="var(--color-taxa)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--brand)" }} />
+                    <Line
+                      type="monotone"
+                      dataKey="taxa"
+                      stroke="var(--color-taxa)"
+                      strokeWidth={2.5}
+                      dot={{ r: 4, fill: "var(--brand)" }}
+                    />
                   </LineChart>
                 </ChartContainer>
               </CardContent>
@@ -562,9 +806,20 @@ export function PlanosDeAcaoPage() {
               <CardContent>
                 <ChartContainer config={rankingConfig} className="h-[280px] w-full">
                   <BarChart data={ranking} layout="vertical" margin={{ left: 8, right: 16 }}>
-                    <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="var(--border)" />
+                    <CartesianGrid
+                      horizontal={false}
+                      strokeDasharray="3 3"
+                      stroke="var(--border)"
+                    />
                     <XAxis type="number" tickLine={false} axisLine={false} allowDecimals={false} />
-                    <YAxis type="category" dataKey="nome" tickLine={false} axisLine={false} width={120} style={{ fontSize: 11 }} />
+                    <YAxis
+                      type="category"
+                      dataKey="nome"
+                      tickLine={false}
+                      axisLine={false}
+                      width={120}
+                      style={{ fontSize: 11 }}
+                    />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar dataKey="ativos" fill="var(--color-ativos)" radius={[0, 6, 6, 0]} />
                   </BarChart>
@@ -576,7 +831,8 @@ export function PlanosDeAcaoPage() {
             <Card className="rounded-xl border-border/80 shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <AlertOctagon className="h-4 w-4 text-[color:var(--severity-critical)]" /> Aging de atrasos
+                  <AlertOctagon className="h-4 w-4 text-[color:var(--severity-critical)]" /> Aging
+                  de atrasos
                 </CardTitle>
                 <CardDescription>Planos atrasados por faixa de dias em atraso</CardDescription>
               </CardHeader>
@@ -584,7 +840,13 @@ export function PlanosDeAcaoPage() {
                 <ChartContainer config={agingConfig} className="h-[280px] w-full">
                   <BarChart data={aging}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="faixa" tickLine={false} axisLine={false} tickMargin={6} style={{ fontSize: 11 }} />
+                    <XAxis
+                      dataKey="faixa"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={6}
+                      style={{ fontSize: 11 }}
+                    />
                     <YAxis tickLine={false} axisLine={false} width={30} allowDecimals={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar dataKey="total" radius={[6, 6, 0, 0]}>
@@ -605,7 +867,10 @@ export function PlanosDeAcaoPage() {
                 <ListFilter className="h-3.5 w-3.5" />
                 Filtros
                 {activeFilters > 0 && (
-                  <Badge variant="outline" className="ml-1 rounded-md border-brand/30 bg-brand-soft text-brand">
+                  <Badge
+                    variant="outline"
+                    className="ml-1 rounded-md border-brand/30 bg-brand-soft text-brand"
+                  >
                     {activeFilters} ativo{activeFilters > 1 ? "s" : ""}
                   </Badge>
                 )}
@@ -621,31 +886,55 @@ export function PlanosDeAcaoPage() {
                   />
                 </div>
                 <Select value={origem} onValueChange={setOrigem}>
-                  <SelectTrigger className="h-9 rounded-lg lg:col-span-2"><SelectValue placeholder="Origem" /></SelectTrigger>
+                  <SelectTrigger className="h-9 rounded-lg lg:col-span-2">
+                    <SelectValue placeholder="Origem" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas as origens</SelectItem>
-                    {ORIGENS.map((o) => (<SelectItem key={o} value={o}>{o}</SelectItem>))}
+                    {ORIGENS.map((o) => (
+                      <SelectItem key={o} value={o}>
+                        {o}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="h-9 rounded-lg lg:col-span-2"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectTrigger className="h-9 rounded-lg lg:col-span-2">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os status</SelectItem>
-                    {STATUSES.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                    {STATUSES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select value={responsavel} onValueChange={setResponsavel}>
-                  <SelectTrigger className="h-9 rounded-lg lg:col-span-2"><SelectValue placeholder="Responsável" /></SelectTrigger>
+                  <SelectTrigger className="h-9 rounded-lg lg:col-span-2">
+                    <SelectValue placeholder="Responsável" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    {responsaveis.map((r) => (<SelectItem key={r} value={r}>{r}</SelectItem>))}
+                    {responsaveis.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select value={departamento} onValueChange={setDepartamento}>
-                  <SelectTrigger className="h-9 rounded-lg lg:col-span-2"><SelectValue placeholder="Departamento" /></SelectTrigger>
+                  <SelectTrigger className="h-9 rounded-lg lg:col-span-2">
+                    <SelectValue placeholder="Departamento" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    {departamentos.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
+                    {departamentos.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select value={periodo} onValueChange={setPeriodo}>
@@ -654,12 +943,22 @@ export function PlanosDeAcaoPage() {
                     <SelectValue placeholder="Período" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PERIODOS.map((p) => (<SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>))}
+                    {PERIODOS.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 lg:col-span-12">
-                  <Switch id="atrasados" checked={somenteAtrasados} onCheckedChange={setSomenteAtrasados} />
-                  <Label htmlFor="atrasados" className="cursor-pointer text-sm">Somente atrasados</Label>
+                  <Switch
+                    id="atrasados"
+                    checked={somenteAtrasados}
+                    onCheckedChange={setSomenteAtrasados}
+                  />
+                  <Label htmlFor="atrasados" className="cursor-pointer text-sm">
+                    Somente atrasados
+                  </Label>
                   <span className="ml-auto text-xs text-muted-foreground">
                     Mostrando {filtered.length} de {items.length} planos
                   </span>
@@ -671,9 +970,15 @@ export function PlanosDeAcaoPage() {
           {/* Tabs de visualização */}
           <Tabs defaultValue="tabela" className="space-y-4">
             <TabsList className="rounded-lg bg-muted p-1">
-              <TabsTrigger value="tabela" className="gap-1.5 rounded-md"><TableIcon className="h-4 w-4" /> Tabela</TabsTrigger>
-              <TabsTrigger value="kanban" className="gap-1.5 rounded-md"><LayoutGrid className="h-4 w-4" /> Kanban</TabsTrigger>
-              <TabsTrigger value="gantt" className="gap-1.5 rounded-md"><GanttChart className="h-4 w-4" /> Linha do tempo</TabsTrigger>
+              <TabsTrigger value="tabela" className="gap-1.5 rounded-md">
+                <TableIcon className="h-4 w-4" /> Tabela
+              </TabsTrigger>
+              <TabsTrigger value="kanban" className="gap-1.5 rounded-md">
+                <LayoutGrid className="h-4 w-4" /> Kanban
+              </TabsTrigger>
+              <TabsTrigger value="gantt" className="gap-1.5 rounded-md">
+                <GanttChart className="h-4 w-4" /> Linha do tempo
+              </TabsTrigger>
             </TabsList>
 
             {/* Tabela */}
@@ -696,25 +1001,38 @@ export function PlanosDeAcaoPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                       {filtered.map((p) => (
-                         <TableRow
-                           key={p.id}
-                           className={cn(
-                             "border-border/60 transition-colors hover:bg-brand-soft/30",
-                             isAtrasado(p) && "border-l-2 border-l-[color:var(--severity-critical)] bg-[color:var(--severity-critical)]/5",
-                           )}
-                         >
-                          <TableCell className="pl-6 font-mono text-xs font-semibold text-brand">{p.codigo}</TableCell>
-                          <TableCell className="max-w-[320px] truncate text-sm">{p.motivo?.trim() || p.descricao}</TableCell>
-                          <TableCell><OrigemBadge tipo={p.origemTipo} /></TableCell>
+                      {filtered.map((p) => (
+                        <TableRow
+                          key={p.id}
+                          className={cn(
+                            "border-border/60 transition-colors hover:bg-brand-soft/30",
+                            isAtrasado(p) &&
+                              "border-l-2 border-l-[color:var(--severity-critical)] bg-[color:var(--severity-critical)]/5",
+                          )}
+                        >
+                          <TableCell className="pl-6 font-mono text-xs font-semibold text-brand">
+                            {p.codigo}
+                          </TableCell>
+                          <TableCell className="max-w-[320px] truncate text-sm">
+                            {p.motivo?.trim() || p.descricao}
+                          </TableCell>
+                          <TableCell>
+                            <OrigemBadge tipo={p.origemTipo} />
+                          </TableCell>
                           <TableCell>
                             {p.vinculadoCodigo ? (
                               p.vinculadoLink ? (
-                                <Link to="/nao-conformidades/$id" params={{ id: p.vinculadoLink }} className="font-mono text-xs font-medium text-brand hover:underline">
+                                <Link
+                                  to="/nao-conformidades/$id"
+                                  params={{ id: p.vinculadoLink }}
+                                  className="font-mono text-xs font-medium text-brand hover:underline"
+                                >
                                   {p.vinculadoCodigo}
                                 </Link>
                               ) : (
-                                <span className="font-mono text-xs font-medium text-brand">{p.vinculadoCodigo}</span>
+                                <span className="font-mono text-xs font-medium text-brand">
+                                  {p.vinculadoCodigo}
+                                </span>
                               )
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>
@@ -723,43 +1041,100 @@ export function PlanosDeAcaoPage() {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Avatar className="h-6 w-6">
-                                <AvatarFallback className="bg-brand-soft text-brand text-[10px] font-semibold">{p.responsavel.iniciais}</AvatarFallback>
+                                <AvatarFallback className="bg-brand-soft text-brand text-[10px] font-semibold">
+                                  {p.responsavel.iniciais}
+                                </AvatarFallback>
                               </Avatar>
                               <div className="leading-tight">
                                 <div className="text-sm">{p.responsavel.nome}</div>
-                                <div className="text-[10px] text-muted-foreground">{p.responsavel.departamento}</div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  {p.responsavel.departamento}
+                                </div>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={cn("rounded-md border font-normal", pdcaClasses[p.pdca])}>{p.pdca}</Badge>
+                            <Badge
+                              variant="outline"
+                              className={cn("rounded-md border font-normal", pdcaClasses[p.pdca])}
+                            >
+                              {p.pdca}
+                            </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{formatDate(p.prazo)}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatDate(p.prazo)}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Progress value={p.percentual} className="h-1.5 w-24 bg-muted [&>div]:bg-brand" />
-                              <span className="text-xs font-medium text-foreground">{p.percentual}%</span>
+                              <Progress
+                                value={p.percentual}
+                                className="h-1.5 w-24 bg-muted [&>div]:bg-brand"
+                              />
+                              <span className="text-xs font-medium text-foreground">
+                                {p.percentual}%
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={cn("rounded-md border font-normal", planoStatusClasses[p.status].badge)}>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "rounded-md border font-normal",
+                                planoStatusClasses[p.status].badge,
+                              )}
+                            >
                               {p.status}
                             </Badge>
+                            {p.statusDb === "aguardando_aprovacao" && p.requiredApprovalRole && (
+                              <div className="mt-1 text-[10px] text-muted-foreground">
+                                aguarda {REQUIRED_APPROVAL_ROLE_LABEL[p.requiredApprovalRole]}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="pr-6 text-right">
                             <div className="flex items-center justify-end gap-1">
-                              <Button asChild variant="ghost" size="sm" className="h-8 gap-1 text-brand hover:bg-brand-soft">
-                                <Link to="/planos-de-acao/$id" params={{ id: p.id }}>
+                              {p.statusDb === "aguardando_aprovacao" && canApprove(p) && (
+                                <Button
+                                  size="sm"
+                                  className="h-8 gap-1 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
+                                  onClick={() => handleApprove(p)}
+                                >
+                                  Aprovar
+                                </Button>
+                              )}
+                              {p.statusDb === "aguardando_verificacao" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 gap-1 rounded-lg border-brand/40 text-brand hover:bg-brand-soft"
+                                  onClick={() => openEfficacyDialog(p)}
+                                >
+                                  Verificar eficácia
+                                </Button>
+                              )}
+                              <Button
+                                asChild
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-1 text-brand hover:bg-brand-soft"
+                              >
+                                <Link to="/planos-de-acao/$id" params={{ id: p.planId }}>
                                   <Eye className="h-4 w-4" /> Ver
                                 </Link>
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                             </div>
                           </TableCell>
                         </TableRow>
                       ))}
                       {filtered.length === 0 && (
-                        <TableRow><TableCell colSpan={10} className="py-10 text-center text-sm text-muted-foreground">Nenhum plano encontrado com os filtros atuais.</TableCell></TableRow>
+                        <TableRow>
+                          <TableCell
+                            colSpan={10}
+                            className="py-10 text-center text-sm text-muted-foreground"
+                          >
+                            Nenhum plano encontrado com os filtros atuais.
+                          </TableCell>
+                        </TableRow>
                       )}
                     </TableBody>
                   </Table>
@@ -787,7 +1162,12 @@ export function PlanosDeAcaoPage() {
                           <span className={cn("h-2 w-2 rounded-full", planoStatusClasses[s].dot)} />
                           <span className="text-sm font-semibold text-foreground">{s}</span>
                         </div>
-                        <Badge variant="outline" className="rounded-md border-border bg-background text-[10px] text-muted-foreground">{cards.length}</Badge>
+                        <Badge
+                          variant="outline"
+                          className="rounded-md border-border bg-background text-[10px] text-muted-foreground"
+                        >
+                          {cards.length}
+                        </Badge>
                       </div>
                       <div className="space-y-2">
                         {cards.map((p) => (
@@ -796,9 +1176,16 @@ export function PlanosDeAcaoPage() {
                             p={p}
                             atrasado={isAtrasado(p)}
                             onDragStart={setDraggingId}
+                            canApprove={canApprove(p)}
+                            onApprove={() => handleApprove(p)}
+                            onVerify={() => openEfficacyDialog(p)}
                           />
                         ))}
-                        {cards.length === 0 && <div className="rounded-lg border border-dashed border-border/70 py-6 text-center text-xs text-muted-foreground">Sem planos nesta coluna</div>}
+                        {cards.length === 0 && (
+                          <div className="rounded-lg border border-dashed border-border/70 py-6 text-center text-xs text-muted-foreground">
+                            Sem planos nesta coluna
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -815,7 +1202,7 @@ export function PlanosDeAcaoPage() {
                     <div className="relative px-4">
                       <div className="flex justify-between">
                         <span>{formatDate(new Date(ganttBounds.min).toISOString())}</span>
-                        <span>Hoje: {formatDate(planoBaseDate)}</span>
+                        <span>Hoje: {formatDate(hoje.toISOString())}</span>
                         <span>{formatDate(new Date(ganttBounds.max).toISOString())}</span>
                       </div>
                     </div>
@@ -826,14 +1213,23 @@ export function PlanosDeAcaoPage() {
                       const right = Math.min(100, posPct(p.prazo));
                       const width = Math.max(1, right - left);
                       return (
-                        <div key={p.id} className="grid grid-cols-[280px_1fr] items-center py-3 hover:bg-brand-soft/20">
+                        <div
+                          key={p.id}
+                          className="grid grid-cols-[280px_1fr] items-center py-3 hover:bg-brand-soft/20"
+                        >
                           <div className="flex items-center gap-2 px-4">
-                            <span className="font-mono text-[11px] font-semibold text-brand">{p.codigo}</span>
+                            <span className="font-mono text-[11px] font-semibold text-brand">
+                              {p.codigo}
+                            </span>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span className="truncate text-xs text-foreground">{p.descricao}</span>
+                                <span className="truncate text-xs text-foreground">
+                                  {p.descricao}
+                                </span>
                               </TooltipTrigger>
-                              <TooltipContent side="right" className="max-w-xs">{p.descricao}</TooltipContent>
+                              <TooltipContent side="right" className="max-w-xs">
+                                {p.descricao}
+                              </TooltipContent>
                             </Tooltip>
                           </div>
                           <div className="relative h-8 px-4">
@@ -853,7 +1249,10 @@ export function PlanosDeAcaoPage() {
                             >
                               <div
                                 className="h-full rounded-md bg-white/30"
-                                style={{ width: `${100 - p.percentual}%`, marginLeft: `${p.percentual}%` }}
+                                style={{
+                                  width: `${100 - p.percentual}%`,
+                                  marginLeft: `${p.percentual}%`,
+                                }}
                               />
                             </div>
                             {/* Marcos */}
@@ -876,50 +1275,31 @@ export function PlanosDeAcaoPage() {
                     })}
                   </div>
                   <div className="flex items-center gap-4 border-t border-border/60 px-4 py-3 text-[11px] text-muted-foreground">
-                    <div className="flex items-center gap-1.5"><span className="h-3 w-3 rotate-45 border border-brand bg-card" /> Marco / milestone</div>
-                    <div className="flex items-center gap-1.5"><span className="h-3 w-px bg-[color:var(--severity-critical)]" /> Hoje</div>
-                    <div className="flex items-center gap-1.5">Barras coloridas pelo status · área clara = restante do plano</div>
-                    <span className="ml-auto flex items-center gap-1"><DollarSign className="h-3 w-3" /> Duração: {daysBetween(new Date(ganttBounds.max).toISOString(), new Date(ganttBounds.min).toISOString())} dias no eixo</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-3 w-3 rotate-45 border border-brand bg-card" /> Marco /
+                      milestone
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-3 w-px bg-[color:var(--severity-critical)]" /> Hoje
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      Barras coloridas pelo status · área clara = restante do plano
+                    </div>
+                    <span className="ml-auto flex items-center gap-1">
+                      <DollarSign className="h-3 w-3" /> Duração:{" "}
+                      {daysBetween(
+                        new Date(ganttBounds.max).toISOString(),
+                        new Date(ganttBounds.min).toISOString(),
+                      )}{" "}
+                      dias no eixo
+                    </span>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
         </div>
-        <Dialog open={!!evalTarget} onOpenChange={(o) => !o && setEvalTarget(null)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Verificação de Eficácia</DialogTitle>
-              <DialogDescription>
-                {evalTarget?.codigo} · {evalTarget?.descricao.slice(0, 90)}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3">
-              <Label className="text-xs">Justificativa / observações</Label>
-              <textarea
-                value={evalJustif}
-                onChange={(e) => setEvalJustif(e.target.value)}
-                className="min-h-[100px] w-full rounded-md border border-border bg-background p-2 text-sm"
-                placeholder="Descreva a evidência que sustenta a decisão…"
-              />
-            </div>
-            <DialogFooter className="gap-2 sm:justify-between">
-              <Button
-                variant="outline"
-                className="border-[color:var(--severity-critical)]/40 text-[color:var(--severity-critical)] hover:bg-[color:var(--severity-critical)]/10"
-                onClick={() => confirmarEficacia(false)}
-              >
-                Reprovar
-              </Button>
-              <Button
-                className="bg-[color:var(--success)] text-white hover:bg-[color:var(--success)]/90"
-                onClick={() => confirmarEficacia(true)}
-              >
-                Aprovar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <EffectivenessDialog action={evalTarget} onClose={closeEfficacyDialog} />
       </TooltipProvider>
     </AppShell>
   );

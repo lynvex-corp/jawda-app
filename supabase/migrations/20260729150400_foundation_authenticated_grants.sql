@@ -1,0 +1,21 @@
+-- Gap descoberto ao testar o fluxo de eficácia da ABA 5 num login real de
+-- ponta a ponta (browser, não SQL direto): a migração
+-- 20260729140600_foundation_service_role_grants.sql corrigiu o GRANT de
+-- service_role nas tabelas de fundação, mas deixou explícito no comentário
+-- que "authenticated/anon não são tocados... o acesso já foi desenhado via
+-- RPC". Essa premissa está desatualizada — o código já em produção acessa
+-- `profiles` direto por SELECT (src/hooks/use-auth.ts, e todo embed
+-- `profiles!fk(...)` usado por ncs/action_plans/action_plan_*), então sem
+-- GRANT toda sessão autenticada real recebia "permission denied" ao tentar
+-- carregar o próprio perfil — quebrando o login (não só o módulo desta
+-- aba). RLS já existe e já é suficiente (profiles_select_self_or_org_mate,
+-- profiles_insert_self, profiles_update_self, user_organizations_select_org
+-- — ver 20260729120100_foundation_rls.sql); faltava só o GRANT, mesmo
+-- mecanismo de auto_expose_new_tables desligado descrito na seção 18 do
+-- Guia de Arquitetura.
+--
+-- user_organizations só recebe select: nenhum código hoje escreve nela
+-- diretamente como authenticated (convite/ativação de usuário fica para uma
+-- aba futura de Usuários e Acessos).
+grant select, insert, update on profiles to authenticated;
+grant select on user_organizations to authenticated;
