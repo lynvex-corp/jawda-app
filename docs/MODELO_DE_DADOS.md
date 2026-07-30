@@ -369,6 +369,171 @@ create table action_plan_verifications (
 );
 ```
 
+## Módulo Auditorias
+
+> **Adicionado na ABA 6**. Fonte da verdade:
+> `supabase/migrations/20260729160000_audits_tables.sql` e as 3 migrações
+> seguintes (`..._rls.sql`, `..._triggers.sql`, `..._grants.sql`).
+
+Duas cascas com peso muito diferente sobre o mesmo cabeçalho `audits`
+(seção 10 do Guia de Arquitetura):
+
+- **Externa** = casca leve. A execução vive no sistema da certificadora —
+  aqui só ficam datas, auditores (`audit_auditors`), escopo, upload do
+  relatório (Storage) e o campo `event` (Certificação/Monitoração/
+  Recertificação). `event`/`external_certifier` só existem quando
+  `type='externa'` — trava por CHECK no banco, não só escondida na UI.
+- **Interna** = peso completo. Ganha `audit_plan_items` (agenda por dia),
+  `audit_checklist_items` (checklist por requisito), `audit_findings`
+  (apontamentos com gancho para NC/PA reais) e `audit_reports`. Um
+  trigger (`enforce_audit_child_requires_interna`) bloqueia INSERT nessas
+  4 tabelas se a auditoria pai não for `type='interna'` — mesma regra que
+  a UI já aplica escondendo as abas, replicada no banco.
+
+**Desvios em relação ao desenho especulativo original deste arquivo:**
+
+- **`norm` é coluna singular travada em `'iso_9001'`** (CHECK), não um
+  array `normas[]` como o protótipo (`src/lib/mock-data.ts`) tinha. A v1
+  libera só ISO 9001 (seção 9 do Guia); o formulário mostra as outras
+  normas como chips bloqueados com "Disponível apenas na opção
+  Personalizado" (fluxo que não existe ainda).
+- **As 5 tabelas filhas não têm `org_id`/`unit_id` denormalizado** —
+  diferente de `action_plan_corrective_actions`/`verifications` (ABA 5),
+  que denormalizavam `org_id`. Aqui todo filho pendura só em `audit_id`, e
+  o RLS filtra org/unidade via join contra `audits`
+  (`user_has_audit_access(audit_id)`, que reusa `user_has_unit_access`).
+  Seguro porque todo filho tem exatamente um pai com `on delete cascade`,
+  e nenhuma tabela é referenciada por mais de uma organização.
+- **Checklist semeado de um template estático em código**
+  (`src/lib/audit-checklist-template.ts`), não de uma tabela de
+  referência no banco — mesmo espírito de `normasDisponiveis`/
+  `locaisAuditaveis` em `mock-data.ts`: é conteúdo igual para toda
+  auditoria interna ISO 9001, não dado de uma organização. Uma auditoria
+  nova nasce sem linhas em `audit_checklist_items`; a tela semeia (upsert
+  idempotente, `ignoreDuplicates`) na primeira visita à aba Checklist.
+  `requirement_code` usa granularidade abaixo da cláusula ISO (ex.
+  `4.3.1`/`4.3.2` dentro de 4.3) para preservar os dois pontos de
+  verificação que o protótipo já tinha ali.
+- **`audit_findings` não duplica campos de tratativa** (correção, causa,
+  ação corretiva, evidências) como o protótipo fazia em memória — aquele
+  desenho criava um segundo sistema de "NC" desconectado do módulo de NC
+  de verdade. Aqui o finding é só o gancho: nasce `aberto`, vira
+  `em_tratativa` quando gera NC e/ou Plano de Ação reais (`generated_nc_id`/
+  `generated_action_plan_id`), e a tratativa de fato acontece nos módulos
+  de NC/Plano de Ação (ABA 4/5). Fechamento (`encerrado_eficaz`/
+  `encerrado_nao_eficaz`) é uma ação manual simples na tela do
+  apontamento.
+- **Código do apontamento é sequencial por auditoria** (`audit_id`, não
+  org/ano), formato `TIPO-SEQ` (ex. `NCM-01`) — contador dedicado
+  (`audit_finding_code_counters`), mesmo mecanismo UPSERT atômico dos
+  outros contadores.
+
+```sql
+create table audits (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade
+    default (auth.jwt() ->> 'org_id')::uuid,
+  unit_id uuid references units(id),
+  code text not null,                      -- AUD_[SEQ]_[ANO]
+  type text not null check (type in ('interna', 'externa')),
+  norm text not null default 'iso_9001' check (norm = 'iso_9001'),
+  scope text not null,
+  start_date date not null,
+  end_date date not null,
+  status text not null default 'programada'
+    check (status in ('programada', 'em_andamento', 'concluida', 'cancelada')),
+  lead_auditor_id uuid references profiles(id),
+  external_certifier text,
+  event text check (event in ('certificacao', 'monitoracao_12m', 'monitoracao_24m', 'recertificacao')),
+  created_at timestamptz not null default now(),
+  created_by uuid not null references profiles(id) default auth.uid(),
+  cancelled_at timestamptz,
+  cancelled_by uuid references profiles(id),
+  cancel_reason text,
+  unique (org_id, code),
+  check (end_date >= start_date),
+  check (status <> 'cancelada' or cancel_reason is not null),
+  check (
+    (type = 'externa' and event is not null and external_certifier is not null)
+    or (type = 'interna' and event is null)
+  )
+);
+
+create table audit_auditors (
+  audit_id uuid not null references audits(id) on delete cascade,
+  auditor_name text not null,
+  is_internal boolean not null default false,
+  user_id uuid references profiles(id),
+  primary key (audit_id, auditor_name)
+);
+
+create table audit_plan_items (
+  id uuid primary key default gen_random_uuid(),
+  audit_id uuid not null references audits(id) on delete cascade,
+  day_number int not null check (day_number > 0),
+  start_time time not null,
+  end_time time not null,
+  process text not null,
+  requirements text[] not null default '{}',
+  auditor_id uuid references profiles(id),
+  notes text,
+  check (end_time > start_time)
+);
+
+create table audit_checklist_items (
+  id uuid primary key default gen_random_uuid(),
+  audit_id uuid not null references audits(id) on delete cascade,
+  requirement_code text not null,
+  requirement_title text not null,
+  guidance text,
+  classification text check (classification in ('C', 'OPM', 'NCS', 'NCM', 'NCC')),
+  evidence_notes text,
+  evidence_files jsonb not null default '[]',
+  evaluated_at timestamptz,
+  evaluated_by uuid references profiles(id),
+  unique (audit_id, requirement_code)
+);
+
+create table audit_findings (
+  id uuid primary key default gen_random_uuid(),
+  audit_id uuid not null references audits(id) on delete cascade,
+  checklist_item_id uuid references audit_checklist_items(id),
+  code text not null,                      -- TIPO-SEQ, sequencial por audit_id
+  type text not null check (type in ('OPM', 'NCS', 'NCM', 'NCC')),
+  norm_requirement text,
+  description text not null,
+  severity_suggested text check (severity_suggested in ('baixa', 'media', 'alta', 'critica')),
+  generated_nc_id uuid references ncs(id),
+  generated_action_plan_id uuid references action_plans(id),
+  status text not null default 'aberto'
+    check (status in (
+      'aberto', 'em_tratativa', 'aguardando_verificacao',
+      'encerrado_eficaz', 'encerrado_nao_eficaz'
+    )),
+  created_at timestamptz not null default now(),
+  created_by uuid not null references profiles(id) default auth.uid(),
+  unique (audit_id, code)
+);
+
+create table audit_reports (
+  audit_id uuid primary key references audits(id) on delete cascade,
+  summary text,
+  positive_points text,
+  conclusion text,
+  recommendation text check (recommendation in ('manutencao_certificacao', 'reauditoria')),
+  exported_pdf_url text,
+  generated_at timestamptz,
+  generated_by uuid references profiles(id)
+);
+```
+
+Storage: bucket `evidencias` (criado na ABA 6 — nenhuma aba anterior
+tinha criado bucket nenhum, apesar do desenho original abaixo já prever
+um). Path `{org_id}/audits/{audit_id}/checklist/{checklist_item_id}/{filename}`
+para evidência de checklist, `{org_id}/audits/{audit_id}/report/{filename}`
+para o relatório da certificadora (auditoria externa, listado via
+`storage.list`, sem coluna própria no banco).
+
 ## Trilha de auditoria (activity log)
 
 ```sql

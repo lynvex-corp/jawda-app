@@ -33,15 +33,26 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  auditoriasKPIs,
-  auditoriaStatusClasses,
-  normasDisponiveis,
-  type Auditoria,
-} from "@/lib/mock-data";
-import { useJawda } from "@/lib/jawda-store";
+  AUDIT_EVENT_LABEL,
+  AUDIT_STATUS_LABEL,
+  AUDIT_TYPE_LABEL,
+  useAudits,
+  useAuditKpis,
+  useUpdateAuditStatus,
+  type AuditRow,
+  type AuditStatusDb,
+} from "@/lib/queries/audits";
 import { cn } from "@/lib/utils";
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+const STATUS_CLASSES: Record<AuditStatusDb, string> = {
+  programada: "bg-brand-soft text-brand border-brand/20",
+  em_andamento: "bg-brand text-white border-brand",
+  concluida:
+    "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
+  cancelada: "bg-muted text-muted-foreground border-border",
+};
 
 function KPI({
   label,
@@ -75,95 +86,92 @@ function KPI({
   );
 }
 
-function NormaChip({ n }: { n: string }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-brand/20 bg-brand-soft px-2 py-0.5 text-[10px] font-medium text-brand">
-      {n}
-    </span>
-  );
-}
-
-function ApontChip({ label, count, cls }: { label: string; count: number; cls: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold",
-        cls,
-      )}
-      title={label}
-    >
-      <span className="uppercase tracking-wide">{label}</span>
-      <span>{count}</span>
-    </span>
-  );
-}
-
-function AuditCard({ a }: { a: Auditoria }) {
+function AuditCard({ a }: { a: AuditRow }) {
   return (
     <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {a.tipo === "Interna" ? "Interna" : `Externa · ${a.certificadora}`}
+          {a.type === "interna" ? "Interna" : `Externa · ${a.external_certifier ?? "—"}`}
         </span>
-        <Badge
-          variant="outline"
-          className={cn("border text-[10px]", auditoriaStatusClasses[a.status])}
-        >
-          {a.status}
+        <Badge variant="outline" className={cn("border text-[10px]", STATUS_CLASSES[a.status])}>
+          {AUDIT_STATUS_LABEL[a.status]}
         </Badge>
       </div>
       <div className="mb-1.5 flex flex-wrap gap-1">
-        {a.normas.map((n) => (
-          <NormaChip key={n} n={n} />
-        ))}
+        <span className="inline-flex items-center rounded-full border border-brand/20 bg-brand-soft px-2 py-0.5 text-[10px] font-medium text-brand">
+          ISO 9001
+        </span>
       </div>
-      <div className="text-sm font-medium text-foreground">{a.evento}</div>
+      <div className="text-sm font-medium text-foreground">
+        {a.type === "externa" && a.event ? AUDIT_EVENT_LABEL[a.event] : a.code}
+      </div>
       <div className="mt-1 text-xs text-muted-foreground">
-        {new Date(a.dataInicio).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} ·{" "}
-        {a.auditorLider.nome}
+        {new Date(a.start_date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+        {a.lead_auditor ? ` · ${a.lead_auditor.full_name}` : ""}
       </div>
-      <div className="mt-1 truncate text-[11px] text-muted-foreground">{a.locais.join(", ")}</div>
+      <div className="mt-1 truncate text-[11px] text-muted-foreground">{a.scope}</div>
     </div>
   );
 }
 
 export function AuditoriasPage() {
   const navigate = useNavigate();
-  const { auditorias, updateAuditoriaStatus } = useJawda();
-  const [ano, setAno] = useState("2026");
+  const { data: audits = [] } = useAudits();
+  const { data: kpis } = useAuditKpis();
+  const updateStatus = useUpdateAuditStatus();
+  const [ano, setAno] = useState(String(new Date().getFullYear()));
   const [tipo, setTipo] = useState("all");
-  const [norma, setNorma] = useState("all");
   const [status, setStatus] = useState("all");
 
+  const anosDisponiveis = useMemo(() => {
+    const anos = new Set(audits.map((a) => new Date(a.start_date).getFullYear()));
+    anos.add(new Date().getFullYear());
+    return [...anos].sort((a, b) => b - a);
+  }, [audits]);
+
   const filtered = useMemo(() => {
-    return auditorias.filter((a) => {
-      if (tipo !== "all" && a.tipo !== tipo) return false;
-      if (norma !== "all" && !a.normas.includes(norma)) return false;
+    return audits.filter((a) => {
+      if (String(new Date(a.start_date).getFullYear()) !== ano) return false;
+      if (tipo !== "all" && a.type !== tipo) return false;
       if (status !== "all" && a.status !== status) return false;
       return true;
     });
-  }, [auditorias, tipo, norma, status]);
+  }, [audits, ano, tipo, status]);
 
   const liveKpis = useMemo(() => {
-    const total = auditorias.length;
+    const doAno = audits.filter((a) => String(new Date(a.start_date).getFullYear()) === ano);
     return {
-      totalAno: total || auditoriasKPIs.totalAno,
-      realizadas: auditorias.filter((a) => a.status === "Concluída").length || auditoriasKPIs.realizadas,
-      programadas: auditorias.filter((a) => a.status === "Programada").length,
-      emAndamento: auditorias.filter((a) => a.status === "Em andamento").length,
-      apontamentosAbertos: auditoriasKPIs.apontamentosAbertos,
-      taxaConformidade: auditoriasKPIs.taxaConformidade,
+      totalAno: doAno.length,
+      realizadas: doAno.filter((a) => a.status === "concluida").length,
+      programadas: doAno.filter((a) => a.status === "programada").length,
+      emAndamento: doAno.filter((a) => a.status === "em_andamento").length,
+      apontamentosAbertos: kpis?.apontamentosAbertos ?? 0,
+      taxaConformidade: kpis?.taxaConformidade ?? 0,
     };
-  }, [auditorias]);
+  }, [audits, ano, kpis]);
 
   const porMes = useMemo(() => {
-    const map = new Map<number, Auditoria[]>();
+    const map = new Map<number, AuditRow[]>();
     for (const a of filtered) {
-      if (!map.has(a.mesInicio)) map.set(a.mesInicio, []);
-      map.get(a.mesInicio)!.push(a);
+      const mes = new Date(a.start_date).getMonth() + 1;
+      if (!map.has(mes)) map.set(mes, []);
+      map.get(mes)!.push(a);
     }
     return map;
   }, [filtered]);
+
+  function iniciar(a: AuditRow) {
+    updateStatus.mutate(
+      { id: a.id, status: "em_andamento" },
+      { onSuccess: () => toast.success(`${a.code} iniciada.`) },
+    );
+  }
+  function concluir(a: AuditRow) {
+    updateStatus.mutate(
+      { id: a.id, status: "concluida" },
+      { onSuccess: () => toast.success(`${a.code} concluída.`) },
+    );
+  }
 
   return (
     <AppShell>
@@ -185,7 +193,6 @@ export function AuditoriasPage() {
           </Button>
         </header>
 
-        {/* KPIs */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           <KPI label="Auditorias no ano" value={liveKpis.totalAno} icon={CalendarDays} />
           <KPI label="Realizadas" value={liveKpis.realizadas} icon={CheckCircle2} tone="success" />
@@ -205,7 +212,6 @@ export function AuditoriasPage() {
           />
         </div>
 
-        {/* Filtros */}
         <Card className="rounded-xl">
           <CardContent className="flex flex-wrap items-center gap-3 p-4">
             <Select value={ano} onValueChange={setAno}>
@@ -213,8 +219,11 @@ export function AuditoriasPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="2026">2026</SelectItem>
-                <SelectItem value="2025">2025</SelectItem>
+                {anosDisponiveis.map((a) => (
+                  <SelectItem key={a} value={String(a)}>
+                    {a}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={tipo} onValueChange={setTipo}>
@@ -223,21 +232,8 @@ export function AuditoriasPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os tipos</SelectItem>
-                <SelectItem value="Interna">Interna</SelectItem>
-                <SelectItem value="Externa">Externa</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={norma} onValueChange={setNorma}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Norma" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as normas</SelectItem>
-                {normasDisponiveis.map((n) => (
-                  <SelectItem key={n} value={n}>
-                    {n}
-                  </SelectItem>
-                ))}
+                <SelectItem value="interna">Interna</SelectItem>
+                <SelectItem value="externa">Externa</SelectItem>
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={setStatus}>
@@ -246,16 +242,15 @@ export function AuditoriasPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="Programada">Programada</SelectItem>
-                <SelectItem value="Em andamento">Em andamento</SelectItem>
-                <SelectItem value="Concluída">Concluída</SelectItem>
-                <SelectItem value="Atrasada">Atrasada</SelectItem>
+                <SelectItem value="programada">Programada</SelectItem>
+                <SelectItem value="em_andamento">Em andamento</SelectItem>
+                <SelectItem value="concluida">Concluída</SelectItem>
+                <SelectItem value="cancelada">Cancelada</SelectItem>
               </SelectContent>
             </Select>
           </CardContent>
         </Card>
 
-        {/* Programa anual — timeline */}
         <Card className="rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
@@ -285,7 +280,6 @@ export function AuditoriasPage() {
           </CardContent>
         </Card>
 
-        {/* Tabs Timeline / Table */}
         <Tabs defaultValue="tabela">
           <TabsList>
             <TabsTrigger value="tabela">
@@ -305,11 +299,9 @@ export function AuditoriasPage() {
                     <TableRow>
                       <TableHead>Código</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead>Normas</TableHead>
                       <TableHead>Evento</TableHead>
                       <TableHead>Período</TableHead>
-                      <TableHead>Auditor Líder</TableHead>
-                      <TableHead>Apontamentos</TableHead>
+                      <TableHead>Líder</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -321,89 +313,61 @@ export function AuditoriasPage() {
                         className="cursor-pointer hover:bg-muted/40"
                         onClick={() => navigate({ to: "/auditorias/$id", params: { id: a.id } })}
                       >
-                        <TableCell className="font-mono text-xs">{a.codigo}</TableCell>
+                        <TableCell className="font-mono text-xs">{a.code}</TableCell>
                         <TableCell className="text-sm">
-                          {a.tipo === "Interna" ? (
-                            <span className="text-foreground">Interna</span>
+                          {a.type === "interna" ? (
+                            "Interna"
                           ) : (
                             <span>
                               Externa
                               <span className="ml-1 text-xs text-muted-foreground">
-                                · {a.certificadora}
+                                · {a.external_certifier}
                               </span>
                             </span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {a.normas.map((n) => (
-                              <NormaChip key={n} n={n} />
-                            ))}
-                          </div>
+                        <TableCell className="text-sm">
+                          {a.event ? AUDIT_EVENT_LABEL[a.event] : "—"}
                         </TableCell>
-                        <TableCell className="text-sm">{a.evento}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {new Date(a.dataInicio).toLocaleDateString("pt-BR")} —{" "}
-                          {new Date(a.dataFim).toLocaleDateString("pt-BR")}
+                          {new Date(a.start_date).toLocaleDateString("pt-BR")} —{" "}
+                          {new Date(a.end_date).toLocaleDateString("pt-BR")}
                         </TableCell>
-                        <TableCell className="text-sm">{a.auditorLider.nome}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            <ApontChip
-                              label="OPM"
-                              count={a.apontamentos.opm}
-                              cls="border-brand/30 bg-brand-soft text-brand"
-                            />
-                            <ApontChip
-                              label="NC Simples"
-                              count={a.apontamentos.ncSimples}
-                              cls="border-[color:var(--warning)]/40 bg-[color:var(--warning)]/15 text-[color:var(--severity-high)]"
-                            />
-                            <ApontChip
-                              label="NC Moderada"
-                              count={a.apontamentos.ncModerada}
-                              cls="border-[color:var(--severity-high)]/40 bg-[color:var(--severity-high)]/15 text-[color:var(--severity-high)]"
-                            />
-                            <ApontChip
-                              label="NC Crítica"
-                              count={a.apontamentos.ncCritica}
-                              cls="border-[color:var(--severity-critical)]/40 bg-[color:var(--severity-critical)]/15 text-[color:var(--severity-critical)]"
-                            />
-                          </div>
+                        <TableCell className="text-sm">
+                          {a.lead_auditor?.full_name ?? "—"}
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={cn("border text-xs", auditoriaStatusClasses[a.status])}
+                            className={cn("border text-xs", STATUS_CLASSES[a.status])}
                           >
-                            {a.status}
+                            {AUDIT_STATUS_LABEL[a.status]}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          {a.status === "Programada" && (
+                          {a.status === "programada" && (
                             <Button
                               size="sm"
                               variant="outline"
                               className="h-7 text-xs"
-                              onClick={() => {
-                                updateAuditoriaStatus(a.id, "Em andamento");
-                                toast.success(`${a.codigo} iniciada.`);
-                              }}
+                              onClick={() => iniciar(a)}
                             >
                               <Play className="mr-1 h-3 w-3" /> Iniciar
                             </Button>
                           )}
-                          {a.status === "Em andamento" && (
+                          {a.status === "em_andamento" && a.type === "externa" && (
                             <Button
                               size="sm"
                               className="h-7 bg-[color:var(--success)] text-white text-xs hover:bg-[color:var(--success)]/90"
-                              onClick={() => {
-                                updateAuditoriaStatus(a.id, "Concluída");
-                                toast.success(`${a.codigo} concluída.`);
-                              }}
+                              onClick={() => concluir(a)}
                             >
                               <CheckCircle2 className="mr-1 h-3 w-3" /> Concluir
                             </Button>
+                          )}
+                          {a.status === "em_andamento" && a.type === "interna" && (
+                            <span className="text-[11px] text-muted-foreground">
+                              Concluir via Relatório
+                            </span>
                           )}
                         </TableCell>
                       </TableRow>
