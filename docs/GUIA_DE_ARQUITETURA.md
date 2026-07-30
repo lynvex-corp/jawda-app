@@ -305,6 +305,47 @@ Presets de configuração por segmento (construção civil, indústria) para ace
   Gap descoberto na ABA 4 (módulo de NC): as tabelas de fundação da ABA 3
   também não tinham `GRANT` pra `service_role`, corrigido em
   `supabase/migrations/20260729140600_foundation_service_role_grants.sql`.
+  Gap descoberto na ABA 5 (módulo de Plano de Ação, testando login real em
+  navegador): `profiles`/`user_organizations` nunca tinham `GRANT` pra
+  `authenticated` — quebrava o carregamento do próprio perfil em **todo**
+  login, silenciosamente (RLS certa, só sem grant). Corrigido em
+  `20260729150400_foundation_authenticated_grants.sql`. Auditoria completa
+  de todas as tabelas do public depois disso, mais gaps encontrados
+  (`organizations`, `units`, `user_organizations` insert/update,
+  `user_units_access`, `internal_staff`, `internal_access_log`,
+  `nc_code_counters` sem `service_role`) corrigidos em
+  `20260729150500_grants_audit_fundacao.sql`.
+
+  **Checklist de GRANT — rodar antes de considerar qualquer tabela nova
+  pronta** (aplica tanto pra tabela de negócio quanto pra tabela de
+  fundação que uma aba futura decidir tocar):
+  1. Para cada `cmd` (`SELECT`/`INSERT`/`UPDATE`/`DELETE`) que tem pelo
+     menos uma política de RLS com `qual`/`with_check` diferente de
+     `false`, confirma que existe `GRANT` correspondente pra
+     `authenticated` — mesmo que hoje nenhum código do app ainda use esse
+     caminho (o objetivo é a política ficar utilizável, não é auditar o
+     código atual — foi exatamente por confiar "ninguém usa isso ainda"
+     que os gaps da ABA 4/5 passaram batido).
+  2. Nunca conceder um `cmd` que a política já bloqueia com `using (false)`
+     ou `with_check (false)` — grant não deve dar mais do que a RLS
+     pretende autorizar.
+  3. `grant all on <tabela> to service_role;` sempre, mesmo em tabela sem
+     nenhuma política (contador interno etc.) — é o único jeito de Edge
+     Function/automação de backend alcançar a tabela.
+  4. Depois de aplicar, roda esta consulta e confere que toda tabela do
+     public aparece com o grant esperado (nenhuma linha faltando pra
+     `authenticated` num `cmd` com política ativa, nenhuma tabela sem
+     `service_role` nenhum):
+     ```sql
+     select table_name, grantee, string_agg(privilege_type, ',' order by privilege_type) as privileges
+     from information_schema.role_table_grants
+     where table_schema = 'public' and grantee in ('authenticated','service_role')
+     group by table_name, grantee
+     order by table_name, grantee;
+     ```
+  5. Documenta o gap encontrado (se houver) direto no comentário da
+     migração de grant, igual os exemplos acima — próxima aba que ler a
+     migração entende o porquê sem precisar re-descobrir.
 - **Rate limiting** nas Edge Functions críticas (autenticação, IA, exportação).
 
 ## 19. Padrão de trabalho com Claude Code
