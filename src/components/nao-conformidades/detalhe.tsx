@@ -491,6 +491,21 @@ export function NCDetailPage() {
                 <h3 className="text-sm font-semibold text-foreground">Informações</h3>
                 <dl className="space-y-3 text-xs">
                   <InfoRow label="Origem" value={nc.origem} />
+                  {nc.indicatorCode && (
+                    <div>
+                      <dt className="text-muted-foreground">Indicador de origem</dt>
+                      <dd className="mt-1">
+                        <Link to="/indicadores/$id" params={{ id: nc.indicatorId! }}>
+                          <Badge
+                            variant="outline"
+                            className="rounded-md border-brand/20 bg-brand-soft text-[10px] text-brand hover:bg-brand-soft/70"
+                          >
+                            Origem: {nc.indicatorCode}
+                          </Badge>
+                        </Link>
+                      </dd>
+                    </div>
+                  )}
                   <InfoRow label="Local" value={nc.local} />
                   <InfoRow label="Requisito normativo" value="ISO 9001:2015 — 10.2" />
                   <div>

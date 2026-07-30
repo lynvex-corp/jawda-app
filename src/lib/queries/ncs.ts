@@ -171,10 +171,13 @@ export interface NcDbRow {
   cancel_reason: string | null;
   created_at: string;
   created_by: string;
+  indicator_id: string | null;
   responsible: { full_name: string } | null;
+  indicator: { code: string } | null;
 }
 
-const NC_SELECT = "*, responsible:profiles!responsible_id(full_name)";
+const NC_SELECT =
+  "*, responsible:profiles!responsible_id(full_name), indicator:indicators!indicator_id(code)";
 
 function initials(name: string) {
   return name
@@ -207,6 +210,8 @@ export interface NCRecord extends NC {
   cancelReason: string | null;
   previousNcId: string | null;
   createdBy: string;
+  indicatorId: string | null;
+  indicatorCode: string | null;
 }
 
 function mapRowToNC(row: NcDbRow): NCRecord {
@@ -236,6 +241,8 @@ function mapRowToNC(row: NcDbRow): NCRecord {
     cancelReason: row.cancel_reason,
     previousNcId: row.previous_nc_id,
     createdBy: row.created_by,
+    indicatorId: row.indicator_id,
+    indicatorCode: row.indicator?.code ?? null,
   };
 }
 
@@ -301,6 +308,10 @@ export interface CreateNCInput {
   reincidente?: boolean;
   previousNcId?: string;
   unitId?: string;
+  /** Preenchido só pelo gatilho de indicador fora da meta por N ciclos
+   * (seção 10 do Guia de Arquitetura) — liga a NC de volta ao indicador de
+   * origem para o chip bidirecional "Origem: IND_..." / "NC gerada: ...". */
+  indicatorId?: string;
 }
 
 export function useCreateNC() {
@@ -321,6 +332,7 @@ export function useCreateNC() {
           is_recurrent: input.reincidente ?? false,
           previous_nc_id: input.previousNcId ?? null,
           unit_id: input.unitId ?? null,
+          indicator_id: input.indicatorId ?? null,
         })
         .select(NC_SELECT)
         .single();

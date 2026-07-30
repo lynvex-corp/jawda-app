@@ -534,6 +534,175 @@ para evidência de checklist, `{org_id}/audits/{audit_id}/report/{filename}`
 para o relatório da certificadora (auditoria externa, listado via
 `storage.list`, sem coluna própria no banco).
 
+## Módulo Indicadores e KPIs
+
+> **Adicionado na ABA 7**. Fonte da verdade:
+> `supabase/migrations/20260730120000_indicators_tables.sql` e as 3
+> migrações seguintes (`..._rls.sql`, `..._triggers.sql`, `..._seed.sql`,
+> `..._grants.sql`).
+
+5 tabelas novas, nenhuma com `unit_id` — o módulo não tem escopo por
+unidade nesta aba (diferente de `ncs`). `quality_objectives` e
+`indicators` nunca são deletados, só arquivados (`status='archived'`).
+
+- **`quality_objectives`** — objetivo da qualidade, com
+  `coherence_with_policy` NOT NULL (justificativa obrigatória do requisito
+  6.2a). Toda organização nova nasce com 6 objetivos padrão, inseridos por
+  um **trigger `AFTER INSERT ON organizations`** (não uma função chamada no
+  provisionamento — ver comentário completo em
+  `20260730120300_indicators_seed.sql`: o painel administrativo ainda não
+  existe neste repositório, então toda org nasce por INSERT direto hoje, e
+  um trigger garante o seed em qualquer caminho presente ou futuro sem
+  depender de nenhum código lembrar de chamá-lo). `responsible_id` e
+  `created_by` são nullable especificamente para acomodar esses 6 objetivos
+  semeados pelo sistema, que nascem sem responsável nem autor humano.
+- **`indicators`** — cabeçalho do indicador. `quality_objective_id` é
+  NOT NULL (regra central do módulo: sem objetivo, não existe indicador —
+  replicada no wizard como botão "Avançar" desabilitado). Código
+  `IND_[MAN|DER|IMP]_[SEQ]_[ANO]` gerado por trigger, sequencial GERAL por
+  org/ano (mesmo critério de `ncs`, não separa por fonte). CHECK garante
+  `target_range_min`/`max` preenchidos quando `polarity='target_range'`.
+- **`indicator_measurements`** — medição periódica. `out_of_target` é
+  calculado por trigger (`compute_measurement_out_of_target`) a partir da
+  meta vigente do indicador no momento do insert — nunca confia em valor
+  calculado no cliente, mesmo critério do SLA de `ncs`. CHECK
+  `not out_of_target or critical_analysis is not null` trava no banco a
+  regra "análise crítica obrigatória quando fora da meta", em complemento à
+  validação da tela.
+- **`indicator_target_history`** — arquivo de metas anteriores. Não tem
+  `org_id` próprio (filho único de `indicators`, mesmo padrão dos filhos de
+  `audits` — RLS via join contra o pai). Todo indicador nasce com uma linha
+  de histórico "vigente" (`valid_until is null`) via trigger
+  `seed_indicator_target_history`, para que a primeira troca de meta já
+  tenha uma linha aberta pra fechar. Troca de meta passa pela RPC
+  **`update_indicator_target`** (`security invoker`), que fecha a linha
+  vigente e abre uma nova numa transação só — o client nunca faz os 2 passos
+  em chamadas separadas.
+- **`critical_analysis_periods`** — consolidação da análise crítica por
+  período, `unique(org_id, period_label)` (reabrir o mesmo período faz
+  upsert em vez de duplicar).
+
+**Vínculo NC ↔ indicador** (gatilho da seção 10 do Guia — meta fora por N
+ciclos consecutivos sugere abrir NC com origem `indicador`, sigla `ID`):
+`ncs` ganhou a coluna `indicator_id` (nullable, `alter table` dentro da
+migração de tabelas desta aba). Fica em `ncs` — não em `indicators` — porque
+um indicador pode gerar várias NCs ao longo da vida (cada nova sequência de
+N ciclos fora), o inverso do padrão já usado em
+`audit_findings.generated_nc_id` (lá o finding é evento único). O chip
+"Origem: IND_..." na NC e "NC gerada: ..." no indicador são consultas
+reversas simples sobre essa coluna, sem tabela de junção.
+
+**Trilha do indicador** reaproveita `activity_log` como as outras abas, mas
+com uma particularidade: eventos de tipos diferentes (`indicator`,
+`indicator_measurement`) que pertencem ao mesmo indicador são unidos na UI
+por **`entity_code`** (sempre o código do indicador), não por `entity_id` —
+`entity_id` varia conforme o tipo do evento (id do indicador vs id da
+medição), mas o código nunca muda. A função `log_nc_activity` (criada na
+ABA 4) foi estendida via `create or replace function` nesta aba para também
+logar um evento `nc_gerada` do lado do indicador quando `ncs.indicator_id`
+vem preenchido — sem editar a migração antiga, só recriando a função numa
+migração nova (imutabilidade de migração aplicada).
+
+```sql
+create table quality_objectives (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade
+    default (auth.jwt() ->> 'org_id')::uuid,
+  name text not null,
+  description text,
+  coherence_with_policy text not null,
+  deadline date,
+  responsible_id uuid references profiles(id),
+  status text not null default 'active' check (status in ('active', 'archived')),
+  created_at timestamptz not null default now(),
+  created_by uuid references profiles(id) default auth.uid()
+);
+
+create table indicators (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade
+    default (auth.jwt() ->> 'org_id')::uuid,
+  code text not null,
+  name text not null,
+  description text,
+  quality_objective_id uuid not null references quality_objectives(id),
+  process text,
+  source text not null check (source in ('manual', 'derived', 'imported')),
+  derived_source text,
+  formula text not null,
+  unit text not null,
+  frequency text not null check (frequency in (
+    'daily', 'weekly', 'monthly', 'bimonthly', 'quarterly', 'semiannual', 'annual'
+  )),
+  target_value numeric not null,
+  polarity text not null check (polarity in ('higher_is_better', 'lower_is_better', 'target_range')),
+  target_range_min numeric,
+  target_range_max numeric,
+  tolerance_percentage numeric not null default 10,
+  auto_nc_after_cycles int not null default 2 check (auto_nc_after_cycles > 0),
+  responsible_measurement_id uuid not null references profiles(id),
+  responsible_analysis_id uuid not null references profiles(id),
+  status text not null default 'active' check (status in ('active', 'archived')),
+  created_at timestamptz not null default now(),
+  created_by uuid not null references profiles(id) default auth.uid(),
+  unique (org_id, code),
+  check (polarity <> 'target_range' or (target_range_min is not null and target_range_max is not null))
+);
+
+create table indicator_measurements (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade
+    default (auth.jwt() ->> 'org_id')::uuid,
+  indicator_id uuid not null references indicators(id) on delete cascade,
+  period_reference text not null,
+  value numeric not null,
+  observation text,
+  critical_analysis text,
+  evidence_files jsonb not null default '[]',
+  source text not null default 'manual' check (source in ('manual', 'imported', 'derived')),
+  out_of_target boolean not null default false,
+  ai_suggested_analysis boolean not null default false,
+  created_at timestamptz not null default now(),
+  created_by uuid not null references profiles(id) default auth.uid(),
+  unique (indicator_id, period_reference),
+  check (not out_of_target or critical_analysis is not null)
+);
+
+create table indicator_target_history (
+  id uuid primary key default gen_random_uuid(),
+  indicator_id uuid not null references indicators(id) on delete cascade,
+  target_value numeric not null,
+  target_range_min numeric,
+  target_range_max numeric,
+  polarity text not null check (polarity in ('higher_is_better', 'lower_is_better', 'target_range')),
+  valid_from date not null,
+  valid_until date,
+  changed_by uuid references profiles(id) default auth.uid(),
+  changed_at timestamptz not null default now()
+);
+
+create table critical_analysis_periods (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade
+    default (auth.jwt() ->> 'org_id')::uuid,
+  period_label text not null,
+  start_date date not null,
+  end_date date not null,
+  overall_analysis text,
+  direction_decisions text,
+  ai_suggested_analysis boolean not null default false,
+  ai_approved_by uuid references profiles(id),
+  ai_approved_at timestamptz,
+  status text not null default 'draft' check (status in ('draft', 'consolidated', 'exported')),
+  generated_at timestamptz,
+  generated_by uuid references profiles(id),
+  unique (org_id, period_label),
+  check (end_date >= start_date)
+);
+
+alter table ncs add column indicator_id uuid references indicators(id);
+```
+
 ## Trilha de auditoria (activity log)
 
 ```sql
