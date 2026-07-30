@@ -220,11 +220,154 @@ create index on ncs(org_id, status);
 create index on ncs(org_id, unit_id);
 ```
 
-Segue a mesma lógica para `action_plans`, `audits`, `indicators`, etc — o Claude Code vai criar essas tabelas na sprint de cada módulo. Se a tela já
+Segue a mesma lógica para `audits`, `indicators`, etc — o Claude Code vai criar essas tabelas na sprint de cada módulo. Se a tela já
 construída exigir um campo ou enum diferente do desenhado aqui, o padrão é o
 mesmo desta seção: ajustar o schema pra bater com a UI real, documentar o
 desvio e atualizar este arquivo — nunca forçar a UI a se adequar a um
 desenho especulativo que não foi testado contra tela nenhuma.
+
+## Módulo Planos de Ação
+
+> **Adicionado na ABA 5**, junto com a implementação correta do fluxo de
+> reprovação de eficácia (seção 11 do Guia de Arquitetura). Fonte da
+> verdade: `supabase/migrations/20260729150000_action_plans_table.sql` e
+> `..._triggers.sql`.
+
+O protótipo tratava "plano" e "ação corretiva" como a mesma linha 1:1
+(`PlanoAcao` em `src/lib/mock-data.ts`) — simplificação que este desenho
+corrige com 3 tabelas normalizadas:
+
+- **`action_plans`** — o cabeçalho: vínculo com a NC de origem (`nc_id`,
+  opcional — plano pode ser avulso ou vir de outros módulos via
+  `origin_type`), contingência (opcional, prazo governado em dias úteis
+  calculado em JS no wizard, não em trigger — não é campo de segurança como
+  o SLA de NC). Código `PA_[SEQ]_[ANO]`, contador dedicado igual `ncs`.
+  `status` é um *rollup* calculado por trigger a partir das ações
+  corretivas: `concluido` assim que qualquer uma aprova na eficácia,
+  `em_avaliacao`/`em_execucao` conforme a mais adiantada em andamento.
+
+- **`action_plan_corrective_actions`** — cada ação corretiva individual,
+  5W2H completo em português (seção 10 do Guia — sem campo "departamento",
+  que só existia como agrupamento visual do protótipo). Uma ação nasce com
+  o plano (`escalation_level = 0`, sem aprovação extra — autoria humana
+  direta) ou como consequência de uma reprovação de eficácia
+  (`parent_action_id` aponta pra ação superada, `restart_reason` guarda
+  qual dos 3 caminhos a originou). Nada é apagado: a ação superada
+  continua na tabela com `status = 'encerrada'` e `closure_reason`
+  preenchido.
+
+- **`action_plan_verifications`** — cada tentativa de verificação de
+  eficácia de uma ação corretiva específica, limitada a 2 por ação
+  (enforced em trigger via `count`, não dá pra expressar em `CHECK`
+  simples). Guarda o motivo da reprovação (um dos 3 caminhos da seção 11),
+  nova causa raiz (caminho "causa errada"), novo prazo, e quem aprovou a
+  próxima tentativa (escalonamento).
+
+O motor dos 3 caminhos (`handle_effectiveness_verification`, trigger AFTER
+INSERT em `action_plan_verifications`) decide sozinho o que fazer:
+
+| Motivo da reprovação | Efeito |
+|---|---|
+| não executada, 1ª vez nesta linha | reabre a MESMA ação, novo prazo |
+| não executada, 2ª vez (estourou o limite) | encerra em definitivo, nasce ação nova |
+| ação fraca | SEMPRE encerra e nasce ação nova, mantendo a causa raiz |
+| causa errada | SEMPRE encerra e nasce ação nova, com causa raiz nova — reinicia a contagem de tentativas por construção (linha nova, id novo) |
+
+Toda ação resultante de uma reprovação nasce em
+`status = 'aguardando_aprovacao'`: o escalonamento hierárquico trava o
+avanço até liberado. Nível 1 (1ª reprovação) exige `quality_manager`;
+nível 2+ exige `admin` — mapeamento pragmático para "superior hierárquico
+do Gestor da Qualidade" da seção 11, já que `user_organizations` não tem
+coluna de hierarquia/gestor direto no modelo fixo de perfis da seção 6.
+
+A NC de origem entra em `em_tratativa` assim que o plano é criado (trigger
+`sync_nc_status_on_action_plan_created`) e **não fecha sozinha** quando uma
+ação aprova na eficácia — a seção 11 diz que ela *pode* encerrar nesse
+momento, não que encerra automaticamente; a UI oferece o encerramento via
+diálogo de confirmação.
+
+```sql
+create table action_plans (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade,
+  unit_id uuid references units(id),
+  code text not null,                      -- PA_[SEQ]_[ANO]
+  nc_id uuid references ncs(id),
+  origin_type text not null default 'nao_conformidade' check (origin_type in (
+    'nao_conformidade','auditoria_interna','auditoria_externa','risco_oportunidade',
+    'analise_critica','reclamacao_cliente','melhoria_continua','estrategia'
+  )),
+  problem_description text not null,
+  contingency_description text,
+  contingency_responsible_id uuid references profiles(id),
+  contingency_deadline timestamptz,
+  contingency_executed_at timestamptz,
+  status text not null default 'planejado' check (status in (
+    'planejado','em_execucao','em_avaliacao','concluido','atrasado','cancelado'
+  )),
+  created_at timestamptz not null default now(),
+  created_by uuid not null references profiles(id) default auth.uid(),
+  cancelled_at timestamptz,
+  cancelled_by uuid references profiles(id),
+  cancel_reason text,
+  unique (org_id, code)
+);
+
+create table action_plan_corrective_actions (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade,
+  unit_id uuid references units(id),
+  action_plan_id uuid not null references action_plans(id) on delete cascade,
+  seq int not null,
+  parent_action_id uuid references action_plan_corrective_actions(id),
+  restart_reason text check (restart_reason in ('acao_fraca','causa_errada','nao_executada')),
+  escalation_level int not null default 0,
+  required_approval_role text check (required_approval_role in ('quality_manager','admin')),
+  what_description text not null,          -- O quê
+  why_justification text not null,         -- Por quê (causa raiz)
+  where_location text not null,            -- Onde
+  who_responsible_id uuid not null references profiles(id),  -- Quem
+  how_method text not null,                -- Como
+  how_much_cost numeric(10,2) not null default 0,             -- Quanto custa
+  when_start timestamptz not null default now(),
+  when_end timestamptz not null,           -- Quando
+  status text not null default 'planejada' check (status in (
+    'aguardando_aprovacao','planejada','em_execucao','aguardando_verificacao',
+    'aprovada','encerrada'
+  )),
+  closure_reason text check (closure_reason in (
+    'eficaz','acao_fraca','causa_errada','reprovada_definitiva'
+  )),
+  percent_complete int not null default 0,
+  executed_at timestamptz,
+  approved_by uuid references profiles(id),
+  approved_at timestamptz,
+  created_at timestamptz not null default now(),
+  created_by uuid not null references profiles(id) default auth.uid(),
+  unique (action_plan_id, seq)
+);
+
+create table action_plan_verifications (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade,
+  corrective_action_id uuid not null references action_plan_corrective_actions(id) on delete cascade,
+  attempt_number int not null,             -- máx. 2 por ação, enforced em trigger
+  verified_by uuid not null references profiles(id) default auth.uid(),
+  verified_at timestamptz not null default now(),
+  result text not null check (result in ('eficaz','nao_eficaz')),
+  reason text check (reason in ('acao_fraca','causa_errada','nao_executada')),
+  notes text,
+  new_root_cause text,                     -- obrigatório se reason = causa_errada
+  new_deadline timestamptz,                -- obrigatório se result = nao_eficaz
+  escalation_level_required int,
+  required_approval_role text check (required_approval_role in ('quality_manager','admin')),
+  next_attempt_approved_by uuid references profiles(id),
+  next_attempt_approved_at timestamptz,
+  resulting_action_id uuid references action_plan_corrective_actions(id),
+  created_at timestamptz not null default now(),
+  unique (corrective_action_id, attempt_number)
+);
+```
 
 ## Trilha de auditoria (activity log)
 
