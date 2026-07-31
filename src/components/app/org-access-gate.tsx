@@ -3,6 +3,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { useOrgAccessLevel } from "@/lib/queries/org-access";
 import { DelinquencyBanner } from "./delinquency-banner";
 import { BlockedScreen } from "./blocked-screen";
+import { ImpersonationBanner } from "./impersonation-banner";
 
 /** Gancho crítico da escada de inadimplência no painel do cliente (seção 7
  * do Guia). Fica no __root.tsx, acima de <Outlet/>, porque cada página
@@ -14,7 +15,7 @@ import { BlockedScreen } from "./blocked-screen";
  * sentido (e falharia por falta de GRANT a anon). */
 export function OrgAccessGate({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const isLoginRoute = pathname === "/login";
+  const isLoginRoute = pathname === "/login" || pathname === "/impersonar";
   const { data: level } = useOrgAccessLevel(!isLoginRoute);
 
   if (isLoginRoute) return <>{children}</>;
@@ -25,6 +26,7 @@ export function OrgAccessGate({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <ImpersonationBanner />
       {level && <DelinquencyBanner level={level} />}
       {children}
     </>

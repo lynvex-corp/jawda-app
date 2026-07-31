@@ -119,8 +119,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   beforeLoad: async ({ location }) => {
     const authState = await getAuthState();
     const isLoginRoute = location.pathname === "/login";
+    // /impersonar troca o magic-link do staff por sessão real do usuário-alvo
+    // no próprio navegador — precisa rodar sem sessão prévia, igual /login.
+    const isImpersonarRoute = location.pathname === "/impersonar";
 
-    if (!authState.authenticated && !isLoginRoute) {
+    if (!authState.authenticated && !isLoginRoute && !isImpersonarRoute) {
       throw redirect({ to: "/login" });
     }
     if (authState.authenticated && isLoginRoute) {

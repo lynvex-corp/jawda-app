@@ -21,6 +21,7 @@ import { Route as NaoConformidadesRouteImport } from './routes/nao-conformidades
 import { Route as MudancasSgRouteImport } from './routes/mudancas-sg'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndicadoresRouteImport } from './routes/indicadores'
+import { Route as ImpersonarRouteImport } from './routes/impersonar'
 import { Route as EscopoSistemaRouteImport } from './routes/escopo-sistema'
 import { Route as DocumentosRouteImport } from './routes/documentos'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
@@ -102,6 +103,11 @@ const LoginRoute = LoginRouteImport.update({
 const IndicadoresRoute = IndicadoresRouteImport.update({
   id: '/indicadores',
   path: '/indicadores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImpersonarRoute = ImpersonarRouteImport.update({
+  id: '/impersonar',
+  path: '/impersonar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EscopoSistemaRoute = EscopoSistemaRouteImport.update({
@@ -227,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof ConfiguracoesRoute
   '/documentos': typeof DocumentosRoute
   '/escopo-sistema': typeof EscopoSistemaRoute
+  '/impersonar': typeof ImpersonarRoute
   '/indicadores': typeof IndicadoresRouteWithChildren
   '/login': typeof LoginRoute
   '/mudancas-sg': typeof MudancasSgRoute
@@ -262,6 +269,7 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof ConfiguracoesRoute
   '/documentos': typeof DocumentosRoute
   '/escopo-sistema': typeof EscopoSistemaRoute
+  '/impersonar': typeof ImpersonarRoute
   '/login': typeof LoginRoute
   '/mudancas-sg': typeof MudancasSgRoute
   '/partes-interessadas': typeof PartesInteressadasRoute
@@ -296,6 +304,7 @@ export interface FileRoutesById {
   '/configuracoes': typeof ConfiguracoesRoute
   '/documentos': typeof DocumentosRoute
   '/escopo-sistema': typeof EscopoSistemaRoute
+  '/impersonar': typeof ImpersonarRoute
   '/indicadores': typeof IndicadoresRouteWithChildren
   '/login': typeof LoginRoute
   '/mudancas-sg': typeof MudancasSgRoute
@@ -334,6 +343,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/documentos'
     | '/escopo-sistema'
+    | '/impersonar'
     | '/indicadores'
     | '/login'
     | '/mudancas-sg'
@@ -369,6 +379,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/documentos'
     | '/escopo-sistema'
+    | '/impersonar'
     | '/login'
     | '/mudancas-sg'
     | '/partes-interessadas'
@@ -402,6 +413,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/documentos'
     | '/escopo-sistema'
+    | '/impersonar'
     | '/indicadores'
     | '/login'
     | '/mudancas-sg'
@@ -439,6 +451,7 @@ export interface RootRouteChildren {
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   DocumentosRoute: typeof DocumentosRoute
   EscopoSistemaRoute: typeof EscopoSistemaRoute
+  ImpersonarRoute: typeof ImpersonarRoute
   IndicadoresRoute: typeof IndicadoresRouteWithChildren
   LoginRoute: typeof LoginRoute
   MudancasSgRoute: typeof MudancasSgRoute
@@ -537,6 +550,13 @@ declare module '@tanstack/react-router' {
       path: '/indicadores'
       fullPath: '/indicadores'
       preLoaderRoute: typeof IndicadoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/impersonar': {
+      id: '/impersonar'
+      path: '/impersonar'
+      fullPath: '/impersonar'
+      preLoaderRoute: typeof ImpersonarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/escopo-sistema': {
@@ -769,6 +789,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfiguracoesRoute: ConfiguracoesRoute,
   DocumentosRoute: DocumentosRoute,
   EscopoSistemaRoute: EscopoSistemaRoute,
+  ImpersonarRoute: ImpersonarRoute,
   IndicadoresRoute: IndicadoresRouteWithChildren,
   LoginRoute: LoginRoute,
   MudancasSgRoute: MudancasSgRoute,
