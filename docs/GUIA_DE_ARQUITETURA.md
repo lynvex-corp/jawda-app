@@ -285,67 +285,6 @@ Presets de configuração por segmento (construção civil, indústria) para ace
 - **CSRF, XSS, SQL injection** — TanStack Start + Supabase mitigam por padrão. Nunca construir SQL na mão no cliente.
 - **Todas as chaves em variáveis de ambiente.** Nunca commitar `.env`.
 - **RLS ativo em toda tabela.** Uma tabela sem RLS é um vazamento esperando acontecer.
-- **Toda tabela nova exige GRANT explícito.** Este projeto está com
-  `auto_expose_new_tables` desligado (é o novo padrão do Supabase — ver
-  `supabase/config.toml`), então uma tabela criada por migração **não** fica
-  alcançável pela API sozinha, mesmo com RLS correta: sem `GRANT` a
-  PostgREST devolve "permission denied" antes de qualquer política ser
-  avaliada. RLS é a segunda trava, não a primeira. Toda migração que cria
-  tabela de negócio precisa terminar com:
-  - `grant select, insert, update on <tabela> to authenticated;` (sem
-    `delete` quando a política já bloqueia exclusão — ver seção 2, "Nada é
-    apagado")
-  - `grant all on <tabela> to service_role;` (Edge Functions e automação de
-    backend dependem disso; `service_role` já ignora RLS por convenção da
-    plataforma, mas só chega na tabela se o `GRANT` existir)
-  - Tabela sem uso pela API (ex.: contador interno de sequência) deve ligar
-    RLS sem nenhuma política — isso já nega acesso por padrão a
-    `authenticated`/`anon`/`service_role`, e só a função `SECURITY DEFINER`
-    dona da tabela consegue gravar nela.
-  Gap descoberto na ABA 4 (módulo de NC): as tabelas de fundação da ABA 3
-  também não tinham `GRANT` pra `service_role`, corrigido em
-  `supabase/migrations/20260729140600_foundation_service_role_grants.sql`.
-  Gap descoberto na ABA 5 (módulo de Plano de Ação, testando login real em
-  navegador): `profiles`/`user_organizations` nunca tinham `GRANT` pra
-  `authenticated` — quebrava o carregamento do próprio perfil em **todo**
-  login, silenciosamente (RLS certa, só sem grant). Corrigido em
-  `20260729150400_foundation_authenticated_grants.sql`. Auditoria completa
-  de todas as tabelas do public depois disso, mais gaps encontrados
-  (`organizations`, `units`, `user_organizations` insert/update,
-  `user_units_access`, `internal_staff`, `internal_access_log`,
-  `nc_code_counters` sem `service_role`) corrigidos em
-  `20260729150500_grants_audit_fundacao.sql`.
-
-  **Checklist de GRANT — rodar antes de considerar qualquer tabela nova
-  pronta** (aplica tanto pra tabela de negócio quanto pra tabela de
-  fundação que uma aba futura decidir tocar):
-  1. Para cada `cmd` (`SELECT`/`INSERT`/`UPDATE`/`DELETE`) que tem pelo
-     menos uma política de RLS com `qual`/`with_check` diferente de
-     `false`, confirma que existe `GRANT` correspondente pra
-     `authenticated` — mesmo que hoje nenhum código do app ainda use esse
-     caminho (o objetivo é a política ficar utilizável, não é auditar o
-     código atual — foi exatamente por confiar "ninguém usa isso ainda"
-     que os gaps da ABA 4/5 passaram batido).
-  2. Nunca conceder um `cmd` que a política já bloqueia com `using (false)`
-     ou `with_check (false)` — grant não deve dar mais do que a RLS
-     pretende autorizar.
-  3. `grant all on <tabela> to service_role;` sempre, mesmo em tabela sem
-     nenhuma política (contador interno etc.) — é o único jeito de Edge
-     Function/automação de backend alcançar a tabela.
-  4. Depois de aplicar, roda esta consulta e confere que toda tabela do
-     public aparece com o grant esperado (nenhuma linha faltando pra
-     `authenticated` num `cmd` com política ativa, nenhuma tabela sem
-     `service_role` nenhum):
-     ```sql
-     select table_name, grantee, string_agg(privilege_type, ',' order by privilege_type) as privileges
-     from information_schema.role_table_grants
-     where table_schema = 'public' and grantee in ('authenticated','service_role')
-     group by table_name, grantee
-     order by table_name, grantee;
-     ```
-  5. Documenta o gap encontrado (se houver) direto no comentário da
-     migração de grant, igual os exemplos acima — próxima aba que ler a
-     migração entende o porquê sem precisar re-descobrir.
 - **Rate limiting** nas Edge Functions críticas (autenticação, IA, exportação).
 
 ## 19. Padrão de trabalho com Claude Code
@@ -379,8 +318,62 @@ Cada aba entrega uma coisa funcional, testável, com commit próprio. Se a entre
 
 ---
 
+## 21. Padrões consolidados durante a execução (Abas 4 a 7)
+
+Estas decisões surgiram na prática, durante a construção real do bloco Gestão da Qualidade, e viram padrão daqui em diante — inclusive para o Painel Admin.
+
+### 21.1 — GRANT explícito em toda tabela nova (crítico)
+
+O projeto está com **table auto-exposure desligado** no PostgREST. Isso significa que RLS sozinha não basta: toda tabela nova precisa também de `GRANT` explícito para os papéis `authenticated` e `service_role`, senão a API retorna "permission denied" mesmo com a política de RLS correta.
+
+Esse bug já apareceu duas vezes (Aba 4 e Aba 5) e na segunda vez quebrou login de qualquer usuário real silenciosamente — o tipo de erro que passa despercebido até alguém tentar usar de verdade.
+
+**Regra permanente:** toda migração que cria tabela nova encerra com:
+```sql
+grant select, insert, update on table_name to authenticated;
+grant all on table_name to service_role;
+-- delete NUNCA é concedido a authenticated (nada apaga)
+```
+Incluir isso na Skill `jawda-migrations` como passo obrigatório do checklist, não como nota de rodapé.
+
+### 21.2 — Buckets de Storage não nascem sozinhos com a tabela
+
+Nenhuma aba anterior à Aba 6 criou bucket nenhum, apesar de o passo a passo do Supabase já prever `evidencias`, `documentos` e `logos-empresas`. Toda vez que um módulo passa a usar upload de arquivo (evidência de NC, checklist de auditoria, logo da empresa), a aba responsável precisa **conferir explicitamente** se o bucket e a política dele já existem antes de assumir que sim.
+
+**Regra permanente:** toda aba que envolve upload de arquivo inclui, como primeiro passo de verificação, checar se o bucket relevante existe e tem política de RLS coerente com o padrão `{org_id}/{modulo}/{entity_id}/{filename}`. Se não existir, criar nesta mesma aba, documentado.
+
+### 21.3 — Agenda da auditoria nasce no detalhe, não na criação
+
+Na Aba 6, o wizard de criação de auditoria interna deixou de ter etapa de "Plano de Auditoria" embutida. A agenda (dias, horários, processos, auditores) se monta na própria tela de **detalhe**, na aba Plano, depois que a auditoria já existe.
+
+Isso é comportamento correto e não uma simplificação a ser revertida: auditoria interna raramente nasce com plano fechado — o gestor da qualidade cria a auditoria com data e escopo, e vai encaixando a agenda conforme fecha com os auditores e processos. Forçar isso no wizard de criação era fricção sem ganho real.
+
+**Regra permanente:** wizards de criação carregam só o essencial para o registro nascer (identidade, tipo, escopo, datas). Configuração detalhada e operacional vive na tela de detalhe, após a criação.
+
+### 21.4 — Apontamento de auditoria é gancho puro, sem tratativa própria
+
+O apontamento gerado no checklist da auditoria interna **não duplica** campos de causa, correção ou evidência de tratamento. Esses campos existem só na NC (e no Plano de Ação) gerados a partir dele. O apontamento serve só para identificar o achado e linkar bidirecionalmente com o registro que efetivamente trata o problema.
+
+Essa é a arquitetura correta, não uma simplificação: se o apontamento tivesse campos de tratativa próprios, o sistema teria dois lugares tratando o mesmo problema, e na primeira divergência entre eles (apontamento diz uma coisa, NC diz outra) o relatório de auditoria ficaria inconsistente com a evidência real.
+
+**Regra permanente:** todo "gancho" que gera um registro em outro módulo (apontamento → NC, indicador fora da meta → NC, reclamação → NC) armazena só o necessário para criar o registro de destino e a referência bidirecional (`generated_nc_id`, chip visual dos dois lados). Nunca duplica campos de tratativa.
+
+### 21.5 — Histórico versionado com RPC de fechamento de vigência
+
+Para casos onde um valor muda ao longo do tempo mas o histórico precisa ser preservado (a meta de um indicador, por exemplo), o padrão que se consolidou na Aba 7 foi:
+
+- Uma tabela `*_history` separada da tabela principal, com `valid_from` e `valid_until`
+- Uma função RPC (`update_indicator_target` foi o primeiro caso) que, ao registrar um novo valor, **fecha a vigência anterior** (`valid_until = now()`) e **abre a nova** (`valid_from = now()`, `valid_until = null`)
+- No gráfico/visualização, reconstruir a linha do tempo juntando os períodos de vigência — no caso dos indicadores, usando `type="stepAfter"` para o valor "saltar" exatamente no momento da mudança, sem gap visual
+
+**Regra permanente:** qualquer campo de configuração que influencia análise histórica (metas, SLA por gravidade, tolerância) segue este padrão de tabela de histórico + RPC de fechamento de vigência, em vez de sobrescrever o valor na tabela principal.
+
+---
+
 ## Versionamento deste documento
 
 Toda alteração de arquitetura precisa passar por este documento antes de virar código. Se o Claude Code for programar algo que contradiz este documento, ele deve parar e apontar a contradição, não implementar.
 
-**Próxima revisão prevista:** ao final do primeiro mês, quando a Gestão da Qualidade estiver rodando com dado real, para consolidar aprendizados.
+**Revisão registrada em:** fim das Abas 4-7 (bloco Gestão da Qualidade completo), consolidando os 5 padrões da seção 21.
+
+**Próxima revisão prevista:** ao final do Painel Admin básico, antes de abrir o mês 2.
