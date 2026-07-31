@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "sonner";
 import { JawdaProvider } from "../lib/jawda-store";
 import { getAuthState } from "../lib/supabase-server";
+import { OrgAccessGate } from "../components/app/org-access-gate";
 
 function NotFoundComponent() {
   return (
@@ -154,8 +155,10 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <JawdaProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <OrgAccessGate>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </OrgAccessGate>
         <Toaster richColors position="top-right" />
       </JawdaProvider>
     </QueryClientProvider>

@@ -1,4 +1,5 @@
-import { Search, ChevronDown, LogOut, User } from "lucide-react";
+import { Search, ChevronDown, Download, LogOut, User } from "lucide-react";
+import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
+import { useExportOrganizationData } from "@/lib/queries/org-access";
 
 const CARGO_POR_PAPEL: Record<string, string> = {
   admin: "Administrador do Cliente",
@@ -34,6 +36,7 @@ function iniciais(nome: string): string {
 export function Topbar() {
   const navigate = useNavigate();
   const { profile, currentOrg, organizations, signOut, switchOrganization } = useAuth();
+  const exportData = useExportOrganizationData();
 
   const nome = profile?.full_name ?? "…";
   const cargo = currentOrg ? (CARGO_POR_PAPEL[currentOrg.role] ?? currentOrg.role) : "";
@@ -41,6 +44,13 @@ export function Topbar() {
   async function handleLogout() {
     await signOut();
     navigate({ to: "/login" });
+  }
+
+  function handleExport() {
+    exportData.mutate(undefined, {
+      onSuccess: () => toast.success("Exportação gerada", { description: "Download iniciado." }),
+      onError: (err) => toast.error("Não foi possível exportar", { description: String(err) }),
+    });
   }
 
   return (
@@ -104,6 +114,9 @@ export function Topbar() {
         <DropdownMenuContent align="end" className="w-52">
           <DropdownMenuItem>
             <User className="mr-2 h-4 w-4" /> Meu perfil
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleExport} disabled={exportData.isPending}>
+            <Download className="mr-2 h-4 w-4" /> Exportar meus dados
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

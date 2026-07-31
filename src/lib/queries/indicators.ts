@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { assertNotReadOnly } from "@/lib/org-access-guard";
 import { type FonteDados, type Polaridade } from "@/lib/kpi-data";
 
 /* ============================================================
@@ -481,6 +482,10 @@ export function useUpdateIndicatorTarget() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: UpdateIndicatorTargetInput) => {
+      // Única RPC de escrita do app — não passa pelo wrapper de
+      // insert/update de supabase.ts, então o cadeado de somente-leitura da
+      // escada de inadimplência precisa ser checado explicitamente aqui.
+      assertNotReadOnly();
       const { data, error } = await supabase.rpc("update_indicator_target", {
         p_indicator_id: input.indicatorId,
         p_target_value: input.meta,
