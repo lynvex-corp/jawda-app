@@ -122,12 +122,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     // /impersonar troca o magic-link do staff por sessão real do usuário-alvo
     // no próprio navegador — precisa rodar sem sessão prévia, igual /login.
     const isImpersonarRoute = location.pathname === "/impersonar";
+    const isResetPasswordRoute = location.pathname === "/redefinir-senha";
 
     if (!authState.authenticated && !isLoginRoute && !isImpersonarRoute) {
       throw redirect({ to: "/login" });
     }
     if (authState.authenticated && isLoginRoute) {
       throw redirect({ to: "/" });
+    }
+
+    // Item 1 da ABA 11: must_reset_password=true força a troca de senha
+    // antes de qualquer outra rota, sem exceção — mesmo digitando a URL
+    // direto (por isso a checagem fica aqui, no beforeLoad server-side, não
+    // num gate client-side que só monta depois da rota já ter carregado).
+    if (authState.authenticated && !isImpersonarRoute) {
+      if (authState.mustResetPassword && !isResetPasswordRoute) {
+        throw redirect({ to: "/redefinir-senha" });
+      }
+      if (!authState.mustResetPassword && isResetPasswordRoute) {
+        throw redirect({ to: "/" });
+      }
     }
 
     return { authState };

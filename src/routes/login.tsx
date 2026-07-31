@@ -78,6 +78,11 @@ function LoginPage() {
       return;
     }
 
+    // Marca o instante do login como "uso" para o cálculo de inatividade de
+    // 30 dias (ABA 11, item 2) — melhor esforço: se falhar, não bloqueia o
+    // login, o próximo login ou ação do usuário atualiza o campo de novo.
+    void supabase.rpc("touch_last_activity");
+
     const current = orgs.find((o: { is_current: boolean }) => o.is_current);
     if (current || orgs.length === 1) {
       if (!current) {

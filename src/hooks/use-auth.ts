@@ -10,6 +10,7 @@ export interface Profile {
   status: "active" | "inactive" | "invited";
   active_org_id: string | null;
   last_activity_at: string | null;
+  must_reset_password: boolean;
   created_at: string;
 }
 

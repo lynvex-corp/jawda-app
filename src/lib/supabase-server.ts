@@ -29,13 +29,18 @@ export const getSupabaseServerClient = createServerOnlyFn(() => {
 
 export type AuthState =
   | { authenticated: false }
-  | { authenticated: true; userId: string; email: string | null };
+  | { authenticated: true; userId: string; email: string | null; mustResetPassword: boolean };
 
 // Usado pelo guard de rota em __root.tsx. Exige aal2 (2FA já verificado nesta
 // sessão) — uma sessão que só passou por e-mail/senha (aal1) não conta como
 // autenticada, porque o 2FA é obrigatório para todos (seção 8 do Guia de
 // Arquitetura). Sem essa checagem, dar "voltar" no navegador durante o setup
 // do TOTP bastaria para entrar sem completar o 2º fator.
+//
+// mustResetPassword: lido aqui (server-side, roda no beforeLoad ANTES de
+// qualquer rota renderizar) para que o redirecionamento para
+// /redefinir-senha valha mesmo em navegação direta por URL (ABA 11, item 1)
+// — uma checagem só no client daria tempo de a página errada piscar/montar.
 export const getAuthState = createServerFn({ method: "GET" }).handler(
   async (): Promise<AuthState> => {
     const supabase = getSupabaseServerClient();
@@ -50,10 +55,17 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(
       return { authenticated: false };
     }
 
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("must_reset_password")
+      .eq("id", session.user.id)
+      .single();
+
     return {
       authenticated: true,
       userId: session.user.id,
       email: session.user.email ?? null,
+      mustResetPassword: (profile as { must_reset_password: boolean } | null)?.must_reset_password ?? false,
     };
   },
 );

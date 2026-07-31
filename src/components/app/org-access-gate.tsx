@@ -15,7 +15,12 @@ import { ImpersonationBanner } from "./impersonation-banner";
  * sentido (e falharia por falta de GRANT a anon). */
 export function OrgAccessGate({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const isLoginRoute = pathname === "/login" || pathname === "/impersonar";
+  // /redefinir-senha (ABA 11, item 1): quem está com must_reset_password=true
+  // é redirecionado para cá pelo beforeLoad de __root.tsx antes de qualquer
+  // outra coisa — não faz sentido a escada de inadimplência (ou o bloqueio
+  // dela) competir com essa troca obrigatória de senha.
+  const isLoginRoute =
+    pathname === "/login" || pathname === "/impersonar" || pathname === "/redefinir-senha";
   const { data: level } = useOrgAccessLevel(!isLoginRoute);
 
   if (isLoginRoute) return <>{children}</>;
