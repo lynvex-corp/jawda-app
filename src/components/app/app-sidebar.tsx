@@ -28,6 +28,7 @@ import {
   Gauge,
   LifeBuoy,
   ChevronDown,
+  Lock,
 } from "lucide-react";
 import {
   Sidebar,
@@ -42,14 +43,9 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { JawdaLogo } from "@/components/brand/logo";
-import {
-  navTop,
-  navGroups,
-  navFooter,
-  mockPlanos,
-  mockNCs,
-  type NavItem,
-} from "@/lib/mock-data";
+import { navTop, navGroups, navFooter, mockPlanos, mockNCs, type NavItem } from "@/lib/mock-data";
+import { useEnabledModules } from "@/lib/queries/contract";
+import { moduleForRoute } from "@/lib/module-access";
 import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -101,13 +97,37 @@ function NavRow({
   item,
   active,
   collapsed,
+  locked,
 }: {
   item: NavItem;
   active: boolean;
   collapsed: boolean;
+  locked: boolean;
 }) {
   const Icon = iconMap[item.icon] ?? LayoutDashboard;
   const badge = useBadge(item.to);
+
+  // Módulo não contratado: sem cadeado e "falar com a Jáwda" (seção 4/7 do
+  // Guia). Item continua visível (dá noção do produto completo), mas não é
+  // um <Link> — clicar não navega, o bloqueio de verdade é o ModuleGate na
+  // rota (defesa em profundidade: cadeado aqui é só UX, quem impede acesso
+  // de fato é o gate + RLS de contract_modules).
+  if (locked) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          disabled
+          tooltip="Disponível mediante contratação — fale com a Jáwda"
+          className="h-9 cursor-not-allowed rounded-lg text-muted-foreground/60"
+        >
+          <Icon className="h-[18px] w-[18px]" />
+          <span className="truncate">{item.label}</span>
+          {!collapsed && <Lock className="ml-auto h-3.5 w-3.5" />}
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
+
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -143,6 +163,16 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const navigate = useNavigate();
+  const { data: enabledModules } = useEnabledModules();
+
+  // Enquanto o contrato ainda carrega (enabledModules undefined), nada
+  // aparece bloqueado — mesmo critério do ModuleGate, evita cadeado
+  // piscando no primeiro carregamento da página.
+  const isLocked = (to: string) => {
+    if (!enabledModules) return false;
+    const module = moduleForRoute(to);
+    return module !== null && !enabledModules.has(module);
+  };
 
   const activeGroupIdx = useMemo(() => {
     return navGroups.findIndex((g) => g.items.some((it) => isItemActive(pathname, it.to)));
@@ -166,6 +196,7 @@ export function AppSidebar() {
                 item={navTop}
                 active={isItemActive(pathname, navTop.to)}
                 collapsed={collapsed}
+                locked={isLocked(navTop.to)}
               />
             </SidebarMenu>
           </SidebarGroupContent>
@@ -189,6 +220,7 @@ export function AppSidebar() {
                         item={item}
                         active={isItemActive(pathname, item.to)}
                         collapsed
+                        locked={isLocked(item.to)}
                       />
                     ))
                   ) : (
@@ -227,6 +259,7 @@ export function AppSidebar() {
                               item={item}
                               active={isItemActive(pathname, item.to)}
                               collapsed={false}
+                              locked={isLocked(item.to)}
                             />
                           </div>
                         ))}
@@ -246,6 +279,7 @@ export function AppSidebar() {
               item={item}
               active={isItemActive(pathname, item.to)}
               collapsed={collapsed}
+              locked={isLocked(item.to)}
             />
           ))}
         </SidebarMenu>
