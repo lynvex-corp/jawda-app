@@ -368,6 +368,16 @@ Para casos onde um valor muda ao longo do tempo mas o histórico precisa ser pre
 
 **Regra permanente:** qualquer campo de configuração que influencia análise histórica (metas, SLA por gravidade, tolerância) segue este padrão de tabela de histórico + RPC de fechamento de vigência, em vez de sobrescrever o valor na tabela principal.
 
+### 21.6 — Nunca inserir manualmente numa tabela de log que já tem trigger (regra generalizada — bug recorrente)
+
+Este bug já apareceu **duas vezes** em abas diferentes (Aba 8, na RPC de provisionamento escrevendo direto em `activity_log`; Aba 12, no mesmo padrão em `commercial_activity_log`) porque da primeira vez foi documentado como caso específico em vez de regra geral. Generalizando agora para não acontecer uma terceira vez:
+
+**O problema:** quando uma tabela de negócio (`ncs`, `opportunities`, `contracts`, etc.) já tem um trigger `AFTER INSERT/UPDATE` que escreve automaticamente na tabela de log correspondente, qualquer função ou RPC que também tente inserir manualmente naquela mesma tabela de log — "pra garantir" ou "pra registrar algo a mais" — cria uma escrita redundante que esbarra em GRANT/RLS (porque funções chamadas pelo cliente muitas vezes não têm o mesmo nível de permissão que o trigger, que roda como `security definer`) e derruba o fluxo inteiro silenciosamente.
+
+**Regra permanente:** antes de escrever `insert into activity_log(...)` ou `insert into [qualquer]_log(...)` dentro de uma função ou RPC, primeiro verificar se a tabela que está sendo mutada por essa função já tem um trigger de log associado. Se tiver, **não inserir de novo** — o trigger já cobre. Só inserir manualmente em tabela de log quando a ação não tiver trigger correspondente nenhum (por exemplo, ações que não mutam uma tabela específica, como "staff acessou como cliente").
+
+Antes de criar qualquer RPC nova que mexe em tabela de negócio, checar explicitamente: "essa tabela já tem trigger de log? Se sim, minha função não deve inserir em log nenhum — só fazer o insert/update da tabela principal e deixar o trigger cuidar do resto."
+
 ---
 
 ## Versionamento deste documento
