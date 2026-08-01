@@ -46,3 +46,23 @@ export function assertNotReadOnly() {
     throw new ReadOnlyModeError();
   }
 }
+
+/** Mensagem da rede de segurança do cadeado de RLS (org_can_write, migração
+ * 20260801110000_delinquency_write_lock_function.sql) — cobre o caso raro
+ * de a checagem visual da UI (isReadOnlyLevel/assertNotReadOnly) falhar por
+ * algum motivo e a escrita chegar direto no banco. */
+export const WRITE_LOCK_TOAST_MESSAGE =
+  "Sua empresa está com pendência financeira e está em modo somente leitura. Regularize para voltar a editar.";
+
+/** Detecta a rejeição do banco causada pelo cadeado de escrita:
+ * - 42501: violação de RLS no INSERT (org_can_write reprovou o WITH CHECK).
+ * - PGRST116: UPDATE que não afetou nenhuma linha porque a USING clause
+ *   (que agora inclui org_can_write) filtrou a linha antes de chegar no
+ *   .single() da chamada. Como nenhuma tabela travada tem hard delete
+ *   (seção 2 do Guia), um UPDATE de um id válido do próprio usuário que não
+ *   afeta nenhuma linha é, na prática, sempre o cadeado de inadimplência. */
+export function isWriteLockRejection(error: unknown): boolean {
+  if (error instanceof ReadOnlyModeError) return true;
+  const code = (error as { code?: string } | null | undefined)?.code;
+  return code === "42501" || code === "PGRST116";
+}
