@@ -1,192 +1,225 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
+import { Plus, LifeBuoy } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MessageSquare, CalendarDays, Clock, Send, Video, BookOpen, PhoneCall } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  useMyTickets,
+  useCreateTicket,
+  type SupportTicketType,
+  type SupportTicketStatus,
+} from "@/lib/queries/support";
 
-const especialistas = [
-  { nome: "Marina Duarte", cargo: "Especialista ISO 9001 · Lead Auditor", iniciais: "MD" },
-  { nome: "Rafael Correa", cargo: "Consultor SGI · Construção Civil", iniciais: "RC" },
-  { nome: "Juliana Peixoto", cargo: "Especialista em Riscos e Auditorias", iniciais: "JP" },
-];
+const TYPE_LABEL: Record<SupportTicketType, string> = {
+  duvida: "Dúvida",
+  erro_bug: "Erro / Bug",
+  melhoria: "Melhoria",
+  suporte_metodologico: "Suporte Metodológico",
+  treinamento: "Treinamento",
+};
 
-const slots = ["09:00", "10:30", "13:00", "14:30", "16:00"];
-const dias = [
-  { d: "Seg", n: 21, disponivel: true },
-  { d: "Ter", n: 22, disponivel: true },
-  { d: "Qua", n: 23, disponivel: false },
-  { d: "Qui", n: 24, disponivel: true },
-  { d: "Sex", n: 25, disponivel: true },
-  { d: "Sáb", n: 26, disponivel: false },
-  { d: "Dom", n: 27, disponivel: false },
-];
+const STATUS_LABEL: Record<SupportTicketStatus, string> = {
+  aberto: "Aberto",
+  em_atendimento: "Em Atendimento",
+  aguardando_cliente: "Aguardando Você",
+  resolvido: "Resolvido",
+  fechado: "Fechado",
+};
 
-const chat = [
-  { de: "bot", nome: "Jáwda Assist", msg: "Olá! Como posso ajudar hoje? Você pode perguntar sobre funcionalidades ou abrir um chamado.", h: "09:41" },
-  { de: "user", nome: "Você", msg: "Como configuro os prazos de SLA por gravidade?", h: "09:42" },
-  { de: "bot", nome: "Jáwda Assist", msg: "Vá em Configurações → Notificações e SLAs. Lá você edita os prazos de cada gravidade.", h: "09:42" },
-];
+const STATUS_CLASSES: Record<SupportTicketStatus, string> = {
+  aberto: "bg-[color:var(--severity-high)]/15 text-[color:var(--severity-high)] border-[color:var(--severity-high)]/30",
+  em_atendimento: "bg-brand/15 text-brand border-brand/30",
+  aguardando_cliente: "bg-[color:var(--warning)]/20 text-[color:var(--warning)] border-[color:var(--warning)]/40",
+  resolvido: "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
+  fechado: "bg-muted text-muted-foreground border-border",
+};
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
 
 export function SuportePage() {
-  const [selectedDia, setSelectedDia] = useState(22);
-  const [selectedSlot, setSelectedSlot] = useState("10:30");
-  const [selectedEsp, setSelectedEsp] = useState(0);
+  const { data: tickets = [], isLoading } = useMyTickets();
+  const createTicket = useCreateTicket();
+
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [type, setType] = useState<SupportTicketType | "">("");
+  const [description, setDescription] = useState("");
+
+  function resetForm() {
+    setSubject("");
+    setType("");
+    setDescription("");
+  }
+
+  function handleSubmit() {
+    if (!subject.trim() || !type || !description.trim()) {
+      toast.error("Preencha assunto, tipo e descrição.");
+      return;
+    }
+    createTicket.mutate(
+      { subject: subject.trim(), type, description: description.trim() },
+      {
+        onSuccess: () => {
+          toast.success("Chamado aberto com sucesso.");
+          setOpen(false);
+          resetForm();
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Erro ao abrir chamado."),
+      },
+    );
+  }
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-[1400px] space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Suporte</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Tire dúvidas sobre a plataforma ou converse com um especialista em ISO.
-          </p>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Suporte Técnico */}
-          <Card className="overflow-hidden rounded-xl">
-            <CardHeader className="border-b border-border bg-brand-soft/40">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-brand-foreground">
-                    <MessageSquare className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">Suporte Técnico</CardTitle>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Uso da plataforma, bugs e configurações</p>
-                  </div>
+      <div className="mx-auto max-w-[1100px] space-y-5">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-foreground">
+              <LifeBuoy className="h-6 w-6 text-brand" />
+              Suporte
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Fale com a equipe Jáwda. Horário comercial, resposta em até 1 dia útil.
+            </p>
+          </div>
+          <Dialog
+            open={open}
+            onOpenChange={(v) => {
+              setOpen(v);
+              if (!v) resetForm();
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button className="rounded-lg bg-brand text-white hover:bg-brand/90">
+                <Plus className="mr-1.5 h-4 w-4" />
+                Novo Chamado
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Abrir novo chamado</DialogTitle>
+                <DialogDescription>
+                  Descreva sua dúvida, problema ou sugestão. Nossa equipe responde em até 1 dia útil.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">Assunto</label>
+                  <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Resumo do chamado" />
                 </div>
-                <Badge className="bg-[color:var(--severity-low)]/15 text-[color:var(--severity-low)] hover:bg-[color:var(--severity-low)]/15">
-                  <span className="mr-1 h-1.5 w-1.5 rounded-full bg-[color:var(--severity-low)]" /> Online agora
-                </Badge>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">Tipo</label>
+                  <Select value={type} onValueChange={(v) => setType(v as SupportTicketType)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(TYPE_LABEL) as SupportTicketType[]).map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {TYPE_LABEL[t]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">Descrição</label>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Conte com detalhes o que está acontecendo"
+                    rows={5}
+                  />
+                </div>
               </div>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 p-0">
-              <div className="flex-1 space-y-3 p-4">
-                {chat.map((m, i) => (
-                  <div key={i} className={`flex gap-2 ${m.de === "user" ? "justify-end" : ""}`}>
-                    {m.de === "bot" && (
-                      <Avatar className="h-7 w-7">
-                        <AvatarFallback className="bg-brand text-brand-foreground text-[10px] font-semibold">JA</AvatarFallback>
-                      </Avatar>
-                    )}
-                    <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${m.de === "user" ? "bg-brand text-brand-foreground" : "bg-muted"}`}>
-                      <div className="mb-0.5 text-[10px] font-semibold opacity-70">{m.nome} · {m.h}</div>
-                      {m.msg}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 border-t border-border bg-muted/30 p-3">
-                <Input placeholder="Escreva sua mensagem…" className="h-10 bg-background" />
-                <Button size="icon" className="h-10 w-10 bg-brand text-brand-foreground hover:bg-brand/90">
-                  <Send className="h-4 w-4" />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancelar
                 </Button>
-              </div>
-              <div className="flex items-center justify-around border-t border-border px-3 py-3 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> Resposta &lt; 5 min</div>
-                <div className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" /> Central de ajuda</div>
-                <div className="flex items-center gap-1.5"><PhoneCall className="h-3.5 w-3.5" /> 0800 123 4567</div>
-              </div>
-            </CardContent>
-          </Card>
+                <Button
+                  className="bg-brand text-white hover:bg-brand/90"
+                  onClick={handleSubmit}
+                  disabled={createTicket.isPending}
+                >
+                  {createTicket.isPending ? "Abrindo..." : "Abrir Chamado"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </header>
 
-          {/* Suporte Metodológico */}
-          <Card className="overflow-hidden rounded-xl">
-            <CardHeader className="border-b border-border bg-brand-soft/40">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-brand-foreground">
-                  <CalendarDays className="h-5 w-5" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Suporte Metodológico</CardTitle>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Consultoria com especialistas em ISO</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-5 p-5">
-              <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Escolha um especialista</div>
-                <div className="space-y-2">
-                  {especialistas.map((e, i) => (
-                    <button
-                      key={e.nome}
-                      onClick={() => setSelectedEsp(i)}
-                      className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${
-                        selectedEsp === i ? "border-brand bg-brand-soft/40" : "border-border hover:border-brand/40"
-                      }`}
-                    >
-                      <Avatar className="h-9 w-9">
-                        <AvatarFallback className="bg-brand-soft text-brand text-xs font-semibold">{e.iniciais}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium">{e.nome}</div>
-                        <div className="truncate text-xs text-muted-foreground">{e.cargo}</div>
-                      </div>
-                      <Video className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-2 flex items-center justify-between text-xs">
-                  <span className="font-semibold uppercase tracking-wide text-muted-foreground">Julho 2026</span>
-                  <span className="text-muted-foreground">Semana 21–27</span>
-                </div>
-                <div className="grid grid-cols-7 gap-1.5">
-                  {dias.map((d) => (
-                    <button
-                      key={d.n}
-                      disabled={!d.disponivel}
-                      onClick={() => setSelectedDia(d.n)}
-                      className={`flex flex-col items-center gap-0.5 rounded-lg border py-2 text-xs transition ${
-                        !d.disponivel
-                          ? "cursor-not-allowed border-border/50 bg-muted/30 text-muted-foreground/50"
-                          : selectedDia === d.n
-                            ? "border-brand bg-brand text-brand-foreground"
-                            : "border-border hover:border-brand/40"
-                      }`}
-                    >
-                      <span className="text-[10px] font-semibold uppercase">{d.d}</span>
-                      <span className="text-base font-bold">{d.n}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Horários disponíveis</div>
-                <div className="flex flex-wrap gap-2">
-                  {slots.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setSelectedSlot(s)}
-                      className={`rounded-lg border px-3 py-1.5 text-sm transition ${
-                        selectedSlot === s
-                          ? "border-brand bg-brand text-brand-foreground"
-                          : "border-border hover:border-brand/40"
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg bg-brand-soft/40 p-3 text-xs">
-                <div>
-                  <div className="font-semibold text-brand">{especialistas[selectedEsp].nome}</div>
-                  <div className="text-muted-foreground">24/07/2026 — {selectedSlot} · 45 min por videochamada</div>
-                </div>
-                <Button className="bg-brand text-brand-foreground hover:bg-brand/90">Agendar</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Assunto</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Aberto em</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                      Carregando...
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!isLoading && tickets.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                      Nenhum chamado aberto ainda.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {tickets.map((t) => (
+                  <TableRow key={t.id} className="cursor-pointer hover:bg-muted/40">
+                    <TableCell>
+                      <Link to="/suporte/$id" params={{ id: t.id }} className="block font-medium text-foreground">
+                        {t.subject}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{TYPE_LABEL[t.type]}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={STATUS_CLASSES[t.status]}>
+                        {STATUS_LABEL[t.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatDate(t.createdAt)}</TableCell>
+                    <TableCell>
+                      <Link to="/suporte/$id" params={{ id: t.id }}>
+                        <Button variant="ghost" size="sm">
+                          Abrir
+                        </Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </AppShell>
   );

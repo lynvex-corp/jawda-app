@@ -38,6 +38,7 @@ import { Route as PlanosDeAcaoIndexRouteImport } from './routes/planos-de-acao.i
 import { Route as NaoConformidadesIndexRouteImport } from './routes/nao-conformidades.index'
 import { Route as IndicadoresIndexRouteImport } from './routes/indicadores.index'
 import { Route as AuditoriasIndexRouteImport } from './routes/auditorias.index'
+import { Route as SuporteIdRouteImport } from './routes/suporte.$id'
 import { Route as PlanosDeAcaoNovoRouteImport } from './routes/planos-de-acao.novo'
 import { Route as PlanosDeAcaoIdRouteImport } from './routes/planos-de-acao.$id'
 import { Route as NaoConformidadesNovaRouteImport } from './routes/nao-conformidades.nova'
@@ -191,6 +192,11 @@ const AuditoriasIndexRoute = AuditoriasIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuditoriasRoute,
 } as any)
+const SuporteIdRoute = SuporteIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => SuporteRoute,
+} as any)
 const PlanosDeAcaoNovoRoute = PlanosDeAcaoNovoRouteImport.update({
   id: '/novo',
   path: '/novo',
@@ -250,7 +256,7 @@ export interface FileRoutesByFullPath {
   '/producao': typeof ProducaoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/riscos': typeof RiscosRoute
-  '/suporte': typeof SuporteRoute
+  '/suporte': typeof SuporteRouteWithChildren
   '/treinamentos': typeof TreinamentosRoute
   '/usuarios': typeof UsuariosRoute
   '/auditorias/$id': typeof AuditoriasIdRoute
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/nao-conformidades/nova': typeof NaoConformidadesNovaRoute
   '/planos-de-acao/$id': typeof PlanosDeAcaoIdRoute
   '/planos-de-acao/novo': typeof PlanosDeAcaoNovoRoute
+  '/suporte/$id': typeof SuporteIdRoute
   '/auditorias/': typeof AuditoriasIndexRoute
   '/indicadores/': typeof IndicadoresIndexRoute
   '/nao-conformidades/': typeof NaoConformidadesIndexRoute
@@ -284,7 +291,7 @@ export interface FileRoutesByTo {
   '/producao': typeof ProducaoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/riscos': typeof RiscosRoute
-  '/suporte': typeof SuporteRoute
+  '/suporte': typeof SuporteRouteWithChildren
   '/treinamentos': typeof TreinamentosRoute
   '/usuarios': typeof UsuariosRoute
   '/auditorias/$id': typeof AuditoriasIdRoute
@@ -294,6 +301,7 @@ export interface FileRoutesByTo {
   '/nao-conformidades/nova': typeof NaoConformidadesNovaRoute
   '/planos-de-acao/$id': typeof PlanosDeAcaoIdRoute
   '/planos-de-acao/novo': typeof PlanosDeAcaoNovoRoute
+  '/suporte/$id': typeof SuporteIdRoute
   '/auditorias': typeof AuditoriasIndexRoute
   '/indicadores': typeof IndicadoresIndexRoute
   '/nao-conformidades': typeof NaoConformidadesIndexRoute
@@ -323,7 +331,7 @@ export interface FileRoutesById {
   '/producao': typeof ProducaoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/riscos': typeof RiscosRoute
-  '/suporte': typeof SuporteRoute
+  '/suporte': typeof SuporteRouteWithChildren
   '/treinamentos': typeof TreinamentosRoute
   '/usuarios': typeof UsuariosRoute
   '/auditorias/$id': typeof AuditoriasIdRoute
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/nao-conformidades/nova': typeof NaoConformidadesNovaRoute
   '/planos-de-acao/$id': typeof PlanosDeAcaoIdRoute
   '/planos-de-acao/novo': typeof PlanosDeAcaoNovoRoute
+  '/suporte/$id': typeof SuporteIdRoute
   '/auditorias/': typeof AuditoriasIndexRoute
   '/indicadores/': typeof IndicadoresIndexRoute
   '/nao-conformidades/': typeof NaoConformidadesIndexRoute
@@ -373,6 +382,7 @@ export interface FileRouteTypes {
     | '/nao-conformidades/nova'
     | '/planos-de-acao/$id'
     | '/planos-de-acao/novo'
+    | '/suporte/$id'
     | '/auditorias/'
     | '/indicadores/'
     | '/nao-conformidades/'
@@ -407,6 +417,7 @@ export interface FileRouteTypes {
     | '/nao-conformidades/nova'
     | '/planos-de-acao/$id'
     | '/planos-de-acao/novo'
+    | '/suporte/$id'
     | '/auditorias'
     | '/indicadores'
     | '/nao-conformidades'
@@ -445,6 +456,7 @@ export interface FileRouteTypes {
     | '/nao-conformidades/nova'
     | '/planos-de-acao/$id'
     | '/planos-de-acao/novo'
+    | '/suporte/$id'
     | '/auditorias/'
     | '/indicadores/'
     | '/nao-conformidades/'
@@ -474,7 +486,7 @@ export interface RootRouteChildren {
   ProducaoRoute: typeof ProducaoRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   RiscosRoute: typeof RiscosRoute
-  SuporteRoute: typeof SuporteRoute
+  SuporteRoute: typeof SuporteRouteWithChildren
   TreinamentosRoute: typeof TreinamentosRoute
   UsuariosRoute: typeof UsuariosRoute
 }
@@ -684,6 +696,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuditoriasIndexRouteImport
       parentRoute: typeof AuditoriasRoute
     }
+    '/suporte/$id': {
+      id: '/suporte/$id'
+      path: '/$id'
+      fullPath: '/suporte/$id'
+      preLoaderRoute: typeof SuporteIdRouteImport
+      parentRoute: typeof SuporteRoute
+    }
     '/planos-de-acao/novo': {
       id: '/planos-de-acao/novo'
       path: '/novo'
@@ -797,6 +816,17 @@ const PlanosDeAcaoRouteWithChildren = PlanosDeAcaoRoute._addFileChildren(
   PlanosDeAcaoRouteChildren,
 )
 
+interface SuporteRouteChildren {
+  SuporteIdRoute: typeof SuporteIdRoute
+}
+
+const SuporteRouteChildren: SuporteRouteChildren = {
+  SuporteIdRoute: SuporteIdRoute,
+}
+
+const SuporteRouteWithChildren =
+  SuporteRoute._addFileChildren(SuporteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnaliseCenarioRoute: AnaliseCenarioRoute,
@@ -820,7 +850,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProducaoRoute: ProducaoRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   RiscosRoute: RiscosRoute,
-  SuporteRoute: SuporteRoute,
+  SuporteRoute: SuporteRouteWithChildren,
   TreinamentosRoute: TreinamentosRoute,
   UsuariosRoute: UsuariosRoute,
 }
