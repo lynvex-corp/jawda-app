@@ -24,6 +24,7 @@ import {
   History,
   FilePlus2,
   Lock,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,8 @@ import {
   useMoveSwotCard,
   useGenerateActionPlanFromSwotCard,
   useCreateStrategyActionPlan,
+  useRisksOpportunities,
+  useCreateRiskOpportunity,
   type SwotQuadrant,
   type SwotCard,
 } from "@/lib/queries/estrategia";
@@ -105,6 +108,8 @@ export function AnaliseCenarioPage() {
   const moveCard = useMoveSwotCard();
   const generatePlan = useGenerateActionPlanFromSwotCard();
   const createStandalonePlan = useCreateStrategyActionPlan();
+  const { data: risks = [] } = useRisksOpportunities();
+  const createRisk = useCreateRiskOpportunity();
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [editing, setEditing] = useState<SwotCard | null>(null);
@@ -151,6 +156,27 @@ export function AnaliseCenarioPage() {
         onSuccess: (plan) =>
           toast.success("Plano de ação gerado", { description: `Vínculo criado: ${plan.code}` }),
         onError: (e) => toast.error("Não foi possível gerar o plano", { description: String(e) }),
+      },
+    );
+  };
+
+  const gerarRisco = (card: SwotCard) => {
+    createRisk.mutate(
+      {
+        type: card.quadrant === "ameaca" ? "risco" : "oportunidade",
+        area: "qualidade",
+        description: card.description,
+        probability: 3,
+        impact: 3,
+        originSwotCardId: card.id,
+      },
+      {
+        onSuccess: (created) =>
+          toast.success(`${created.code} registrado`, {
+            description: "Ajuste área, probabilidade e impacto na tela de Riscos e Oportunidades.",
+          }),
+        onError: (e) =>
+          toast.error("Não foi possível gerar o registro", { description: String(e) }),
       },
     );
   };
@@ -406,6 +432,7 @@ export function AnaliseCenarioPage() {
               const meta = quadrantMeta[q];
               const list = cards.filter((c) => c.quadrant === q);
               const showAction = q === "fraqueza" || q === "ameaca";
+              const showRiskAction = q === "ameaca" || q === "oportunidade";
               return (
                 <div
                   key={q}
@@ -447,6 +474,10 @@ export function AnaliseCenarioPage() {
                           setFormText(c.description);
                         }}
                         onGeneratePlan={showAction ? () => gerarPlano(c) : undefined}
+                        onGenerateRisk={showRiskAction ? () => gerarRisco(c) : undefined}
+                        linkedRiskCode={
+                          risks.find((r) => r.originSwotCardId === c.id)?.code ?? null
+                        }
                       />
                     ))}
                     {isDraft && (
@@ -675,12 +706,16 @@ function SwotCardItem({
   onDragStart,
   onEdit,
   onGeneratePlan,
+  onGenerateRisk,
+  linkedRiskCode,
 }: {
   card: SwotCard;
   isDraft: boolean;
   onDragStart: () => void;
   onEdit: () => void;
   onGeneratePlan?: () => void;
+  onGenerateRisk?: () => void;
+  linkedRiskCode?: string | null;
 }) {
   return (
     <div
@@ -719,6 +754,23 @@ function SwotCardItem({
                 className="h-7 rounded-md px-2 text-[11px] text-brand hover:bg-brand-soft"
               >
                 <Plus className="mr-1 h-3 w-3" /> Gerar Plano de Ação
+              </Button>
+            ) : null}
+            {linkedRiskCode ? (
+              <Badge
+                variant="outline"
+                className="rounded-md border-[color:var(--severity-high)]/30 bg-[color:var(--severity-high)]/10 text-[10px] text-[color:var(--severity-high)]"
+              >
+                <ShieldAlert className="mr-1 h-3 w-3" /> {linkedRiskCode}
+              </Badge>
+            ) : onGenerateRisk && isDraft ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onGenerateRisk}
+                className="h-7 rounded-md px-2 text-[11px] text-[color:var(--severity-high)] hover:bg-[color:var(--severity-high)]/10"
+              >
+                <ShieldAlert className="mr-1 h-3 w-3" /> Gerar Risco/Oportunidade
               </Button>
             ) : null}
             {isDraft && (
