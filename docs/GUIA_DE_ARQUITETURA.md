@@ -1,389 +1,405 @@
-# JÁWDA — Guia de Arquitetura
+# JÃWDA â Guia de Arquitetura
 
-> **Este documento é a lei do projeto.** Toda aba do Claude Code deve lê-lo antes de escrever qualquer linha. Nenhuma decisão de arquitetura pode contrariar o que está aqui sem alterar o próprio documento primeiro.
+> **Este documento Ã© a lei do projeto.** Toda aba do Claude Code deve lÃª-lo antes de escrever qualquer linha. Nenhuma decisÃ£o de arquitetura pode contrariar o que estÃ¡ aqui sem alterar o prÃ³prio documento primeiro.
 >
-> **Versão:** 1.0 · **Data:** nov/2026 · **Autor:** Matheus Marinho (Lynvex) · **Consultor de arquitetura:** Claude
+> **VersÃ£o:** 1.0 Â· **Data:** nov/2026 Â· **Autor:** Matheus Marinho (Lynvex) Â· **Consultor de arquitetura:** Claude
 
 ---
 
-## 1. O que é o Jáwda
+## 1. O que Ã© o JÃ¡wda
 
-Plataforma SaaS multi-tenant de gestão da qualidade e conformidade, começando por ISO 9001, com escala planejada para 500 a 1.000 empresas.
+Plataforma SaaS multi-tenant de gestÃ£o da qualidade e conformidade, comeÃ§ando por ISO 9001, com escala planejada para 500 a 1.000 empresas.
 
-São dois sistemas separados sobre o mesmo banco:
+SÃ£o dois sistemas separados sobre o mesmo banco:
 
-- **Painel do Cliente** (`app.jawda.com.br`) — onde cada empresa opera o próprio sistema de gestão.
-- **Painel Administrativo** (`admin.jawda.com.br`) — onde a Lynvex provisiona empresas, cobra e acompanha.
+- **Painel do Cliente** (`app.jawda.com.br`) â onde cada empresa opera o prÃ³prio sistema de gestÃ£o.
+- **Painel Administrativo** (`admin.jawda.com.br`) â onde a Lynvex provisiona empresas, cobra e acompanha.
 
-## 2. Princípios inegociáveis
+## 2. PrincÃ­pios inegociÃ¡veis
 
-Toda decisão de código deve respeitar estes princípios. Quando houver conflito, o princípio prevalece.
+Toda decisÃ£o de cÃ³digo deve respeitar estes princÃ­pios. Quando houver conflito, o princÃ­pio prevalece.
 
-**Um código, um banco, um deploy.** Nunca uma instalação por empresa. Isolamento entre empresas é garantido **dentro do banco**, por Row Level Security do Supabase, nunca por filtro no código da tela.
+**Um cÃ³digo, um banco, um deploy.** Nunca uma instalaÃ§Ã£o por empresa. Isolamento entre empresas Ã© garantido **dentro do banco**, por Row Level Security do Supabase, nunca por filtro no cÃ³digo da tela.
 
-**Empresa nunca vê dado de outra.** Nem por bug, nem por erro de consulta, nem por engenhosidade de usuário. É a fronteira mais importante do sistema, e é o motivo de ele existir sobre o Supabase.
+**Empresa nunca vÃª dado de outra.** Nem por bug, nem por erro de consulta, nem por engenhosidade de usuÃ¡rio. Ã a fronteira mais importante do sistema, e Ã© o motivo de ele existir sobre o Supabase.
 
-**Nada é apagado.** Registros excluídos vão para o histórico com quem apagou, quando e por quê. Motivo obrigatório. Só perfil alto exclui.
+**Nada Ã© apagado.** Registros excluÃ­dos vÃ£o para o histÃ³rico com quem apagou, quando e por quÃª. Motivo obrigatÃ³rio. SÃ³ perfil alto exclui.
 
-**A IA propõe, o humano decide.** Registros críticos preenchidos por IA (NC e auditoria) nascem em estado "aguardando aprovação" e só um perfil superior os torna oficiais. Toda ação da IA fica marcada na trilha.
+**A IA propÃµe, o humano decide.** Registros crÃ­ticos preenchidos por IA (NC e auditoria) nascem em estado "aguardando aprovaÃ§Ã£o" e sÃ³ um perfil superior os torna oficiais. Toda aÃ§Ã£o da IA fica marcada na trilha.
 
-**O contrato manda no acesso.** O contrato do cliente diz quais módulos ele vê e quais permanecem bloqueados. Financeiro empurra a empresa por uma escada de inadimplência: aviso → somente leitura → bloqueio, com cliente sempre podendo exportar dados.
+**O contrato manda no acesso.** O contrato do cliente diz quais mÃ³dulos ele vÃª e quais permanecem bloqueados. Financeiro empurra a empresa por uma escada de inadimplÃªncia: aviso â somente leitura â bloqueio, com cliente sempre podendo exportar dados.
 
-**Trilha de auditoria em tudo que importa.** Toda ação que cria, altera ou encerra registro (NC, plano, auditoria, medição de indicador) fica registrada com autor, timestamp e detalhe.
+**Trilha de auditoria em tudo que importa.** Toda aÃ§Ã£o que cria, altera ou encerra registro (NC, plano, auditoria, mediÃ§Ã£o de indicador) fica registrada com autor, timestamp e detalhe.
 
 ## 3. Stack
 
-Escolhida após análise do código-fonte do protótipo. **Não migrar para outra stack sem revisar este documento primeiro.**
+Escolhida apÃ³s anÃ¡lise do cÃ³digo-fonte do protÃ³tipo. **NÃ£o migrar para outra stack sem revisar este documento primeiro.**
 
-**Frontend:** TanStack Start · React 19 · TypeScript · Tailwind CSS v4 (tokens em oklch) · shadcn/ui · Recharts · Zod · react-hook-form · Sonner (toasts) · Lucide (ícones)
+**Frontend:** TanStack Start Â· React 19 Â· TypeScript Â· Tailwind CSS v4 (tokens em oklch) Â· shadcn/ui Â· Recharts Â· Zod Â· react-hook-form Â· Sonner (toasts) Â· Lucide (Ã­cones)
 
-**Backend:** Supabase (PostgreSQL + Auth + Storage + Realtime + Edge Functions) · Row Level Security como trava de multi-tenant
+**Backend:** Supabase (PostgreSQL + Auth + Storage + Realtime + Edge Functions) Â· Row Level Security como trava de multi-tenant
 
-**Deploy:** VPS Hostinger com EasyPanel · região Brasil (obrigatório)
+**Deploy:** Vercel, com todas as funÃ§Ãµes fixadas explicitamente na regiÃ£o SÃ£o Paulo/Brasil (`gru1`, disponÃ­vel no plano Pro) â nÃ£o deixar no automÃ¡tico. O banco (Supabase) jÃ¡ estÃ¡ na mesma regiÃ£o, entÃ£o aplicaÃ§Ã£o e dado ficam fisicamente no Brasil. MigraÃ§Ã£o para VPS Hostinger com EasyPanel segue no radar como evoluÃ§Ã£o futura: custo mais previsÃ­vel em escala (500-1.000 empresas), e necessÃ¡ria se algum contrato de cliente grande exigir literalmente "provedor de hospedagem brasileiro" e nÃ£o apenas "processamento em territÃ³rio brasileiro" â a Vercel Ã© empresa americana, entÃ£o a regiÃ£o `gru1` resolve residÃªncia de dado mas pode nÃ£o satisfazer essa exigÃªncia contratual mais rÃ­gida. Enquanto isso nÃ£o acontecer, Vercel com regiÃ£o fixada Ã© a decisÃ£o vigente para operar com cliente pagante real.
 
-**Notificações:** e-mail transacional (Resend) + rotina agendada (Edge Function) varrendo prazos
+**NotificaÃ§Ãµes:** e-mail transacional (Resend) + rotina agendada (Edge Function) varrendo prazos
 
-**Pagamentos:** gateway automatizado (definir na sprint de financeiro — candidatos: Asaas ou Pagar.me)
+**Pagamentos:** gateway automatizado (definir na sprint de financeiro â candidatos: Asaas ou Pagar.me)
 
 ## 4. Modelo multi-tenant
 
-Existem três camadas de acesso, e elas mudam completamente o comportamento do sistema:
+Existem trÃªs camadas de acesso, e elas mudam completamente o comportamento do sistema:
 
-**Time interno Lynvex** — enxerga todas as empresas. Login separado, mesa admin. Cada uso do "passe" que atravessa empresas é registrado com motivo obrigatório.
+**Time interno Lynvex** â enxerga todas as empresas. Login separado, mesa admin. Cada uso do "passe" que atravessa empresas Ã© registrado com motivo obrigatÃ³rio.
 
-**Dono/Admin da empresa cliente** — enxerga a própria empresa. Vê os módulos que o contrato liberou. Módulos não contratados aparecem com cadeado e "falar com a Jáwda".
+**Dono/Admin da empresa cliente** â enxerga a prÃ³pria empresa. VÃª os mÃ³dulos que o contrato liberou. MÃ³dulos nÃ£o contratados aparecem com cadeado e "falar com a JÃ¡wda".
 
-**Usuários criados pelo dono da empresa** — enxergam o que o dono liberou por perfil e por escopo de unidade. Nunca podem ter mais poder que quem os criou.
+**UsuÃ¡rios criados pelo dono da empresa** â enxergam o que o dono liberou por perfil e por escopo de unidade. Nunca podem ter mais poder que quem os criou.
 
 ### Hierarquia no banco
 
 ```
-organizations (empresa cliente — 1 CNPJ = 1 organização)
-  ├── contract (o que ela comprou)
-  │   └── contract_modules (quais módulos estão ligados)
-  ├── units (matriz, filial, obra) — hierarquia opcional
-  ├── users (pertencem à organização; um mesmo user pode estar em várias)
-  │   └── user_units_access (a quais unidades esse user tem acesso)
-  ├── ncs, action_plans, audits, indicators, documents, ... (tudo carrega org_id)
-  └── activity_log (trilha completa)
+organizations (empresa cliente â 1 CNPJ = 1 organizaÃ§Ã£o)
+  âââ contract (o que ela comprou)
+  â   âââ contract_modules (quais mÃ³dulos estÃ£o ligados)
+  âââ units (matriz, filial, obra) â hierarquia opcional
+  âââ users (pertencem Ã  organizaÃ§Ã£o; um mesmo user pode estar em vÃ¡rias)
+  â   âââ user_units_access (a quais unidades esse user tem acesso)
+  âââ ncs, action_plans, audits, indicators, documents, ... (tudo carrega org_id)
+  âââ activity_log (trilha completa)
 
-internal_staff (time Lynvex — fora das organizações)
+internal_staff (time Lynvex â fora das organizaÃ§Ãµes)
 internal_access_log (registro de quando atravessou pra qual empresa)
 ```
 
 ### Regra de RLS que ancora tudo
 
-Toda tabela de dados de negócio tem `org_id NOT NULL`. Toda política de RLS filtra por `org_id = auth.jwt() ->> 'org_id'`. **Sem exceção.** A única exceção são as tabelas do painel administrativo, que são acessíveis apenas ao time interno Lynvex.
+Toda tabela de dados de negÃ³cio tem `org_id NOT NULL`. Toda polÃ­tica de RLS filtra por `org_id = auth.jwt() ->> 'org_id'`. **Sem exceÃ§Ã£o.** A Ãºnica exceÃ§Ã£o sÃ£o as tabelas do painel administrativo, que sÃ£o acessÃ­veis apenas ao time interno Lynvex.
 
-## 5. Personalização por empresa
+## 5. PersonalizaÃ§Ã£o por empresa
 
-**Apenas logo e cores.** Nada além disso. Sem subdomínio por empresa na v1 (fica para depois). Sem domínio próprio do cliente. Sem tela customizada por cliente. Sem campo customizado por cliente.
+**Apenas logo e cores.** Nada alÃ©m disso. Sem subdomÃ­nio por empresa na v1 (fica para depois). Sem domÃ­nio prÃ³prio do cliente. Sem tela customizada por cliente. Sem campo customizado por cliente.
 
-Motivo: qualquer coisa além disso quebra a escalabilidade. O primeiro cliente pede um campo especial, e dois anos depois você tem 15 versões do mesmo módulo.
+Motivo: qualquer coisa alÃ©m disso quebra a escalabilidade. O primeiro cliente pede um campo especial, e dois anos depois vocÃª tem 15 versÃµes do mesmo mÃ³dulo.
 
-Logo e cores ficam como dado da empresa e o sistema se pinta sozinho no carregamento. Um só código, mil identidades visuais, custo zero de manutenção.
+Logo e cores ficam como dado da empresa e o sistema se pinta sozinho no carregamento. Um sÃ³ cÃ³digo, mil identidades visuais, custo zero de manutenÃ§Ã£o.
 
-## 6. Perfis e permissões
+## 6. Perfis e permissÃµes
 
-Lista fixa da Jáwda, não configurável pelo cliente na v1:
+Lista fixa da JÃ¡wda, nÃ£o configurÃ¡vel pelo cliente na v1:
 
-- **Administrador do Cliente** — enxerga tudo da empresa, cria usuários, aprova o que precisa aprovação.
-- **Gestor da Qualidade** — enxerga tudo, aprova registros críticos preenchidos por IA, executa análise crítica.
-- **Auditor** — foco no módulo Auditorias, checklist e apontamentos.
-- **Gestor de Área** — vê e edita o que é da área dele.
-- **Colaborador** — cria e trata o que é dele.
-- **Somente Leitura** — visita apenas.
+- **Administrador do Cliente** â enxerga tudo da empresa, cria usuÃ¡rios, aprova o que precisa aprovaÃ§Ã£o.
+- **Gestor da Qualidade** â enxerga tudo, aprova registros crÃ­ticos preenchidos por IA, executa anÃ¡lise crÃ­tica.
+- **Auditor** â foco no mÃ³dulo Auditorias, checklist e apontamentos.
+- **Gestor de Ãrea** â vÃª e edita o que Ã© da Ã¡rea dele.
+- **Colaborador** â cria e trata o que Ã© dele.
+- **Somente Leitura** â visita apenas.
 
-Cada usuário tem também um **escopo por unidade**: lista de unidades ou "todas, inclusive futuras". Sem esse "todas futuras", uma obra nova não aparece para quem deveria ver — armadilha comum que já está descartada aqui.
+Cada usuÃ¡rio tem tambÃ©m um **escopo por unidade**: lista de unidades ou "todas, inclusive futuras". Sem esse "todas futuras", uma obra nova nÃ£o aparece para quem deveria ver â armadilha comum que jÃ¡ estÃ¡ descartada aqui.
 
 ## 7. Ciclo de vida do cliente
 
-**Provisionamento assistido:** o time Lynvex cria a empresa no painel admin, configura módulos e unidades, e convida o dono por e-mail. O dono cria a própria senha. **Nunca enviamos senha pronta.**
+**Provisionamento assistido:** o time Lynvex cria a empresa no painel admin, configura mÃ³dulos e unidades, e convida o dono por e-mail. O dono cria a prÃ³pria senha. **Nunca enviamos senha pronta.**
 
-**Inadimplência em escada** (todos os prazos configuráveis no admin):
-- **1º gatilho** — avisos por e-mail
-- **2º gatilho** — banner de aviso no login
-- **3º gatilho** — modo somente leitura
-- **4º gatilho** — bloqueio de acesso
+**InadimplÃªncia em escada** (todos os prazos configurÃ¡veis no admin):
+- **1Âº gatilho** â avisos por e-mail
+- **2Âº gatilho** â banner de aviso no login
+- **3Âº gatilho** â modo somente leitura
+- **4Âº gatilho** â bloqueio de acesso
 
-Cliente sempre pode exportar os dados dele, em qualquer degrau da escada. Não somos banco, e não somos sequestrador de dados.
+Cliente sempre pode exportar os dados dele, em qualquer degrau da escada. NÃ£o somos banco, e nÃ£o somos sequestrador de dados.
 
-**Cancelamento de módulo** — o dado permanece no banco, mas as telas ficam bloqueadas com "reative para acessar". Vínculos entre módulos degradam para rótulo, não quebram (ex.: NC que veio de auditoria vira "origem: AUD-2025-003 · módulo não contratado").
+**Cancelamento de mÃ³dulo** â o dado permanece no banco, mas as telas ficam bloqueadas com "reative para acessar". VÃ­nculos entre mÃ³dulos degradam para rÃ³tulo, nÃ£o quebram (ex.: NC que veio de auditoria vira "origem: AUD-2025-003 Â· mÃ³dulo nÃ£o contratado").
 
-**Encerramento de contrato** — 6 meses de retenção antes da eliminação definitiva, previsto em contrato, com comprovante de exclusão.
+**Encerramento de contrato** â 6 meses de retenÃ§Ã£o antes da eliminaÃ§Ã£o definitiva, previsto em contrato, com comprovante de exclusÃ£o.
 
-## 8. Autenticação e sessão
+## 8. AutenticaÃ§Ã£o e sessÃ£o
 
 - Login por e-mail e senha
-- **2FA obrigatório para todos** — cliente e time interno
+- **2FA obrigatÃ³rio para todos** â cliente e time interno
 - Sem login via Google/Microsoft na v1
-- Sessão não expira automaticamente
-- Usuário some/desativa após 30 dias sem uso (registrado, não excluído)
-- Colaborador que sai: desativação + tela obrigatória de redirecionar pendências para outro
-- Um usuário pode pertencer a mais de uma empresa, com seletor no topo
+- SessÃ£o nÃ£o expira automaticamente
+- UsuÃ¡rio some/desativa apÃ³s 30 dias sem uso (registrado, nÃ£o excluÃ­do)
+- Colaborador que sai: desativaÃ§Ã£o + tela obrigatÃ³ria de redirecionar pendÃªncias para outro
+- Um usuÃ¡rio pode pertencer a mais de uma empresa, com seletor no topo
 
-## 9. Escopo da v1 (o que entra em 1 mês)
+## 9. Escopo da v1 (o que entra em 1 mÃªs)
 
-**Bloco Gestão da Qualidade completo:**
-- Não Conformidades
-- Planos de Ação
+**Bloco GestÃ£o da Qualidade completo:**
+- NÃ£o Conformidades
+- Planos de AÃ§Ã£o
 - Auditorias (interna com peso, externa como casca leve)
 - Indicadores e KPIs
 
-**Painel administrativo mínimo:**
+**Painel administrativo mÃ­nimo:**
 - Cadastro de empresas + provisionamento
-- Contratos e módulos habilitados
-- Usuários e acessos (por empresa e o passe interno)
-- Financeiro básico com escada de inadimplência
+- Contratos e mÃ³dulos habilitados
+- UsuÃ¡rios e acessos (por empresa e o passe interno)
+- Financeiro bÃ¡sico com escada de inadimplÃªncia
 
 **Fica de fora da v1:**
-Documentos · Riscos · Estratégia · Processos · Pessoas · Aquisição · Produção · Comunicações · Agente de IA real · Comercial e funil · Onboarding e consultoria · Suporte · Nota fiscal automática · WhatsApp · Subdomínio por empresa · App offline
+Documentos Â· Riscos Â· EstratÃ©gia Â· Processos Â· Pessoas Â· AquisiÃ§Ã£o Â· ProduÃ§Ã£o Â· ComunicaÃ§Ãµes Â· Agente de IA real Â· Comercial e funil Â· Onboarding e consultoria Â· Suporte Â· Nota fiscal automÃ¡tica Â· WhatsApp Â· SubdomÃ­nio por empresa Â· App offline
 
-O que fica de fora entra nos meses seguintes sobre a fundação, sem retrabalho.
+O que fica de fora entra nos meses seguintes sobre a fundaÃ§Ã£o, sem retrabalho.
 
-## 10. Módulos da Gestão da Qualidade — regras críticas
+## 10. MÃ³dulos da GestÃ£o da Qualidade â regras crÃ­ticas
 
-### Não Conformidades
-- Código: `NC_[ORIGEM]_[SEQ]_[ANO]` (ex.: `NC_AI_001_2026`)
-- Contador **geral por ano** (não separa por origem)
-- Prefixo `NC` editável pelo cliente
+### NÃ£o Conformidades
+- CÃ³digo: `NC_[ORIGEM]_[SEQ]_[ANO]` (ex.: `NC_AI_001_2026`)
+- Contador **geral por ano** (nÃ£o separa por origem)
+- Prefixo `NC` editÃ¡vel pelo cliente
 - 9 origens: AI, AE, RP, DO, RC, AC, IN, FO, ID
-- 4 gravidades com SLA: Baixa 10d, Média 5d, Alta 72h, Crítica 24h (SLA configurável por empresa)
-- Análise de causa: **5 Porquês** (resposta vira pergunta seguinte; 5ª resposta = causa raiz automática) e **Diagrama de Causa e Efeito** (nunca chamar de Ishikawa)
-- NC encerrada **não reabre** — cria nova (vínculo com a antiga preservado no banco para reincidência na v2.0)
-- **Nada apaga** — soft delete com motivo obrigatório
+- 4 gravidades com SLA: Baixa 10d, MÃ©dia 5d, Alta 72h, CrÃ­tica 24h (SLA configurÃ¡vel por empresa)
+- AnÃ¡lise de causa: **5 PorquÃªs** (resposta vira pergunta seguinte; 5Âª resposta = causa raiz automÃ¡tica) e **Diagrama de Causa e Efeito** (nunca chamar de Ishikawa)
+- NC encerrada **nÃ£o reabre** â cria nova (vÃ­nculo com a antiga preservado no banco para reincidÃªncia na v2.0)
+- **Nada apaga** â soft delete com motivo obrigatÃ³rio
 
-### Planos de Ação
-- Código: `PA_[SEQ]_[ANO]`
-- Só ações **corretivas** e **contingência** na v1 (sem preventiva ou melhoria)
-- Contingência opcional, prazo governado de 2 dias úteis (configurável)
-- Ações corretivas: cada uma individual, todos campos obrigatórios, 5W2H em português (O quê / Por quê / Onde / Quando / Quem / Como / Quanto custa) — **nunca em inglês na tela**
-- Verificação de eficácia com **3 caminhos ao reprovar** (ver seção 11)
-- Escalonamento hierárquico de aprovação por reprovação
+### Planos de AÃ§Ã£o
+- CÃ³digo: `PA_[SEQ]_[ANO]`
+- SÃ³ aÃ§Ãµes **corretivas** e **contingÃªncia** na v1 (sem preventiva ou melhoria)
+- ContingÃªncia opcional, prazo governado de 2 dias Ãºteis (configurÃ¡vel)
+- AÃ§Ãµes corretivas: cada uma individual, todos campos obrigatÃ³rios, 5W2H em portuguÃªs (O quÃª / Por quÃª / Onde / Quando / Quem / Como / Quanto custa) â **nunca em inglÃªs na tela**
+- VerificaÃ§Ã£o de eficÃ¡cia com **3 caminhos ao reprovar** (ver seÃ§Ã£o 11)
+- Escalonamento hierÃ¡rquico de aprovaÃ§Ã£o por reprovaÃ§Ã£o
 
 ### Auditorias
-- Código: `AUD_[SEQ]_[ANO]`
-- **Externa** = casca leve (só datas, auditores, escopo, upload do relatório — a execução vive no sistema da certificadora)
-- **Interna** = peso completo (plano, checklist, apontamentos, relatório)
-- ISO 9001 travada como padrão na v1; outras normas com aviso "Disponível apenas na opção Personalizado"
-- Campo "Evento" **só aparece se tipo = Externa**
-- Checklist com orientação por requisito, "anexar evidência" único campo opcional
-- Relatório de auditoria interna permite co-branding (logo Jáwda + logo cliente)
+- CÃ³digo: `AUD_[SEQ]_[ANO]`
+- **Externa** = casca leve (sÃ³ datas, auditores, escopo, upload do relatÃ³rio â a execuÃ§Ã£o vive no sistema da certificadora)
+- **Interna** = peso completo (plano, checklist, apontamentos, relatÃ³rio)
+- ISO 9001 travada como padrÃ£o na v1; outras normas com aviso "DisponÃ­vel apenas na opÃ§Ã£o Personalizado"
+- Campo "Evento" **sÃ³ aparece se tipo = Externa**
+- Checklist com orientaÃ§Ã£o por requisito, "anexar evidÃªncia" Ãºnico campo opcional
+- RelatÃ³rio de auditoria interna permite co-branding (logo JÃ¡wda + logo cliente)
 
 ### Indicadores e KPIs
-- Código: `IND_[MAN|DER|IMP]_[SEQ]_[ANO]`
-- Todo indicador vinculado a um **Objetivo da Qualidade** (obrigatório)
-- 5 objetivos padrão da qualidade já cadastrados como base editável
-- Análise crítica **obrigatória** quando medição fica fora da meta
-- Meta não atingida por 2 ciclos consecutivos → sugere abrir NC com origem ID
-- Alteração de meta preserva histórico (gráfico mostra linha antiga até a mudança, nova a partir dali)
-- Biblioteca de 25+ indicadores prontos para adoção no onboarding
+- CÃ³digo: `IND_[MAN|DER|IMP]_[SEQ]_[ANO]`
+- Todo indicador vinculado a um **Objetivo da Qualidade** (obrigatÃ³rio)
+- 5 objetivos padrÃ£o da qualidade jÃ¡ cadastrados como base editÃ¡vel
+- AnÃ¡lise crÃ­tica **obrigatÃ³ria** quando mediÃ§Ã£o fica fora da meta
+- Meta nÃ£o atingida por 2 ciclos consecutivos â sugere abrir NC com origem ID
+- AlteraÃ§Ã£o de meta preserva histÃ³rico (grÃ¡fico mostra linha antiga atÃ© a mudanÃ§a, nova a partir dali)
+- Biblioteca de 25+ indicadores prontos para adoÃ§Ã£o no onboarding
 
-## 11. Fluxo de reprovação de eficácia (o mais delicado)
+## 11. Fluxo de reprovaÃ§Ã£o de eficÃ¡cia (o mais delicado)
 
-Quando a verificação de eficácia de uma ação corretiva reprova, quem verificou responde: **"Por que não foi eficaz?"** e escolhe 1 de 3:
+Quando a verificaÃ§Ã£o de eficÃ¡cia de uma aÃ§Ã£o corretiva reprova, quem verificou responde: **"Por que nÃ£o foi eficaz?"** e escolhe 1 de 3:
 
-- **Ação fraca** (executou mas não resolveu) → mantém a causa, cria nova ação corretiva
-- **Causa errada** → reabre 5 Porquês (análise anterior fica visível como "1ª análise"), nova causa gera nova ação
-- **Não executada** → reabre a mesma ação com novo prazo
+- **AÃ§Ã£o fraca** (executou mas nÃ£o resolveu) â mantÃ©m a causa, cria nova aÃ§Ã£o corretiva
+- **Causa errada** â reabre 5 PorquÃªs (anÃ¡lise anterior fica visÃ­vel como "1Âª anÃ¡lise"), nova causa gera nova aÃ§Ã£o
+- **NÃ£o executada** â reabre a mesma aÃ§Ã£o com novo prazo
 
-Os três caminhos convergem para nova verificação de eficácia.
+Os trÃªs caminhos convergem para nova verificaÃ§Ã£o de eficÃ¡cia.
 
-**Limite:** cada ação reprova e refaz **uma vez**. Se reprovar de novo, ela encerra como reprovada em definitivo e abre-se uma ação nova. **Exceção:** se o motivo foi "causa errada", a contagem reinicia — a ação nova ataca um problema diferente e tem direito ao próprio ciclo.
+**Limite:** cada aÃ§Ã£o reprova e refaz **uma vez**. Se reprovar de novo, ela encerra como reprovada em definitivo e abre-se uma aÃ§Ã£o nova. **ExceÃ§Ã£o:** se o motivo foi "causa errada", a contagem reinicia â a aÃ§Ã£o nova ataca um problema diferente e tem direito ao prÃ³prio ciclo.
 
-**Escalonamento paralelo:** 1ª reprovação → Gestor da Qualidade aprova a próxima tentativa. Se persistir → superior hierárquico. Cada tentativa registra na trilha quem verificou e quem aprovou.
+**Escalonamento paralelo:** 1Âª reprovaÃ§Ã£o â Gestor da Qualidade aprova a prÃ³xima tentativa. Se persistir â superior hierÃ¡rquico. Cada tentativa registra na trilha quem verificou e quem aprovou.
 
-**A NC permanece aberta durante todo o ciclo.** Só encerra quando uma ação aprova na eficácia.
+**A NC permanece aberta durante todo o ciclo.** SÃ³ encerra quando uma aÃ§Ã£o aprova na eficÃ¡cia.
 
-**Nada é apagado.** Cada ciclo vira camada visível de histórico.
+**Nada Ã© apagado.** Cada ciclo vira camada visÃ­vel de histÃ³rico.
 
-## 12. IA — arquitetura de agente
+## 12. IA â arquitetura de agente
 
-**Um agente único, não um agente por empresa.** Um agente por empresa recriaria o problema dos "mil sistemas": mil agentes para manter, um evolui, os outros não.
+**Um agente Ãºnico, nÃ£o um agente por empresa.** Um agente por empresa recriaria o problema dos "mil sistemas": mil agentes para manter, um evolui, os outros nÃ£o.
 
-**Modelo do kit:** quando um usuário faz uma pergunta, o sistema monta na hora um "kit" com o crachá do usuário (permissões, empresa, unidade) + acesso aos dados daquela empresa (com a mesma trava de RLS) + acervo das normas contratadas. O agente responde com esse kit. No fim, descarta.
+**Modelo do kit:** quando um usuÃ¡rio faz uma pergunta, o sistema monta na hora um "kit" com o crachÃ¡ do usuÃ¡rio (permissÃµes, empresa, unidade) + acesso aos dados daquela empresa (com a mesma trava de RLS) + acervo das normas contratadas. O agente responde com esse kit. No fim, descarta.
 
-**Escopo do agente:** especialista na norma. Só fala sobre a norma. Recusa assuntos fora — mais barato e mais confiável.
+**Escopo do agente:** especialista na norma. SÃ³ fala sobre a norma. Recusa assuntos fora â mais barato e mais confiÃ¡vel.
 
-**Contexto imediato, não acervo indexado.** Não indexar o acervo documental inteiro de cada cliente (caro demais). A IA trabalha com o **contexto imediato da tarefa na tela** — ex.: no 5W2H, sugere ações corretivas com base no problema que originou o plano.
+**Contexto imediato, nÃ£o acervo indexado.** NÃ£o indexar o acervo documental inteiro de cada cliente (caro demais). A IA trabalha com o **contexto imediato da tarefa na tela** â ex.: no 5W2H, sugere aÃ§Ãµes corretivas com base no problema que originou o plano.
 
-**Base de conhecimento das normas** — escrita com **palavras próprias**. Nunca copiar o texto literal das normas ISO (direito autoral).
+**Base de conhecimento das normas** â escrita com **palavras prÃ³prias**. Nunca copiar o texto literal das normas ISO (direito autoral).
 
-**Regra de autoria e aprovação:**
-- Registro escrito à mão pelo humano nunca precisa de aprovação extra (autoria já assumida)
-- Registro preenchido por IA em **NC ou auditoria** (críticos) exige aprovação de superior — nasce em "aguardando aprovação"
-- Registro não crítico preenchido por IA segue direto após aceitação da pessoa
-- Toda ação por IA fica marcada na trilha: "redigido pela IA, aprovado por [nome]"
+**Regra de autoria e aprovaÃ§Ã£o:**
+- Registro escrito Ã  mÃ£o pelo humano nunca precisa de aprovaÃ§Ã£o extra (autoria jÃ¡ assumida)
+- Registro preenchido por IA em **NC ou auditoria** (crÃ­ticos) exige aprovaÃ§Ã£o de superior â nasce em "aguardando aprovaÃ§Ã£o"
+- Registro nÃ£o crÃ­tico preenchido por IA segue direto apÃ³s aceitaÃ§Ã£o da pessoa
+- Toda aÃ§Ã£o por IA fica marcada na trilha: "redigido pela IA, aprovado por [nome]"
 
-**Consumo carimbado por empresa** — permite cobrança por uso e limite por plano.
+**Consumo carimbado por empresa** â permite cobranÃ§a por uso e limite por plano.
 
-**IA na v1 fica ligável mas não implementada** — a arquitetura já nasce preparada (função de chamada, contabilização por empresa, marcação na trilha), mas a integração com o modelo LLM real fica para uma sprint posterior. O comportamento simulado do protótipo continua funcionando enquanto isso.
+**IA na v1 fica ligÃ¡vel mas nÃ£o implementada** â a arquitetura jÃ¡ nasce preparada (funÃ§Ã£o de chamada, contabilizaÃ§Ã£o por empresa, marcaÃ§Ã£o na trilha), mas a integraÃ§Ã£o com o modelo LLM real fica para uma sprint posterior. O comportamento simulado do protÃ³tipo continua funcionando enquanto isso.
 
-## 13. Notificações
+## 13. NotificaÃ§Ãµes
 
 - **Dentro do sistema** (sino, badge)
-- **E-mail transacional** (Resend) — cada usuário escolhe o que recebe
-- Rotina automática (Edge Function agendada) varrendo prazos:
-  - NC próxima de vencer SLA
-  - Plano de ação atrasado
-  - Auditoria programada nos próximos 7 dias
-  - Indicador sem medição no período
-  - Documento com revisão vencida
-- **WhatsApp** fica para v2 — arquitetura de mensagens já contempla essa saída futura
+- **E-mail transacional** (Resend) â cada usuÃ¡rio escolhe o que recebe
+- Rotina automÃ¡tica (Edge Function agendada) varrendo prazos:
+  - NC prÃ³xima de vencer SLA
+  - Plano de aÃ§Ã£o atrasado
+  - Auditoria programada nos prÃ³ximos 7 dias
+  - Indicador sem mediÃ§Ã£o no perÃ­odo
+  - Documento com revisÃ£o vencida
+- **WhatsApp** fica para v2 â arquitetura de mensagens jÃ¡ contempla essa saÃ­da futura
 
 ## 14. Armazenamento
 
 - Limite por plano, com upgrade pago
-- Medidor visível ao cliente (X GB de Y GB), aviso em 80%
-- **Nunca bloquear upload de evidência** ao estourar limite — sinalizar forte e acionar comercial
-- Compressão de imagem no dispositivo antes do upload (foto de canteiro sai de 4MB para 400KB)
+- Medidor visÃ­vel ao cliente (X GB de Y GB), aviso em 80%
+- **Nunca bloquear upload de evidÃªncia** ao estourar limite â sinalizar forte e acionar comercial
+- CompressÃ£o de imagem no dispositivo antes do upload (foto de canteiro sai de 4MB para 400KB)
 
 ## 15. Uso em campo
 
-Navegador responsivo, **mobile-first no formulário de NC** (poucos campos, foto direto da câmera, reenvio automático quando a conexão volta). App instalável PWA fica para evolução futura.
+Navegador responsivo, **mobile-first no formulÃ¡rio de NC** (poucos campos, foto direto da cÃ¢mera, reenvio automÃ¡tico quando a conexÃ£o volta). App instalÃ¡vel PWA fica para evoluÃ§Ã£o futura.
 
-## 16. Migração de dados na entrada
+## 16. MigraÃ§Ã£o de dados na entrada
 
-Cliente novo não chega vazio, mas também não migra histórico completo. O que entra:
+Cliente novo nÃ£o chega vazio, mas tambÃ©m nÃ£o migra histÃ³rico completo. O que entra:
 
-- **Estruturado:** só o que está em aberto (NCs abertas, planos em execução, apontamentos pendentes) e documentos vigentes (manual, procedimentos)
-- **Como arquivo anexado:** histórico encerrado, acessível mas não consultável em relatório
-- **Recomendado:** 12 meses de medição de indicadores para os gráficos não nascerem vazios
+- **Estruturado:** sÃ³ o que estÃ¡ em aberto (NCs abertas, planos em execuÃ§Ã£o, apontamentos pendentes) e documentos vigentes (manual, procedimentos)
+- **Como arquivo anexado:** histÃ³rico encerrado, acessÃ­vel mas nÃ£o consultÃ¡vel em relatÃ³rio
+- **Recomendado:** 12 meses de mediÃ§Ã£o de indicadores para os grÃ¡ficos nÃ£o nascerem vazios
 
-Presets de configuração por segmento (construção civil, indústria) para acelerar quando o volume de clientes crescer.
+Presets de configuraÃ§Ã£o por segmento (construÃ§Ã£o civil, indÃºstria) para acelerar quando o volume de clientes crescer.
 
-## 17. Padrões de código
+## 17. PadrÃµes de cÃ³digo
 
 **Nomenclatura**
-- Rotas: `nao-conformidades.tsx`, `planos-de-acao.tsx` (kebab-case, seguindo o que já existe)
+- Rotas: `nao-conformidades.tsx`, `planos-de-acao.tsx` (kebab-case, seguindo o que jÃ¡ existe)
 - Componentes: PascalCase, arquivos em kebab-case
 - Interfaces: `PascalCase` sem prefixo `I`
-- Enums no TypeScript: string literals em vez de enum (padrão do projeto)
+- Enums no TypeScript: string literals em vez de enum (padrÃ£o do projeto)
 
 **Estrutura de pastas**
-- `src/routes/` — rotas do TanStack Router
-- `src/components/[modulo]/` — componentes específicos de cada módulo
-- `src/components/app/` — componentes globais (sidebar, topbar, ai-assistant)
-- `src/components/ui/` — shadcn/ui (não alterar, é código gerado)
-- `src/lib/` — store, mock-data, tipos, utilitários
-- `src/hooks/` — React hooks compartilhados
+- `src/routes/` â rotas do TanStack Router
+- `src/components/[modulo]/` â componentes especÃ­ficos de cada mÃ³dulo
+- `src/components/app/` â componentes globais (sidebar, topbar, ai-assistant)
+- `src/components/ui/` â shadcn/ui (nÃ£o alterar, Ã© cÃ³digo gerado)
+- `src/lib/` â store, mock-data, tipos, utilitÃ¡rios
+- `src/hooks/` â React hooks compartilhados
 
-**Design system** — todas as cores como variáveis semânticas em `styles.css` (oklch), nunca hardcode de cor no componente. Isso é o que sustenta o white-label.
+**Design system** â todas as cores como variÃ¡veis semÃ¢nticas em `styles.css` (oklch), nunca hardcode de cor no componente. Isso Ã© o que sustenta o white-label.
 
-**Formulários** — react-hook-form + Zod para validação. Sem exceção.
+**FormulÃ¡rios** â react-hook-form + Zod para validaÃ§Ã£o. Sem exceÃ§Ã£o.
 
-**Estado do servidor** — TanStack Query. Nunca fetch direto no componente.
+**Estado do servidor** â TanStack Query. Nunca fetch direto no componente.
 
-**Toasts** — Sonner. Padrão: sucesso em verde, warning em âmbar, erro em vermelho, com descrição sempre que houver.
+**Toasts** â Sonner. PadrÃ£o: sucesso em verde, warning em Ã¢mbar, erro em vermelho, com descriÃ§Ã£o sempre que houver.
 
-**Arquivo com mais de 500 linhas** — sinal de que precisa ser quebrado. Sinal, não regra absoluta. Já existem exceções conhecidas no protótipo que serão refatoradas.
+**Arquivo com mais de 500 linhas** â sinal de que precisa ser quebrado. Sinal, nÃ£o regra absoluta. JÃ¡ existem exceÃ§Ãµes conhecidas no protÃ³tipo que serÃ£o refatoradas.
 
-## 18. Regras de segurança
+## 18. Regras de seguranÃ§a
 
 - **Senhas nunca em plaintext.** Supabase Auth cuida disso.
-- **Nunca expor senha para admin do sistema.** Nem no painel administrativo — quem esquece redefine, quem precisa ajudar acessa como cliente com registro na trilha.
-- **CSRF, XSS, SQL injection** — TanStack Start + Supabase mitigam por padrão. Nunca construir SQL na mão no cliente.
-- **Todas as chaves em variáveis de ambiente.** Nunca commitar `.env`.
-- **RLS ativo em toda tabela.** Uma tabela sem RLS é um vazamento esperando acontecer.
-- **Rate limiting** nas Edge Functions críticas (autenticação, IA, exportação).
+- **Nunca expor senha para admin do sistema.** Nem no painel administrativo â quem esquece redefine, quem precisa ajudar acessa como cliente com registro na trilha.
+- **CSRF, XSS, SQL injection** â TanStack Start + Supabase mitigam por padrÃ£o. Nunca construir SQL na mÃ£o no cliente.
+- **Todas as chaves em variÃ¡veis de ambiente.** Nunca commitar `.env`.
+- **RLS ativo em toda tabela.** Uma tabela sem RLS Ã© um vazamento esperando acontecer.
+- **Rate limiting** nas Edge Functions crÃ­ticas (autenticaÃ§Ã£o, IA, exportaÃ§Ã£o).
 
-## 19. Padrão de trabalho com Claude Code
+## 19. PadrÃ£o de trabalho com Claude Code
 
-Modelo de abas descartáveis. **Uma aba por entrega fechada**, nunca uma aba por módulo inteiro.
+Modelo de abas descartÃ¡veis. **Uma aba por entrega fechada**, nunca uma aba por mÃ³dulo inteiro.
 
-Toda aba nova começa lendo este documento (via referência no prompt inicial da aba).
+Toda aba nova comeÃ§a lendo este documento (via referÃªncia no prompt inicial da aba).
 
 Boas quebras de aba:
 - "Plugar Supabase e migrar Auth"
-- "Criar tabelas de fundação + RLS"
-- "Persistir NC no banco (dashboard, lista, detalhe, criação)"
-- "Persistir Plano de Ação + verificação de eficácia com 3 caminhos"
+- "Criar tabelas de fundaÃ§Ã£o + RLS"
+- "Persistir NC no banco (dashboard, lista, detalhe, criaÃ§Ã£o)"
+- "Persistir Plano de AÃ§Ã£o + verificaÃ§Ã£o de eficÃ¡cia com 3 caminhos"
 
 Quebras ruins:
-- "Fazer o módulo de auditoria" (grande demais)
+- "Fazer o mÃ³dulo de auditoria" (grande demais)
 - "Ajustar coisinhas" (vago demais)
 
-Cada aba entrega uma coisa funcional, testável, com commit próprio. Se a entrega ficar grande, quebra em duas antes de começar.
+Cada aba entrega uma coisa funcional, testÃ¡vel, com commit prÃ³prio. Se a entrega ficar grande, quebra em duas antes de comeÃ§ar.
 
 ## 20. O que jamais fazer
 
-- Adicionar campo ou lógica que dependa de empresa/unidade sem passar por `org_id`
+- Adicionar campo ou lÃ³gica que dependa de empresa/unidade sem passar por `org_id`
 - Copiar texto literal de normas ISO no acervo da IA
-- Fazer o agente executar ação sem confirmação humana
+- Fazer o agente executar aÃ§Ã£o sem confirmaÃ§Ã£o humana
 - Deletar registro (usar soft delete com motivo)
-- Enviar senha por e-mail (mandar link de definição)
-- Colocar chave de API no código do frontend
-- Ignorar RLS em qualquer tabela de negócio
+- Enviar senha por e-mail (mandar link de definiÃ§Ã£o)
+- Colocar chave de API no cÃ³digo do frontend
+- Ignorar RLS em qualquer tabela de negÃ³cio
 - Fazer um agente por empresa
 
 ---
 
-## 21. Padrões consolidados durante a execução (Abas 4 a 7)
+## 21. PadrÃµes consolidados durante a execuÃ§Ã£o (Abas 4 a 7)
 
-Estas decisões surgiram na prática, durante a construção real do bloco Gestão da Qualidade, e viram padrão daqui em diante — inclusive para o Painel Admin.
+Estas decisÃµes surgiram na prÃ¡tica, durante a construÃ§Ã£o real do bloco GestÃ£o da Qualidade, e viram padrÃ£o daqui em diante â inclusive para o Painel Admin.
 
-### 21.1 — GRANT explícito em toda tabela nova (crítico)
+### 21.1 â GRANT explÃ­cito em toda tabela nova (crÃ­tico)
 
-O projeto está com **table auto-exposure desligado** no PostgREST. Isso significa que RLS sozinha não basta: toda tabela nova precisa também de `GRANT` explícito para os papéis `authenticated` e `service_role`, senão a API retorna "permission denied" mesmo com a política de RLS correta.
+O projeto estÃ¡ com **table auto-exposure desligado** no PostgREST. Isso significa que RLS sozinha nÃ£o basta: toda tabela nova precisa tambÃ©m de `GRANT` explÃ­cito para os papÃ©is `authenticated` e `service_role`, senÃ£o a API retorna "permission denied" mesmo com a polÃ­tica de RLS correta.
 
-Esse bug já apareceu duas vezes (Aba 4 e Aba 5) e na segunda vez quebrou login de qualquer usuário real silenciosamente — o tipo de erro que passa despercebido até alguém tentar usar de verdade.
+Esse bug jÃ¡ apareceu duas vezes (Aba 4 e Aba 5) e na segunda vez quebrou login de qualquer usuÃ¡rio real silenciosamente â o tipo de erro que passa despercebido atÃ© alguÃ©m tentar usar de verdade.
 
-**Regra permanente:** toda migração que cria tabela nova encerra com:
+**Regra permanente:** toda migraÃ§Ã£o que cria tabela nova encerra com:
 ```sql
 grant select, insert, update on table_name to authenticated;
 grant all on table_name to service_role;
--- delete NUNCA é concedido a authenticated (nada apaga)
+-- delete NUNCA Ã© concedido a authenticated (nada apaga)
 ```
-Incluir isso na Skill `jawda-migrations` como passo obrigatório do checklist, não como nota de rodapé.
+Incluir isso na Skill `jawda-migrations` como passo obrigatÃ³rio do checklist, nÃ£o como nota de rodapÃ©.
 
-### 21.2 — Buckets de Storage não nascem sozinhos com a tabela
+### 21.2 â Buckets de Storage nÃ£o nascem sozinhos com a tabela
 
-Nenhuma aba anterior à Aba 6 criou bucket nenhum, apesar de o passo a passo do Supabase já prever `evidencias`, `documentos` e `logos-empresas`. Toda vez que um módulo passa a usar upload de arquivo (evidência de NC, checklist de auditoria, logo da empresa), a aba responsável precisa **conferir explicitamente** se o bucket e a política dele já existem antes de assumir que sim.
+Nenhuma aba anterior Ã  Aba 6 criou bucket nenhum, apesar de o passo a passo do Supabase jÃ¡ prever `evidencias`, `documentos` e `logos-empresas`. Toda vez que um mÃ³dulo passa a usar upload de arquivo (evidÃªncia de NC, checklist de auditoria, logo da empresa), a aba responsÃ¡vel precisa **conferir explicitamente** se o bucket e a polÃ­tica dele jÃ¡ existem antes de assumir que sim.
 
-**Regra permanente:** toda aba que envolve upload de arquivo inclui, como primeiro passo de verificação, checar se o bucket relevante existe e tem política de RLS coerente com o padrão `{org_id}/{modulo}/{entity_id}/{filename}`. Se não existir, criar nesta mesma aba, documentado.
+**Regra permanente:** toda aba que envolve upload de arquivo inclui, como primeiro passo de verificaÃ§Ã£o, checar se o bucket relevante existe e tem polÃ­tica de RLS coerente com o padrÃ£o `{org_id}/{modulo}/{entity_id}/{filename}`. Se nÃ£o existir, criar nesta mesma aba, documentado.
 
-### 21.3 — Agenda da auditoria nasce no detalhe, não na criação
+### 21.3 â Agenda da auditoria nasce no detalhe, nÃ£o na criaÃ§Ã£o
 
-Na Aba 6, o wizard de criação de auditoria interna deixou de ter etapa de "Plano de Auditoria" embutida. A agenda (dias, horários, processos, auditores) se monta na própria tela de **detalhe**, na aba Plano, depois que a auditoria já existe.
+Na Aba 6, o wizard de criaÃ§Ã£o de auditoria interna deixou de ter etapa de "Plano de Auditoria" embutida. A agenda (dias, horÃ¡rios, processos, auditores) se monta na prÃ³pria tela de **detalhe**, na aba Plano, depois que a auditoria jÃ¡ existe.
 
-Isso é comportamento correto e não uma simplificação a ser revertida: auditoria interna raramente nasce com plano fechado — o gestor da qualidade cria a auditoria com data e escopo, e vai encaixando a agenda conforme fecha com os auditores e processos. Forçar isso no wizard de criação era fricção sem ganho real.
+Isso Ã© comportamento correto e nÃ£o uma simplificaÃ§Ã£o a ser revertida: auditoria interna raramente nasce com plano fechado â o gestor da qualidade cria a auditoria com data e escopo, e vai encaixando a agenda conforme fecha com os auditores e processos. ForÃ§ar isso no wizard de criaÃ§Ã£o era fricÃ§Ã£o sem ganho real.
 
-**Regra permanente:** wizards de criação carregam só o essencial para o registro nascer (identidade, tipo, escopo, datas). Configuração detalhada e operacional vive na tela de detalhe, após a criação.
+**Regra permanente:** wizards de criaÃ§Ã£o carregam sÃ³ o essencial para o registro nascer (identidade, tipo, escopo, datas). ConfiguraÃ§Ã£o detalhada e operacional vive na tela de detalhe, apÃ³s a criaÃ§Ã£o.
 
-### 21.4 — Apontamento de auditoria é gancho puro, sem tratativa própria
+### 21.4 â Apontamento de auditoria Ã© gancho puro, sem tratativa prÃ³pria
 
-O apontamento gerado no checklist da auditoria interna **não duplica** campos de causa, correção ou evidência de tratamento. Esses campos existem só na NC (e no Plano de Ação) gerados a partir dele. O apontamento serve só para identificar o achado e linkar bidirecionalmente com o registro que efetivamente trata o problema.
+O apontamento gerado no checklist da auditoria interna **nÃ£o duplica** campos de causa, correÃ§Ã£o ou evidÃªncia de tratamento. Esses campos existem sÃ³ na NC (e no Plano de AÃ§Ã£o) gerados a partir dele. O apontamento serve sÃ³ para identificar o achado e linkar bidirecionalmente com o registro que efetivamente trata o problema.
 
-Essa é a arquitetura correta, não uma simplificação: se o apontamento tivesse campos de tratativa próprios, o sistema teria dois lugares tratando o mesmo problema, e na primeira divergência entre eles (apontamento diz uma coisa, NC diz outra) o relatório de auditoria ficaria inconsistente com a evidência real.
+Essa Ã© a arquitetura correta, nÃ£o uma simplificaÃ§Ã£o: se o apontamento tivesse campos de tratativa prÃ³prios, o sistema teria dois lugares tratando o mesmo problema, e na primeira divergÃªncia entre eles (apontamento diz uma coisa, NC diz outra) o relatÃ³rio de auditoria ficaria inconsistente com a evidÃªncia real.
 
-**Regra permanente:** todo "gancho" que gera um registro em outro módulo (apontamento → NC, indicador fora da meta → NC, reclamação → NC) armazena só o necessário para criar o registro de destino e a referência bidirecional (`generated_nc_id`, chip visual dos dois lados). Nunca duplica campos de tratativa.
+**Regra permanente:** todo "gancho" que gera um registro em outro mÃ³dulo (apontamento â NC, indicador fora da meta â NC, reclamaÃ§Ã£o â NC) armazena sÃ³ o necessÃ¡rio para criar o registro de destino e a referÃªncia bidirecional (`generated_nc_id`, chip visual dos dois lados). Nunca duplica campos de tratativa.
 
-### 21.5 — Histórico versionado com RPC de fechamento de vigência
+### 21.5 â HistÃ³rico versionado com RPC de fechamento de vigÃªncia
 
-Para casos onde um valor muda ao longo do tempo mas o histórico precisa ser preservado (a meta de um indicador, por exemplo), o padrão que se consolidou na Aba 7 foi:
+Para casos onde um valor muda ao longo do tempo mas o histÃ³rico precisa ser preservado (a meta de um indicador, por exemplo), o padrÃ£o que se consolidou na Aba 7 foi:
 
 - Uma tabela `*_history` separada da tabela principal, com `valid_from` e `valid_until`
-- Uma função RPC (`update_indicator_target` foi o primeiro caso) que, ao registrar um novo valor, **fecha a vigência anterior** (`valid_until = now()`) e **abre a nova** (`valid_from = now()`, `valid_until = null`)
-- No gráfico/visualização, reconstruir a linha do tempo juntando os períodos de vigência — no caso dos indicadores, usando `type="stepAfter"` para o valor "saltar" exatamente no momento da mudança, sem gap visual
+- Uma funÃ§Ã£o RPC (`update_indicator_target` foi o primeiro caso) que, ao registrar um novo valor, **fecha a vigÃªncia anterior** (`valid_until = now()`) e **abre a nova** (`valid_from = now()`, `valid_until = null`)
+- No grÃ¡fico/visualizaÃ§Ã£o, reconstruir a linha do tempo juntando os perÃ­odos de vigÃªncia â no caso dos indicadores, usando `type="stepAfter"` para o valor "saltar" exatamente no momento da mudanÃ§a, sem gap visual
 
-**Regra permanente:** qualquer campo de configuração que influencia análise histórica (metas, SLA por gravidade, tolerância) segue este padrão de tabela de histórico + RPC de fechamento de vigência, em vez de sobrescrever o valor na tabela principal.
+**Regra permanente:** qualquer campo de configuraÃ§Ã£o que influencia anÃ¡lise histÃ³rica (metas, SLA por gravidade, tolerÃ¢ncia) segue este padrÃ£o de tabela de histÃ³rico + RPC de fechamento de vigÃªncia, em vez de sobrescrever o valor na tabela principal.
 
-### 21.6 — Nunca inserir manualmente numa tabela de log que já tem trigger (regra generalizada — bug recorrente)
+### 21.6 â Nunca inserir manualmente numa tabela de log que jÃ¡ tem trigger (regra generalizada â bug recorrente)
 
-Este bug já apareceu **duas vezes** em abas diferentes (Aba 8, na RPC de provisionamento escrevendo direto em `activity_log`; Aba 12, no mesmo padrão em `commercial_activity_log`) porque da primeira vez foi documentado como caso específico em vez de regra geral. Generalizando agora para não acontecer uma terceira vez:
+Este bug jÃ¡ apareceu **duas vezes** em abas diferentes (Aba 8, na RPC de provisionamento escrevendo direto em `activity_log`; Aba 12, no mesmo padrÃ£o em `commercial_activity_log`) porque da primeira vez foi documentado como caso especÃ­fico em vez de regra geral. Generalizando agora para nÃ£o acontecer uma terceira vez:
 
-**O problema:** quando uma tabela de negócio (`ncs`, `opportunities`, `contracts`, etc.) já tem um trigger `AFTER INSERT/UPDATE` que escreve automaticamente na tabela de log correspondente, qualquer função ou RPC que também tente inserir manualmente naquela mesma tabela de log — "pra garantir" ou "pra registrar algo a mais" — cria uma escrita redundante que esbarra em GRANT/RLS (porque funções chamadas pelo cliente muitas vezes não têm o mesmo nível de permissão que o trigger, que roda como `security definer`) e derruba o fluxo inteiro silenciosamente.
+**O problema:** quando uma tabela de negÃ³cio (`ncs`, `opportunities`, `contracts`, etc.) jÃ¡ tem um trigger `AFTER INSERT/UPDATE` que escreve automaticamente na tabela de log correspondente, qualquer funÃ§Ã£o ou RPC que tambÃ©m tente inserir manualmente naquela mesma tabela de log â "pra garantir" ou "pra registrar algo a mais" â cria uma escrita redundante que esbarra em GRANT/RLS (porque funÃ§Ãµes chamadas pelo cliente muitas vezes nÃ£o tÃªm o mesmo nÃ­vel de permissÃ£o que o trigger, que roda como `security definer`) e derruba o fluxo inteiro silenciosamente.
 
-**Regra permanente:** antes de escrever `insert into activity_log(...)` ou `insert into [qualquer]_log(...)` dentro de uma função ou RPC, primeiro verificar se a tabela que está sendo mutada por essa função já tem um trigger de log associado. Se tiver, **não inserir de novo** — o trigger já cobre. Só inserir manualmente em tabela de log quando a ação não tiver trigger correspondente nenhum (por exemplo, ações que não mutam uma tabela específica, como "staff acessou como cliente").
+**Regra permanente:** antes de escrever `insert into activity_log(...)` ou `insert into [qualquer]_log(...)` dentro de uma funÃ§Ã£o ou RPC, primeiro verificar se a tabela que estÃ¡ sendo mutada por essa funÃ§Ã£o jÃ¡ tem um trigger de log associado. Se tiver, **nÃ£o inserir de novo** â o trigger jÃ¡ cobre. SÃ³ inserir manualmente em tabela de log quando a aÃ§Ã£o nÃ£o tiver trigger correspondente nenhum (por exemplo, aÃ§Ãµes que nÃ£o mutam uma tabela especÃ­fica, como "staff acessou como cliente").
 
-Antes de criar qualquer RPC nova que mexe em tabela de negócio, checar explicitamente: "essa tabela já tem trigger de log? Se sim, minha função não deve inserir em log nenhum — só fazer o insert/update da tabela principal e deixar o trigger cuidar do resto."
+Antes de criar qualquer RPC nova que mexe em tabela de negÃ³cio, checar explicitamente: "essa tabela jÃ¡ tem trigger de log? Se sim, minha funÃ§Ã£o nÃ£o deve inserir em log nenhum â sÃ³ fazer o insert/update da tabela principal e deixar o trigger cuidar do resto."
+
+### 21.7 â Toda lista suspensa em ordem alfabÃ©tica (regra global de UI)
+
+Regra estabelecida nos documentos de requisitos oficiais (EstratÃ©gia, Processos e OperaÃ§Ã£o): **toda lista suspensa (dropdown/select), em qualquer tela do sistema, deve apresentar suas opÃ§Ãµes em ordem alfabÃ©tica.** Sem exceÃ§Ã£o, salvo quando a ordem tem significado semÃ¢ntico explÃ­cito (ex.: nÃ­veis de gravidade BaixaâCrÃ­tica, meses do ano, etapas sequenciais de um fluxo) â nesses casos a ordem lÃ³gica prevalece e deve ser comentada no cÃ³digo.
+
+Isso afeta cÃ³digo jÃ¡ escrito: os selects de NC (origem, setor, categoria), Auditorias (tipo, evento), Indicadores (frequÃªncia, fonte) e todos os outros devem ser auditados e reordenados quando forem tocados. NÃ£o Ã© preciso uma sprint dedicada sÃ³ para isso, mas toda vez que uma tela com dropdown for editada por qualquer motivo, aproveitar para alfabetizar as opÃ§Ãµes que nÃ£o tÃªm ordem semÃ¢ntica.
+
+Para dropdowns populados a partir do banco, ordenar na query (`order by label`). Para dropdowns de valores fixos no cÃ³digo, manter o array jÃ¡ em ordem alfabÃ©tica na fonte.
+
+### 21.8 â Toda exportaÃ§Ã£o segue padrÃ£o de documento institucional
+
+Regra estabelecida no feedback oficial do mÃ³dulo EstratÃ©gia: **todo artefato exportÃ¡vel do sistema (PDF, relatÃ³rio, ata, proposta, ficha) deve seguir um padrÃ£o de documento com cabeÃ§alho institucional** contendo, no mÃ­nimo: logo da empresa cliente (white-label, o mesmo logo jÃ¡ usado na personalizaÃ§Ã£o), nome da empresa, tÃ­tulo do documento, data de geraÃ§Ã£o, e identificaÃ§Ã£o de quem gerou. RodapÃ© com numeraÃ§Ã£o de pÃ¡gina e uma marca discreta de que foi gerado pelo JÃ¡wda.
+
+Isso vale para tudo que sai do sistema para o mundo externo: relatÃ³rio de auditoria, ata de anÃ¡lise crÃ­tica, proposta comercial, ficha de avaliaÃ§Ã£o de desempenho, exportaÃ§Ã£o de indicadores, exportaÃ§Ã£o de NC, etc. O objetivo Ã© duplo: o cliente apresenta documentos com a prÃ³pria identidade (reforÃ§a o white-label e o valor percebido), e o documento tem aparÃªncia formal o suficiente para servir como evidÃªncia em auditoria de certificaÃ§Ã£o.
+
+**ImplementaÃ§Ã£o recomendada:** criar um componente/template Ãºnico de "cabeÃ§alho e rodapÃ© de documento exportÃ¡vel" reutilizÃ¡vel, que leia o logo e os dados da empresa do contexto atual, em vez de cada mÃ³dulo montar seu prÃ³prio cabeÃ§alho. Isso garante consistÃªncia visual e um Ãºnico ponto de manutenÃ§Ã£o. Quando o primeiro mÃ³dulo implementar exportaÃ§Ã£o real, esse template deve nascer como peÃ§a compartilhada, nÃ£o local.
 
 ---
 
 ## Versionamento deste documento
 
-Toda alteração de arquitetura precisa passar por este documento antes de virar código. Se o Claude Code for programar algo que contradiz este documento, ele deve parar e apontar a contradição, não implementar.
+Toda alteraÃ§Ã£o de arquitetura precisa passar por este documento antes de virar cÃ³digo. Se o Claude Code for programar algo que contradiz este documento, ele deve parar e apontar a contradiÃ§Ã£o, nÃ£o implementar.
 
-**Revisão registrada em:** fim das Abas 4-7 (bloco Gestão da Qualidade completo), consolidando os 5 padrões da seção 21.
+**RevisÃ£o registrada em:** fim das Abas 4-7 (padrÃµes 21.1 a 21.5), depois estendida na Aba 12 (21.6), depois antes da migraÃ§Ã£o dos mÃ³dulos novos (21.7 e 21.8), e agora com a revisÃ£o da seÃ§Ã£o 3 sobre hospedagem (Vercel com regiÃ£o `gru1` fixada, aprovado para produÃ§Ã£o real, com VPS Hostinger mantido como evoluÃ§Ã£o futura).
 
-**Próxima revisão prevista:** ao final do Painel Admin básico, antes de abrir o mês 2.
+**PrÃ³xima revisÃ£o prevista:** ao final da migraÃ§Ã£o da EstratÃ©gia (Aba 16), para consolidar o que a primeira migraÃ§Ã£o de mÃ³dulo novo ensinar.
