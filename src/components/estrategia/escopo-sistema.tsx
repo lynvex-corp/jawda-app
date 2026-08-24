@@ -34,11 +34,9 @@ import {
   X,
   Check,
   Send,
-  Lock,
   FilePlus2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import {
   useScopeCurrent,
   useScopeHistory,
@@ -50,6 +48,7 @@ import {
   useCreateScopeNotApplicableItem,
   useUpdateScopeItemJustification,
 } from "@/lib/queries/estrategia";
+import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
 
 const normas = [
   { codigo: "ISO 9001:2015", titulo: "Sistemas de Gestão da Qualidade" },
@@ -268,12 +267,11 @@ export function EscopoSistemaPage() {
         </header>
 
         {document.status !== "rascunho" && (
-          <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
-            <Lock className="h-3.5 w-3.5" />
+          <LockedDocumentBanner>
             {document.status === "aguardando_aprovacao"
               ? "Revisão aguardando aprovação da Alta Direção — somente leitura até a decisão."
               : 'Esta é a versão vigente — somente leitura. Clique em "Nova revisão" para editar.'}
-          </div>
+          </LockedDocumentBanner>
         )}
 
         {isDraft && semJust.length > 0 && (
@@ -356,44 +354,17 @@ export function EscopoSistemaPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-border/80 shadow-sm">
-            <CardContent className="p-4">
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-                <History className="h-4 w-4 text-brand" /> Histórico de revisões vigentes
-              </div>
-              {(!history || history.length === 0) && (
-                <p className="text-[11px] text-muted-foreground">Nenhuma revisão vigente ainda.</p>
-              )}
-              <ol className="space-y-3">
-                {history?.map((r, idx) => (
-                  <li
-                    key={r.id}
-                    className={cn(
-                      "rounded-lg border p-2.5",
-                      idx === 0 ? "border-brand/40 bg-brand-soft/40" : "border-border/60",
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-[11px] font-semibold text-brand">
-                        Rev. {r.revisionNumber}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {r.approvedAt ? new Date(r.approvedAt).toLocaleDateString("pt-BR") : ""}
-                      </span>
-                    </div>
-                    <p className="mt-1 line-clamp-3 text-[11px] text-muted-foreground">
-                      {r.declaracaoTexto}
-                    </p>
-                    {r.approvedByName && (
-                      <div className="mt-1 text-[10px] text-muted-foreground/80">
-                        aprovado por {r.approvedByName}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </CardContent>
-          </Card>
+          <VersionHistoryCard
+            title="Histórico de revisões vigentes"
+            emptyMessage="Nenhuma revisão vigente ainda."
+            entries={(history ?? []).map((r) => ({
+              id: r.id,
+              label: `Rev. ${r.revisionNumber}`,
+              date: r.approvedAt,
+              byName: r.approvedByName,
+              snippet: r.declaracaoTexto,
+            }))}
+          />
         </div>
 
         <Card className="rounded-2xl border-border/80 shadow-sm">

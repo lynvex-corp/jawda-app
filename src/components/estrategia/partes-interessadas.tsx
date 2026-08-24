@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, Lock, History, FilePlus2 } from "lucide-react";
 import { toast } from "sonner";
+import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
 import {
   useStakeholderCurrent,
   useStakeholderHistory,
@@ -178,11 +179,10 @@ export function PartesInteressadasPage() {
         </header>
 
         {!isDraft && (
-          <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
-            <Lock className="h-3.5 w-3.5" />
+          <LockedDocumentBanner>
             Esta é a última versão formalizada ({analysis.versionLabel}) — somente leitura. Clique
             em "Nova versão" para editar.
-          </div>
+          </LockedDocumentBanner>
         )}
 
         <Card className="rounded-2xl border-dashed border-border/80 shadow-sm">
@@ -284,26 +284,14 @@ export function PartesInteressadasPage() {
         </Card>
 
         {history && history.length > 0 && (
-          <Card className="rounded-2xl border-border/80 shadow-sm">
-            <CardContent className="p-4">
-              <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                <History className="h-4 w-4 text-brand" /> Versões formalizadas
-              </div>
-              <div className="space-y-1">
-                {history.map((h) => (
-                  <div
-                    key={h.id}
-                    className="flex items-center justify-between text-xs text-muted-foreground"
-                  >
-                    <span className="font-medium text-foreground">{h.versionLabel}</span>
-                    <span>
-                      {h.formalizedAt ? new Date(h.formalizedAt).toLocaleDateString("pt-BR") : ""}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <VersionHistoryCard
+            compact
+            entries={history.map((h) => ({
+              id: h.id,
+              label: h.versionLabel ?? "",
+              date: h.formalizedAt,
+            }))}
+          />
         )}
       </div>
 

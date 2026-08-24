@@ -23,7 +23,6 @@ import {
   Wand2,
   History,
   FilePlus2,
-  Lock,
   ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -45,6 +44,7 @@ import {
   type SwotQuadrant,
   type SwotCard,
 } from "@/lib/queries/estrategia";
+import { LockedDocumentBanner, VersionHistoryList } from "@/components/estrategia/formal-document";
 
 const QUADRANTS: SwotQuadrant[] = ["forca", "fraqueza", "oportunidade", "ameaca"];
 
@@ -366,10 +366,11 @@ export function AnaliseCenarioPage() {
         </header>
 
         {!isDraft && (
-          <div className="mb-4 flex items-center gap-2 rounded-xl border border-border/70 bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
-            <Lock className="h-3.5 w-3.5" />
-            Esta é a última versão formalizada ({analysis.versionLabel}) — somente leitura. Clique
-            em "Nova versão" para editar.
+          <div className="mb-4">
+            <LockedDocumentBanner>
+              Esta é a última versão formalizada ({analysis.versionLabel}) — somente leitura. Clique
+              em "Nova versão" para editar.
+            </LockedDocumentBanner>
           </div>
         )}
 
@@ -535,24 +536,14 @@ export function AnaliseCenarioPage() {
                 {history && history.length > 0 && (
                   <>
                     <Separator />
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                        <History className="h-3.5 w-3.5" /> Versões formalizadas
-                      </div>
-                      {history.slice(0, 4).map((h) => (
-                        <div
-                          key={h.id}
-                          className="flex items-center justify-between text-[11px] text-muted-foreground"
-                        >
-                          <span className="font-medium text-foreground">{h.versionLabel}</span>
-                          <span>
-                            {h.formalizedAt
-                              ? new Date(h.formalizedAt).toLocaleDateString("pt-BR")
-                              : ""}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    <VersionHistoryList
+                      compact
+                      entries={history.slice(0, 4).map((h) => ({
+                        id: h.id,
+                        label: h.versionLabel ?? "",
+                        date: h.formalizedAt,
+                      }))}
+                    />
                   </>
                 )}
               </CardContent>

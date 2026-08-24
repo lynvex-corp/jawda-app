@@ -1222,3 +1222,756 @@ export function useDecideChangeImprovement() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: changeKeys.list() }),
   });
 }
+
+/* ============================================================
+ * Análise Crítica pela Direção (ISO 9001 9.3)
+ *
+ * Não é documento versionado como as outras 4 sub-abas — é uma série de
+ * reuniões. Ata concluída não edita mais (trigger no banco), só nova
+ * reunião ou anulação com motivo (Alta Direção).
+ * ============================================================ */
+
+export type CriticalAnalysisMeetingStatus =
+  | "programada"
+  | "em_andamento"
+  | "aguardando_aprovacao"
+  | "concluida"
+  | "anulada";
+export type CriticalAnalysisPeriodicity = "semestral" | "anual" | "personalizado";
+export type CriticalAnalysisActionItemType =
+  | "oportunidade_melhoria"
+  | "necessidade_mudanca"
+  | "necessidade_recurso";
+
+/** Ordem de pauta é sequencial (segue a lógica da reunião, não alfabética
+ * — exceção prevista na seção 21.7 do Guia para ordem com significado
+ * semântico). */
+export const DEFAULT_AGENDA_TOPICS = [
+  "Análise de cenário interno e externo",
+  "Desempenho geral do sistema de gestão da qualidade",
+  "Satisfação do cliente e outras partes interessadas",
+  "Objetivos e indicadores",
+  "Desempenho dos processos",
+  "Desempenho e capacitação de pessoas",
+  "Conformidade dos produtos e serviços",
+  "Não conformidades e ações corretivas",
+  "Planos de ação",
+  "Resultados de auditoria interna e externa",
+  "Desempenho de fornecedores",
+  "Disponibilização de recursos",
+  "Riscos e oportunidades",
+  "Melhoria contínua",
+];
+
+export const PERIODICITY_OPTIONS: { value: CriticalAnalysisPeriodicity; label: string }[] = [
+  { value: "anual", label: "Anual" },
+  { value: "personalizado", label: "Personalizado" },
+  { value: "semestral", label: "Semestral" },
+];
+
+export const ACTION_ITEM_TYPE_OPTIONS: { value: CriticalAnalysisActionItemType; label: string }[] =
+  [
+    { value: "necessidade_mudanca", label: "Necessidade de mudança" },
+    { value: "necessidade_recurso", label: "Necessidade de recurso" },
+    { value: "oportunidade_melhoria", label: "Oportunidade de melhoria" },
+  ];
+
+export interface CriticalAnalysisMeetingListItem {
+  id: string;
+  status: CriticalAnalysisMeetingStatus;
+  scheduledDate: string;
+  periodicity: CriticalAnalysisPeriodicity;
+  participantCount: number;
+}
+
+const criticalAnalysisKeys = {
+  all: ["critical-analysis"] as const,
+  list: () => [...criticalAnalysisKeys.all, "list"] as const,
+  detail: (id: string) => [...criticalAnalysisKeys.all, "detail", id] as const,
+};
+
+interface CriticalAnalysisMeetingListRow {
+  id: string;
+  status: CriticalAnalysisMeetingStatus;
+  scheduled_date: string;
+  periodicity: CriticalAnalysisPeriodicity;
+  critical_analysis_participants: { count: number }[];
+}
+
+export function useCriticalAnalysisMeetings() {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: criticalAnalysisKeys.list(),
+    queryFn: async (): Promise<CriticalAnalysisMeetingListItem[]> => {
+      const { data, error } = await supabase
+        .from("critical_analysis_meetings")
+        .select("id, status, scheduled_date, periodicity, critical_analysis_participants(count)")
+        .order("scheduled_date", { ascending: false });
+      if (error) throw error;
+      return ((data as unknown as CriticalAnalysisMeetingListRow[]) ?? []).map((r) => ({
+        id: r.id,
+        status: r.status,
+        scheduledDate: r.scheduled_date,
+        periodicity: r.periodicity,
+        participantCount: r.critical_analysis_participants?.[0]?.count ?? 0,
+      }));
+    },
+  });
+}
+
+export interface CriticalAnalysisAgendaItem {
+  id: string;
+  topic: string;
+  analyzedContent: string;
+  comments: string;
+  itemOrder: number;
+}
+
+export interface CriticalAnalysisParticipant {
+  id: string;
+  userId: string;
+  fullName: string;
+  attended: boolean;
+  approved: boolean;
+  approvedAt: string | null;
+}
+
+export interface CriticalAnalysisActionItem {
+  id: string;
+  type: CriticalAnalysisActionItemType;
+  description: string;
+  generatedActionPlanId: string | null;
+  generatedActionPlanCode: string | null;
+}
+
+export interface CriticalAnalysisMeetingDetail {
+  id: string;
+  status: CriticalAnalysisMeetingStatus;
+  scheduledDate: string;
+  periodicity: CriticalAnalysisPeriodicity;
+  startDatetime: string | null;
+  endDatetime: string | null;
+  previousMeetingReference: string;
+  deliberations: string;
+  annulmentReason: string | null;
+  agendaItems: CriticalAnalysisAgendaItem[];
+  participants: CriticalAnalysisParticipant[];
+  actionItems: CriticalAnalysisActionItem[];
+}
+
+interface CriticalAnalysisMeetingRow {
+  id: string;
+  status: CriticalAnalysisMeetingStatus;
+  scheduled_date: string;
+  periodicity: CriticalAnalysisPeriodicity;
+  start_datetime: string | null;
+  end_datetime: string | null;
+  previous_meeting_reference: string | null;
+  deliberations: string | null;
+  annulment_reason: string | null;
+}
+
+export function useCriticalAnalysisMeetingDetail(meetingId: string | undefined) {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: criticalAnalysisKeys.detail(meetingId ?? ""),
+    enabled: !!meetingId,
+    queryFn: async (): Promise<CriticalAnalysisMeetingDetail> => {
+      const { data: meeting, error: meetingErr } = await supabase
+        .from("critical_analysis_meetings")
+        .select(
+          "id, status, scheduled_date, periodicity, start_datetime, end_datetime, previous_meeting_reference, deliberations, annulment_reason",
+        )
+        .eq("id", meetingId as string)
+        .single();
+      if (meetingErr) throw meetingErr;
+      const m = meeting as unknown as CriticalAnalysisMeetingRow;
+
+      const { data: agendaItems, error: agendaErr } = await supabase
+        .from("critical_analysis_agenda_items")
+        .select("id, topic, analyzed_content, comments, item_order")
+        .eq("meeting_id", meetingId as string)
+        .order("item_order");
+      if (agendaErr) throw agendaErr;
+
+      const { data: participants, error: participantsErr } = await supabase
+        .from("critical_analysis_participants")
+        .select("id, user_id, attended, approved, approved_at, profile:profiles!user_id(full_name)")
+        .eq("meeting_id", meetingId as string);
+      if (participantsErr) throw participantsErr;
+
+      const { data: actionItems, error: actionItemsErr } = await supabase
+        .from("critical_analysis_action_items")
+        .select(
+          "id, type, description, generated_action_plan_id, generated_action_plan:action_plans!generated_action_plan_id(code)",
+        )
+        .eq("meeting_id", meetingId as string)
+        .order("created_at");
+      if (actionItemsErr) throw actionItemsErr;
+
+      return {
+        id: m.id,
+        status: m.status,
+        scheduledDate: m.scheduled_date,
+        periodicity: m.periodicity,
+        startDatetime: m.start_datetime,
+        endDatetime: m.end_datetime,
+        previousMeetingReference: m.previous_meeting_reference ?? "",
+        deliberations: m.deliberations ?? "",
+        annulmentReason: m.annulment_reason,
+        agendaItems: (
+          (agendaItems as unknown as {
+            id: string;
+            topic: string;
+            analyzed_content: string | null;
+            comments: string | null;
+            item_order: number;
+          }[]) ?? []
+        ).map((a) => ({
+          id: a.id,
+          topic: a.topic,
+          analyzedContent: a.analyzed_content ?? "",
+          comments: a.comments ?? "",
+          itemOrder: a.item_order,
+        })),
+        participants: (
+          (participants as unknown as {
+            id: string;
+            user_id: string;
+            attended: boolean;
+            approved: boolean;
+            approved_at: string | null;
+            profile: { full_name: string } | null;
+          }[]) ?? []
+        ).map((p) => ({
+          id: p.id,
+          userId: p.user_id,
+          fullName: p.profile?.full_name ?? "Usuário",
+          attended: p.attended,
+          approved: p.approved,
+          approvedAt: p.approved_at,
+        })),
+        actionItems: (
+          (actionItems as unknown as {
+            id: string;
+            type: CriticalAnalysisActionItemType;
+            description: string;
+            generated_action_plan_id: string | null;
+            generated_action_plan: { code: string } | null;
+          }[]) ?? []
+        ).map((a) => ({
+          id: a.id,
+          type: a.type,
+          description: a.description,
+          generatedActionPlanId: a.generated_action_plan_id,
+          generatedActionPlanCode: a.generated_action_plan?.code ?? null,
+        })),
+      };
+    },
+  });
+}
+
+export interface ScheduleCriticalAnalysisInput {
+  scheduledDate: string;
+  periodicity: CriticalAnalysisPeriodicity;
+  previousMeetingReference?: string;
+  topics: string[];
+  participantUserIds: string[];
+}
+
+export function useScheduleCriticalAnalysis() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: ScheduleCriticalAnalysisInput) => {
+      const { data: meeting, error: meetingErr } = await supabase
+        .from("critical_analysis_meetings")
+        .insert({
+          scheduled_date: input.scheduledDate,
+          periodicity: input.periodicity,
+          previous_meeting_reference: input.previousMeetingReference || null,
+        })
+        .select("id")
+        .single();
+      if (meetingErr) throw meetingErr;
+
+      if (input.topics.length > 0) {
+        const { error: agendaErr } = await supabase
+          .from("critical_analysis_agenda_items")
+          .insert(
+            input.topics.map((topic, idx) => ({ meeting_id: meeting.id, topic, item_order: idx })),
+          );
+        if (agendaErr) throw agendaErr;
+      }
+
+      if (input.participantUserIds.length > 0) {
+        const { error: participantsErr } = await supabase
+          .from("critical_analysis_participants")
+          .insert(
+            input.participantUserIds.map((userId) => ({ meeting_id: meeting.id, user_id: userId })),
+          );
+        if (participantsErr) throw participantsErr;
+      }
+
+      return meeting as { id: string };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.list() }),
+  });
+}
+
+export function useStartCriticalAnalysisExecution() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ meetingId }: { meetingId: string }) => {
+      const { error } = await supabase
+        .from("critical_analysis_meetings")
+        .update({ status: "em_andamento", start_datetime: new Date().toISOString() })
+        .eq("id", meetingId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.list() });
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(vars.meetingId) });
+    },
+  });
+}
+
+export function useUpdateCriticalAnalysisAgendaItem() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      meetingId,
+      analyzedContent,
+      comments,
+    }: {
+      id: string;
+      meetingId: string;
+      analyzedContent: string;
+      comments: string;
+    }) => {
+      const { error } = await supabase
+        .from("critical_analysis_agenda_items")
+        .update({ analyzed_content: analyzedContent, comments })
+        .eq("id", id);
+      if (error) throw error;
+      return meetingId;
+    },
+    onSuccess: (meetingId) =>
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(meetingId) }),
+  });
+}
+
+export function useUpdateCriticalAnalysisMeetingFields() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      meetingId,
+      deliberations,
+      previousMeetingReference,
+    }: {
+      meetingId: string;
+      deliberations: string;
+      previousMeetingReference: string;
+    }) => {
+      const { error } = await supabase
+        .from("critical_analysis_meetings")
+        .update({ deliberations, previous_meeting_reference: previousMeetingReference || null })
+        .eq("id", meetingId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) =>
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(vars.meetingId) }),
+  });
+}
+
+export function useUpdateCriticalAnalysisAttendance() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      meetingId,
+      attended,
+    }: {
+      id: string;
+      meetingId: string;
+      attended: boolean;
+    }) => {
+      const { error } = await supabase
+        .from("critical_analysis_participants")
+        .update({ attended })
+        .eq("id", id);
+      if (error) throw error;
+      return meetingId;
+    },
+    onSuccess: (meetingId) =>
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(meetingId) }),
+  });
+}
+
+export function useSubmitCriticalAnalysisForApproval() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ meetingId }: { meetingId: string }) => {
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("submit_critical_analysis_for_approval", {
+        p_meeting_id: meetingId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.list() });
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(vars.meetingId) });
+    },
+  });
+}
+
+export function useApproveCriticalAnalysisParticipation() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ meetingId }: { meetingId: string }) => {
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("approve_critical_analysis_participation", {
+        p_meeting_id: meetingId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.list() });
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(vars.meetingId) });
+    },
+  });
+}
+
+export function useAnnulCriticalAnalysis() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ meetingId, reason }: { meetingId: string; reason: string }) => {
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("annul_critical_analysis", {
+        p_meeting_id: meetingId,
+        p_reason: reason,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.list() });
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(vars.meetingId) });
+    },
+  });
+}
+
+export function useCreateCriticalAnalysisActionItem() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      meetingId,
+      type,
+      description,
+    }: {
+      meetingId: string;
+      type: CriticalAnalysisActionItemType;
+      description: string;
+    }) => {
+      const { error } = await supabase
+        .from("critical_analysis_action_items")
+        .insert({ meeting_id: meetingId, type, description });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) =>
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(vars.meetingId) }),
+  });
+}
+
+/** Gancho Ação de Saída → Plano de Ação, mesmo padrão de 2 passos usado em
+ * SWOT/Riscos (seção 21.4 do Guia). */
+export function useGenerateActionPlanFromCriticalAnalysisItem() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      actionItemId,
+      meetingId,
+      description,
+    }: {
+      actionItemId: string;
+      meetingId: string;
+      description: string;
+    }) => {
+      const { data: plan, error: planErr } = await supabase
+        .from("action_plans")
+        .insert({ origin_type: "analise_critica", problem_description: description })
+        .select("id, code")
+        .single();
+      if (planErr) throw planErr;
+
+      const { error: itemErr } = await supabase
+        .from("critical_analysis_action_items")
+        .update({ generated_action_plan_id: plan.id })
+        .eq("id", actionItemId);
+      if (itemErr) throw itemErr;
+
+      return { plan: plan as { id: string; code: string }, meetingId };
+    },
+    onSuccess: ({ meetingId }) =>
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(meetingId) }),
+  });
+}
+
+/* ============================================================
+ * Missão, Visão, Valores e Propósito
+ *
+ * Mesmo padrão de documento versionado do SWOT/Partes/Escopo (5ª
+ * repetição — seção 21.5 do Guia). Elaboração: Gestor da Qualidade ou
+ * Administrador. Formalização (aprovação): só Administrador (Alta
+ * Direção), travado no banco (20260824090600).
+ * ============================================================ */
+
+export interface StrategicValue {
+  id: string;
+  nome: string;
+  descricao: string;
+  itemOrder: number;
+}
+
+export interface StrategicDirectives {
+  id: string;
+  status: "rascunho" | "formalizada";
+  versionLabel: string | null;
+  missao: string;
+  visao: string;
+  proposito: string;
+  formalizedAt: string | null;
+  formalizedByName: string | null;
+}
+
+export interface StrategicDirectivesWithValues {
+  directive: StrategicDirectives;
+  isDraft: boolean;
+  values: StrategicValue[];
+}
+
+const strategicDirectivesKeys = {
+  all: ["strategic-directives"] as const,
+  current: () => [...strategicDirectivesKeys.all, "current"] as const,
+  history: () => [...strategicDirectivesKeys.all, "history"] as const,
+};
+
+const STRATEGIC_DIRECTIVES_SELECT =
+  "id, status, version_label, missao, visao, proposito, formalized_at, formalized_by_profile:profiles!formalized_by(full_name)";
+
+interface StrategicDirectivesRow {
+  id: string;
+  status: "rascunho" | "formalizada";
+  version_label: string | null;
+  missao: string | null;
+  visao: string | null;
+  proposito: string | null;
+  formalized_at: string | null;
+  formalized_by_profile: { full_name: string } | null;
+}
+
+function mapStrategicDirectives(row: StrategicDirectivesRow): StrategicDirectives {
+  return {
+    id: row.id,
+    status: row.status,
+    versionLabel: row.version_label,
+    missao: row.missao ?? "",
+    visao: row.visao ?? "",
+    proposito: row.proposito ?? "",
+    formalizedAt: row.formalized_at,
+    formalizedByName: row.formalized_by_profile?.full_name ?? null,
+  };
+}
+
+interface StrategicValueRow {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  item_order: number;
+}
+
+function mapStrategicValue(row: StrategicValueRow): StrategicValue {
+  return { id: row.id, nome: row.nome, descricao: row.descricao ?? "", itemOrder: row.item_order };
+}
+
+export function useStrategicDirectivesCurrent() {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: strategicDirectivesKeys.current(),
+    queryFn: async (): Promise<StrategicDirectivesWithValues | null> => {
+      const { data: draft, error: draftErr } = await supabase
+        .from("strategic_directives")
+        .select(STRATEGIC_DIRECTIVES_SELECT)
+        .eq("status", "rascunho")
+        .maybeSingle();
+      if (draftErr) throw draftErr;
+
+      let row = draft as unknown as StrategicDirectivesRow | null;
+      let isDraft = true;
+
+      if (!row) {
+        const { data: lastFormalized, error: lastErr } = await supabase
+          .from("strategic_directives")
+          .select(STRATEGIC_DIRECTIVES_SELECT)
+          .eq("status", "formalizada")
+          .order("formalized_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastErr) throw lastErr;
+        row = lastFormalized as unknown as StrategicDirectivesRow | null;
+        isDraft = false;
+      }
+
+      if (!row) return null;
+
+      const { data: values, error: valuesErr } = await supabase
+        .from("strategic_values")
+        .select("id, nome, descricao, item_order")
+        .eq("strategic_directive_id", row.id)
+        .order("item_order");
+      if (valuesErr) throw valuesErr;
+
+      return {
+        directive: mapStrategicDirectives(row),
+        isDraft,
+        values: ((values as unknown as StrategicValueRow[]) ?? []).map(mapStrategicValue),
+      };
+    },
+  });
+}
+
+export function useStrategicDirectivesHistory() {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: strategicDirectivesKeys.history(),
+    queryFn: async (): Promise<StrategicDirectives[]> => {
+      const { data, error } = await supabase
+        .from("strategic_directives")
+        .select(STRATEGIC_DIRECTIVES_SELECT)
+        .eq("status", "formalizada")
+        .order("formalized_at", { ascending: false });
+      if (error) throw error;
+      return (data as unknown as StrategicDirectivesRow[]).map(mapStrategicDirectives);
+    },
+  });
+}
+
+export function useStartFirstStrategicDirectivesDraft() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("strategic_directives").insert({});
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: strategicDirectivesKeys.all }),
+  });
+}
+
+export function useStartNewStrategicDirectivesVersion() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("start_new_strategic_directives_version");
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: strategicDirectivesKeys.all }),
+  });
+}
+
+export function useFormalizeStrategicDirectives() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, versionLabel }: { id: string; versionLabel: string }) => {
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("formalize_strategic_directives", {
+        p_id: id,
+        p_version_label: versionLabel,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: strategicDirectivesKeys.all }),
+  });
+}
+
+export function useUpdateStrategicDirectivesText() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      missao,
+      visao,
+      proposito,
+    }: {
+      id: string;
+      missao: string;
+      visao: string;
+      proposito: string;
+    }) => {
+      const { error } = await supabase
+        .from("strategic_directives")
+        .update({ missao, visao, proposito })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: strategicDirectivesKeys.current() }),
+  });
+}
+
+export function useCreateStrategicValue() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      directiveId,
+      nome,
+      descricao,
+      itemOrder,
+    }: {
+      directiveId: string;
+      nome: string;
+      descricao: string;
+      itemOrder: number;
+    }) => {
+      const { error } = await supabase.from("strategic_values").insert({
+        strategic_directive_id: directiveId,
+        nome,
+        descricao,
+        item_order: itemOrder,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: strategicDirectivesKeys.current() }),
+  });
+}
+
+export function useUpdateStrategicValue() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: Partial<{ nome: string; descricao: string }>;
+    }) => {
+      const { error } = await supabase.from("strategic_values").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: strategicDirectivesKeys.current() }),
+  });
+}
