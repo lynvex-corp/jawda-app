@@ -198,15 +198,34 @@ export const usuariosMock = [
 
 export const requisitosNormativos = [
   { id: "iso9001-8.7", codigo: "ISO 9001:2015 — 8.7", titulo: "Controle de saídas não conformes" },
-  { id: "iso9001-10.2", codigo: "ISO 9001:2015 — 10.2", titulo: "Não conformidade e ação corretiva" },
-  { id: "iso9001-9.1", codigo: "ISO 9001:2015 — 9.1", titulo: "Monitoramento, medição, análise e avaliação" },
-  { id: "iso14001-10.2", codigo: "ISO 14001:2015 — 10.2", titulo: "Não conformidade e ação corretiva (ambiental)" },
-  { id: "iso45001-10.2", codigo: "ISO 45001:2018 — 10.2", titulo: "Incidente, não conformidade e ação corretiva (SSO)" },
+  {
+    id: "iso9001-10.2",
+    codigo: "ISO 9001:2015 — 10.2",
+    titulo: "Não conformidade e ação corretiva",
+  },
+  {
+    id: "iso9001-9.1",
+    codigo: "ISO 9001:2015 — 9.1",
+    titulo: "Monitoramento, medição, análise e avaliação",
+  },
+  {
+    id: "iso14001-10.2",
+    codigo: "ISO 14001:2015 — 10.2",
+    titulo: "Não conformidade e ação corretiva (ambiental)",
+  },
+  {
+    id: "iso45001-10.2",
+    codigo: "ISO 45001:2018 — 10.2",
+    titulo: "Incidente, não conformidade e ação corretiva (SSO)",
+  },
   { id: "bpf-anvisa", codigo: "RDC 658/2022 — ANVISA", titulo: "Boas Práticas de Fabricação" },
   { id: "haccp-7", codigo: "HACCP — Princípio 7", titulo: "Procedimentos de verificação" },
 ];
 
-export const slaPorGravidade: Record<Severity, { horas: number; label: string; escalonamento: string }> = {
+export const slaPorGravidade: Record<
+  Severity,
+  { horas: number; label: string; escalonamento: string }
+> = {
   Baixa: { horas: 240, label: "10 dias úteis", escalonamento: "Coordenador de área" },
   Média: { horas: 120, label: "5 dias úteis", escalonamento: "Gerente da Qualidade" },
   Alta: { horas: 72, label: "72 horas", escalonamento: "Gerente da Qualidade + Diretor" },
@@ -314,6 +333,8 @@ export const navGroups: NavGroup[] = [
       { label: "Escopo do Sistema", to: "/escopo-sistema", icon: "Target" },
       { label: "Riscos e Oportunidades", to: "/riscos", icon: "ShieldAlert" },
       { label: "Mudanças no SG", to: "/mudancas-sg", icon: "Shuffle" },
+      { label: "Análise Crítica pela Direção", to: "/analise-critica", icon: "Gavel" },
+      { label: "Missão, Visão, Valores e Propósito", to: "/diretrizes-estrategicas", icon: "Flag" },
     ],
   },
   {
@@ -429,8 +450,7 @@ function isoOffset(days: number) {
 
 const _planosSeed: Array<Omit<PlanoAcao, "id" | "codigo">> = [
   {
-    descricao:
-      "Investigar divergência de peso no lote 4821 e ajustar setup da envasadora ENV-02",
+    descricao: "Investigar divergência de peso no lote 4821 e ajustar setup da envasadora ENV-02",
     origemTipo: "Não Conformidade",
     vinculadoCodigo: "NC-2026-000001",
     vinculadoLink: "nc-1",
@@ -741,43 +761,48 @@ export const mockPlanos: PlanoAcao[] = _planosSeed.map((p, i) => ({
   codigo: `PA-2026-${String(i + 1).padStart(6, "0")}`,
 }));
 
-export const planoStatusClasses: Record<PlanoStatus, { badge: string; dot: string; fill: string }> = {
-  Planejado: {
-    badge: "bg-muted text-muted-foreground border-border",
-    dot: "bg-[color:var(--severity-low)]",
-    fill: "var(--severity-low)",
-  },
-  "Em Execução": {
-    badge: "bg-brand-soft text-brand border-brand/20",
-    dot: "bg-brand",
-    fill: "var(--brand)",
-  },
-  "Em Avaliação": {
-    badge: "bg-[color:var(--warning)]/20 text-[color:var(--severity-high)] border-[color:var(--warning)]/40",
-    dot: "bg-[color:var(--warning)]",
-    fill: "var(--warning)",
-  },
-  Concluído: {
-    badge: "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
-    dot: "bg-[color:var(--success)]",
-    fill: "var(--success)",
-  },
-  Atrasado: {
-    badge: "bg-[color:var(--severity-critical)]/15 text-[color:var(--severity-critical)] border-[color:var(--severity-critical)]/30",
-    dot: "bg-[color:var(--severity-critical)]",
-    fill: "var(--severity-critical)",
-  },
-  Cancelado: {
-    badge: "bg-muted text-muted-foreground border-border line-through",
-    dot: "bg-muted-foreground",
-    fill: "var(--muted-foreground)",
-  },
-};
+export const planoStatusClasses: Record<PlanoStatus, { badge: string; dot: string; fill: string }> =
+  {
+    Planejado: {
+      badge: "bg-muted text-muted-foreground border-border",
+      dot: "bg-[color:var(--severity-low)]",
+      fill: "var(--severity-low)",
+    },
+    "Em Execução": {
+      badge: "bg-brand-soft text-brand border-brand/20",
+      dot: "bg-brand",
+      fill: "var(--brand)",
+    },
+    "Em Avaliação": {
+      badge:
+        "bg-[color:var(--warning)]/20 text-[color:var(--severity-high)] border-[color:var(--warning)]/40",
+      dot: "bg-[color:var(--warning)]",
+      fill: "var(--warning)",
+    },
+    Concluído: {
+      badge:
+        "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
+      dot: "bg-[color:var(--success)]",
+      fill: "var(--success)",
+    },
+    Atrasado: {
+      badge:
+        "bg-[color:var(--severity-critical)]/15 text-[color:var(--severity-critical)] border-[color:var(--severity-critical)]/30",
+      dot: "bg-[color:var(--severity-critical)]",
+      fill: "var(--severity-critical)",
+    },
+    Cancelado: {
+      badge: "bg-muted text-muted-foreground border-border line-through",
+      dot: "bg-muted-foreground",
+      fill: "var(--muted-foreground)",
+    },
+  };
 
 export const pdcaClasses: Record<PDCA, string> = {
   Plan: "bg-brand-soft text-brand border-brand/20",
   Do: "bg-[color:var(--warning)]/15 text-[color:var(--severity-high)] border-[color:var(--warning)]/30",
-  Check: "bg-[color:var(--severity-high)]/15 text-[color:var(--severity-high)] border-[color:var(--severity-high)]/30",
+  Check:
+    "bg-[color:var(--severity-high)]/15 text-[color:var(--severity-high)] border-[color:var(--severity-high)]/30",
   Act: "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
 };
 
@@ -1092,8 +1117,10 @@ export const mockAuditorias: Auditoria[] = [
 export const auditoriaStatusClasses: Record<AuditoriaStatus, string> = {
   Programada: "bg-brand-soft text-brand border-brand/20",
   "Em andamento": "bg-brand text-white border-brand",
-  Concluída: "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
-  Atrasada: "bg-[color:var(--severity-critical)]/15 text-[color:var(--severity-critical)] border-[color:var(--severity-critical)]/30",
+  Concluída:
+    "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
+  Atrasada:
+    "bg-[color:var(--severity-critical)]/15 text-[color:var(--severity-critical)] border-[color:var(--severity-critical)]/30",
 };
 
 export const locaisAuditaveis = [

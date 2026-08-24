@@ -15,8 +15,15 @@ export const ROUTE_MODULE: Record<string, ContractModule> = {
   "/analise-cenario": "strategy",
   "/partes-interessadas": "strategy",
   "/escopo-sistema": "strategy",
-  "/riscos": "risks",
+  // "Riscos e Oportunidades" foi consolidada como sub-aba de Estratégia
+  // (Aba 16) e gateada por 'strategy' na própria rota (ModuleGate em
+  // src/routes/riscos.tsx) — o enum 'risks' do contrato ficou órfão desde
+  // essa decisão. Mapeado aqui como 'strategy' também para o cadeado da
+  // sidebar não divergir do cadeado real da rota.
+  "/riscos": "strategy",
   "/mudancas-sg": "strategy",
+  "/analise-critica": "strategy",
+  "/diretrizes-estrategicas": "strategy",
   "/processos": "processes",
   "/documentos": "documents",
   "/aquisicao": "acquisition",
