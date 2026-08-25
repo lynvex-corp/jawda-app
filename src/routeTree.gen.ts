@@ -14,6 +14,7 @@ import { Route as TreinamentosRouteImport } from './routes/treinamentos'
 import { Route as SuporteRouteImport } from './routes/suporte'
 import { Route as RiscosRouteImport } from './routes/riscos'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
+import { Route as ProdutoServicoRouteImport } from './routes/produto-servico'
 import { Route as ProducaoRouteImport } from './routes/producao'
 import { Route as ProcessosRouteImport } from './routes/processos'
 import { Route as PlanosDeAcaoRouteImport } from './routes/planos-de-acao'
@@ -74,6 +75,11 @@ const RiscosRoute = RiscosRouteImport.update({
 const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
   id: '/redefinir-senha',
   path: '/redefinir-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProdutoServicoRoute = ProdutoServicoRouteImport.update({
+  id: '/produto-servico',
+  path: '/produto-servico',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProducaoRoute = ProducaoRouteImport.update({
@@ -280,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/planos-de-acao': typeof PlanosDeAcaoRouteWithChildren
   '/processos': typeof ProcessosRoute
   '/producao': typeof ProducaoRoute
+  '/produto-servico': typeof ProdutoServicoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/riscos': typeof RiscosRoute
   '/suporte': typeof SuporteRouteWithChildren
@@ -318,6 +325,7 @@ export interface FileRoutesByTo {
   '/partes-interessadas': typeof PartesInteressadasRoute
   '/processos': typeof ProcessosRoute
   '/producao': typeof ProducaoRoute
+  '/produto-servico': typeof ProdutoServicoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/riscos': typeof RiscosRoute
   '/suporte': typeof SuporteRouteWithChildren
@@ -362,6 +370,7 @@ export interface FileRoutesById {
   '/planos-de-acao': typeof PlanosDeAcaoRouteWithChildren
   '/processos': typeof ProcessosRoute
   '/producao': typeof ProducaoRoute
+  '/produto-servico': typeof ProdutoServicoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/riscos': typeof RiscosRoute
   '/suporte': typeof SuporteRouteWithChildren
@@ -407,6 +416,7 @@ export interface FileRouteTypes {
     | '/planos-de-acao'
     | '/processos'
     | '/producao'
+    | '/produto-servico'
     | '/redefinir-senha'
     | '/riscos'
     | '/suporte'
@@ -445,6 +455,7 @@ export interface FileRouteTypes {
     | '/partes-interessadas'
     | '/processos'
     | '/producao'
+    | '/produto-servico'
     | '/redefinir-senha'
     | '/riscos'
     | '/suporte'
@@ -488,6 +499,7 @@ export interface FileRouteTypes {
     | '/planos-de-acao'
     | '/processos'
     | '/producao'
+    | '/produto-servico'
     | '/redefinir-senha'
     | '/riscos'
     | '/suporte'
@@ -532,6 +544,7 @@ export interface RootRouteChildren {
   PlanosDeAcaoRoute: typeof PlanosDeAcaoRouteWithChildren
   ProcessosRoute: typeof ProcessosRoute
   ProducaoRoute: typeof ProducaoRoute
+  ProdutoServicoRoute: typeof ProdutoServicoRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   RiscosRoute: typeof RiscosRoute
   SuporteRoute: typeof SuporteRouteWithChildren
@@ -574,6 +587,13 @@ declare module '@tanstack/react-router' {
       path: '/redefinir-senha'
       fullPath: '/redefinir-senha'
       preLoaderRoute: typeof RedefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/produto-servico': {
+      id: '/produto-servico'
+      path: '/produto-servico'
+      fullPath: '/produto-servico'
+      preLoaderRoute: typeof ProdutoServicoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/producao': {
@@ -940,6 +960,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlanosDeAcaoRoute: PlanosDeAcaoRouteWithChildren,
   ProcessosRoute: ProcessosRoute,
   ProducaoRoute: ProducaoRoute,
+  ProdutoServicoRoute: ProdutoServicoRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   RiscosRoute: RiscosRoute,
   SuporteRoute: SuporteRouteWithChildren,

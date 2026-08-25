@@ -344,7 +344,7 @@ export const navGroups: NavGroup[] = [
       { label: "Processos e Fluxos", to: "/processos", icon: "GitBranch" },
       { label: "Documentos", to: "/documentos", icon: "FileText" },
       { label: "Aquisição/Fornecedores", to: "/aquisicao", icon: "Truck" },
-      { label: "Produção e Serviços", to: "/producao", icon: "Factory", externo: true },
+      { label: "Produto ou Serviço", to: "/produto-servico", icon: "Factory" },
       { label: "Comunicações", to: "/comunicacoes", icon: "MessageSquare" },
     ],
   },
