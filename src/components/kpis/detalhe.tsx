@@ -61,6 +61,7 @@ import { SemaforoDot, TendenciaIcon } from "./shared";
 import { LancarMedicaoDialog } from "./medicao-dialogs";
 import { ConfigTab } from "./indicador-config-tab";
 import { IndicadorGrafico } from "./indicador-grafico";
+import { getErrorMessage } from "@/lib/utils";
 
 export function IndicadorDetalhe({ id }: { id: string }) {
   const { data: indicador } = useIndicator(id);
@@ -145,7 +146,7 @@ export function IndicadorDetalhe({ id }: { id: string }) {
           setMetaDialog(false);
         },
         onError: (err) =>
-          toast.error("Não foi possível atualizar a meta", { description: String(err) }),
+          toast.error("Não foi possível atualizar a meta", { description: getErrorMessage(err) }),
       },
     );
   }
@@ -251,7 +252,9 @@ export function IndicadorDetalhe({ id }: { id: string }) {
                             description: "Continua acessível no filtro Arquivados.",
                           }),
                         onError: (err) =>
-                          toast.error("Não foi possível arquivar", { description: String(err) }),
+                          toast.error("Não foi possível arquivar", {
+                            description: getErrorMessage(err),
+                          }),
                       })
                     }
                   >
@@ -405,7 +408,7 @@ export function IndicadorDetalhe({ id }: { id: string }) {
                         description: "Alteração registrada na trilha.",
                       }),
                     onError: (err) =>
-                      toast.error("Não foi possível salvar", { description: String(err) }),
+                      toast.error("Não foi possível salvar", { description: getErrorMessage(err) }),
                   },
                 )
               }

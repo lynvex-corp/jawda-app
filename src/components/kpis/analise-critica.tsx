@@ -17,6 +17,7 @@ import {
 import type { QualityObjective, Indicator } from "@/lib/queries/indicators";
 import type { Measurement } from "@/lib/queries/indicator-measurements";
 import { Sparkline } from "./shared";
+import { getErrorMessage } from "@/lib/utils";
 
 export function AnaliseCritica({
   indicadores,
@@ -75,7 +76,9 @@ export function AnaliseCritica({
         onSuccess: () =>
           toast.success("Consolidação gerada para o período", { description: periodo }),
         onError: (err) =>
-          toast.error("Não foi possível gerar a consolidação", { description: String(err) }),
+          toast.error("Não foi possível gerar a consolidação", {
+            description: getErrorMessage(err),
+          }),
       },
     );
   }

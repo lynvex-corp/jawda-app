@@ -21,7 +21,7 @@ import {
 } from "@/lib/queries/indicator-measurements";
 import { useCreateNC } from "@/lib/queries/ncs";
 import { useIndicators } from "@/lib/queries/indicators";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { avisarGatilhoNc } from "./nc-gatilho";
 
 export function LoteDialog({
@@ -78,7 +78,7 @@ export function LoteDialog({
           onOpenChange(false);
         },
         onError: (err) =>
-          toast.error("Não foi possível salvar as medições", { description: String(err) }),
+          toast.error("Não foi possível salvar as medições", { description: getErrorMessage(err) }),
       },
     );
   }

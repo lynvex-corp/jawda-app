@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { useExportOrganizationData } from "@/lib/queries/org-access";
+import { getErrorMessage } from "@/lib/utils";
 
 const CARGO_POR_PAPEL: Record<string, string> = {
   admin: "Administrador do Cliente",
@@ -49,7 +50,8 @@ export function Topbar() {
   function handleExport() {
     exportData.mutate(undefined, {
       onSuccess: () => toast.success("Exportação gerada", { description: "Download iniciado." }),
-      onError: (err) => toast.error("Não foi possível exportar", { description: String(err) }),
+      onError: (err) =>
+        toast.error("Não foi possível exportar", { description: getErrorMessage(err) }),
     });
   }
 

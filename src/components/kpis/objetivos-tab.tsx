@@ -39,7 +39,7 @@ import {
 import { progressoObjetivo } from "@/lib/kpi-data";
 import type { Measurement } from "@/lib/queries/indicator-measurements";
 import { TabelaIndicadores } from "./tabela-indicadores";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 
 export function ObjetivosTab({
   objetivos,
@@ -115,7 +115,7 @@ export function ObjetivosTab({
                               onSuccess: () => toast.success("Objetivo arquivado"),
                               onError: (err) =>
                                 toast.error("Não foi possível arquivar", {
-                                  description: String(err),
+                                  description: getErrorMessage(err),
                                 }),
                             })
                           }
@@ -225,7 +225,7 @@ function NovoObjetivoDialog({
           setResponsavelId("");
         },
         onError: (err) =>
-          toast.error("Não foi possível criar o objetivo", { description: String(err) }),
+          toast.error("Não foi possível criar o objetivo", { description: getErrorMessage(err) }),
       },
     );
   }

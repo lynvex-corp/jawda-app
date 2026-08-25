@@ -1,3 +1,5 @@
+import { getErrorMessage } from "@/lib/utils";
+
 /** Espelha organizations.status no cliente (seção 7 do Guia de
  * Arquitetura: escada de inadimplência). O cliente NUNCA lê
  * delinquency_state diretamente (RLS restrita a internal_staff — o
@@ -27,7 +29,7 @@ export function isReadOnlyLevel(level: OrgAccessLevel): boolean {
 }
 
 /** toString() sem o prefixo "Error:" — o padrão de erro deste app é
- * `toast.error(msg, { description: String(err) })`, e String(new Error(x))
+ * `toast.error(msg, { description: getErrorMessage(err) })`, e String(new Error(x))
  * viraria "Error: x" por padrão. */
 export class ReadOnlyModeError extends Error {
   constructor() {

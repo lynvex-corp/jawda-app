@@ -26,7 +26,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import {
   useSwotCurrent,
   useSwotHistory,
@@ -140,7 +140,8 @@ export function AnaliseCenarioPage() {
       { id: dragId, quadrant: q },
       {
         onSuccess: () => toast.success("Card reclassificado"),
-        onError: (e) => toast.error("Não foi possível reclassificar", { description: String(e) }),
+        onError: (e) =>
+          toast.error("Não foi possível reclassificar", { description: getErrorMessage(e) }),
       },
     );
     setDragId(null);
@@ -155,7 +156,8 @@ export function AnaliseCenarioPage() {
       {
         onSuccess: (plan) =>
           toast.success("Plano de ação gerado", { description: `Vínculo criado: ${plan.code}` }),
-        onError: (e) => toast.error("Não foi possível gerar o plano", { description: String(e) }),
+        onError: (e) =>
+          toast.error("Não foi possível gerar o plano", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -176,7 +178,7 @@ export function AnaliseCenarioPage() {
             description: "Ajuste área, probabilidade e impacto na tela de Riscos e Oportunidades.",
           }),
         onError: (e) =>
-          toast.error("Não foi possível gerar o registro", { description: String(e) }),
+          toast.error("Não foi possível gerar o registro", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -189,7 +191,7 @@ export function AnaliseCenarioPage() {
         { id: editing.id, description: texto },
         {
           onSuccess: () => toast.success("Card atualizado"),
-          onError: (e) => toast.error("Erro ao salvar", { description: String(e) }),
+          onError: (e) => toast.error("Erro ao salvar", { description: getErrorMessage(e) }),
         },
       );
     } else if (adding) {
@@ -197,7 +199,7 @@ export function AnaliseCenarioPage() {
         { analysisId: analysis.id, quadrant: adding, description: texto },
         {
           onSuccess: () => toast.success("Card adicionado"),
-          onError: (e) => toast.error("Erro ao adicionar", { description: String(e) }),
+          onError: (e) => toast.error("Erro ao adicionar", { description: getErrorMessage(e) }),
         },
       );
     }
@@ -210,7 +212,9 @@ export function AnaliseCenarioPage() {
     if (!analysis) return;
     updateContext.mutate(
       { analysisId: analysis.id, contextoInterno, contextoExterno },
-      { onError: (e) => toast.error("Erro ao salvar contexto", { description: String(e) }) },
+      {
+        onError: (e) => toast.error("Erro ao salvar contexto", { description: getErrorMessage(e) }),
+      },
     );
   };
 
@@ -227,7 +231,8 @@ export function AnaliseCenarioPage() {
           setFormalizeOpen(false);
           setVersionLabel("");
         },
-        onError: (e) => toast.error("Não foi possível formalizar", { description: String(e) }),
+        onError: (e) =>
+          toast.error("Não foi possível formalizar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -236,7 +241,7 @@ export function AnaliseCenarioPage() {
     startNewVersion.mutate(undefined, {
       onSuccess: () => toast.success("Nova versão criada a partir da última formalizada"),
       onError: (e) =>
-        toast.error("Não foi possível iniciar nova versão", { description: String(e) }),
+        toast.error("Não foi possível iniciar nova versão", { description: getErrorMessage(e) }),
     });
   };
 
@@ -287,7 +292,7 @@ export function AnaliseCenarioPage() {
           toast.success("Plano criado a partir da IA", { description: plan.code });
           setAiRecs((prev) => prev.filter((r) => r.id !== rec.id));
         },
-        onError: (e) => toast.error("Erro ao gerar plano", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao gerar plano", { description: getErrorMessage(e) }),
       },
     );
   };

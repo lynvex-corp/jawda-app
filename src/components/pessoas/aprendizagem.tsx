@@ -40,7 +40,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useJobPositions } from "@/lib/queries/pessoas";
 import {
@@ -151,7 +151,7 @@ function MatrizTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
           setNovoOpen(false);
           setNovo({ nome: "", cargaHoraria: "", instrutorFornecedor: "", modalidade: "interno" });
         },
-        onError: (e) => toast.error("Erro ao cadastrar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao cadastrar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -351,7 +351,7 @@ function ExecucaoTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
         setNovoOpen(false);
         setNovo({ trainingId: "", dataPlanejada: "", employeeIds: [] });
       },
-      onError: (e) => toast.error("Erro ao programar", { description: String(e) }),
+      onError: (e) => toast.error("Erro ao programar", { description: getErrorMessage(e) }),
     });
   };
 
@@ -609,7 +609,7 @@ function ConscientizacaoTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
           setNovo({ tipo: "informe", titulo: "", conteudo: "" });
           setOpcoes([]);
         },
-        onError: (e) => toast.error("Erro ao publicar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao publicar", { description: getErrorMessage(e) }),
       },
     );
   };

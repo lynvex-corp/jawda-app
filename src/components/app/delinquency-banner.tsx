@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useExportOrganizationData } from "@/lib/queries/org-access";
 import type { OrgAccessLevel } from "@/lib/org-access-guard";
+import { getErrorMessage } from "@/lib/utils";
 
 /** Reflexo visual dos níveis 'aware' (2º gatilho — banner de aviso, seção 7
  * do Guia) e 'read_only' (3º gatilho — módulos ficam visíveis mas ação de
@@ -18,7 +19,8 @@ export function DelinquencyBanner({ level }: { level: OrgAccessLevel }) {
   function handleExport() {
     exportData.mutate(undefined, {
       onSuccess: () => toast.success("Exportação gerada", { description: "Download iniciado." }),
-      onError: (err) => toast.error("Não foi possível exportar", { description: String(err) }),
+      onError: (err) =>
+        toast.error("Não foi possível exportar", { description: getErrorMessage(err) }),
     });
   }
 

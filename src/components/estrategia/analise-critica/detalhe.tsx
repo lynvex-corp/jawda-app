@@ -51,6 +51,7 @@ import {
 } from "@/lib/queries/estrategia";
 import { LockedDocumentBanner } from "@/components/estrategia/formal-document";
 import { useAuth } from "@/hooks/use-auth";
+import { getErrorMessage } from "@/lib/utils";
 
 export function AnaliseCriticaDetailPage() {
   const { id } = useParams({ from: "/analise-critica/$id" });
@@ -110,7 +111,7 @@ export function AnaliseCriticaDetailPage() {
       { meetingId: meeting.id },
       {
         onSuccess: () => toast.success("Execução iniciada"),
-        onError: (e) => toast.error("Erro ao iniciar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao iniciar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -118,7 +119,7 @@ export function AnaliseCriticaDetailPage() {
   const salvarCampos = () => {
     updateFields.mutate(
       { meetingId: meeting.id, deliberations, previousMeetingReference },
-      { onError: (e) => toast.error("Erro ao salvar", { description: String(e) }) },
+      { onError: (e) => toast.error("Erro ao salvar", { description: getErrorMessage(e) }) },
     );
   };
 
@@ -127,7 +128,7 @@ export function AnaliseCriticaDetailPage() {
       { meetingId: meeting.id },
       {
         onSuccess: () => toast.success("Enviada para aprovação dos participantes"),
-        onError: (e) => toast.error("Não foi possível enviar", { description: String(e) }),
+        onError: (e) => toast.error("Não foi possível enviar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -137,7 +138,7 @@ export function AnaliseCriticaDetailPage() {
       { meetingId: meeting.id },
       {
         onSuccess: () => toast.success("Aprovação registrada"),
-        onError: (e) => toast.error("Erro ao aprovar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao aprovar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -155,7 +156,7 @@ export function AnaliseCriticaDetailPage() {
           setAnnulOpen(false);
           setAnnulReason("");
         },
-        onError: (e) => toast.error("Não foi possível anular", { description: String(e) }),
+        onError: (e) => toast.error("Não foi possível anular", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -173,7 +174,7 @@ export function AnaliseCriticaDetailPage() {
           setNewActionOpen(false);
           setNewAction({ type: "oportunidade_melhoria", description: "" });
         },
-        onError: (e) => toast.error("Erro ao registrar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao registrar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -184,7 +185,7 @@ export function AnaliseCriticaDetailPage() {
       {
         onSuccess: ({ plan }) =>
           toast.success("Plano de ação gerado", { description: `Vínculo criado: ${plan.code}` }),
-        onError: (e) => toast.error("Erro ao gerar plano", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao gerar plano", { description: getErrorMessage(e) }),
       },
     );
   };

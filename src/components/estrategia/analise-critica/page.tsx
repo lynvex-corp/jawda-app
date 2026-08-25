@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Users, Gavel } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { useOrgMembers } from "@/lib/queries/action-plans";
 import {
   useCriticalAnalysisMeetings,
@@ -106,7 +106,7 @@ export function AnaliseCriticaPage() {
           setParticipantIds([]);
           navigate({ to: "/analise-critica/$id", params: { id: meeting.id } });
         },
-        onError: (e) => toast.error("Erro ao programar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao programar", { description: getErrorMessage(e) }),
       },
     );
   };

@@ -43,7 +43,7 @@ import {
   Lock,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useJobPositions,
@@ -116,7 +116,7 @@ function LgpdGate({ children }: { children: React.ReactNode }) {
               onClick={() =>
                 acceptLgpd.mutate(undefined, {
                   onError: (e) =>
-                    toast.error("Erro ao registrar aceite", { description: String(e) }),
+                    toast.error("Erro ao registrar aceite", { description: getErrorMessage(e) }),
                 })
               }
               className="bg-brand text-white hover:bg-brand/90"
@@ -226,7 +226,7 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
           });
           setNovosTreinamentos([]);
         },
-        onError: (e) => toast.error("Erro ao cadastrar cargo", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao cadastrar cargo", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -249,7 +249,7 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
           setor: "",
         });
       },
-      onError: (e) => toast.error("Erro ao cadastrar pessoa", { description: String(e) }),
+      onError: (e) => toast.error("Erro ao cadastrar pessoa", { description: getErrorMessage(e) }),
     });
   };
 
@@ -261,7 +261,7 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
       },
       {
         onSuccess: () => toast.success("Situação atualizada"),
-        onError: (e) => toast.error("Erro ao atualizar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao atualizar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -685,7 +685,7 @@ function EditEmployeeForm({
           toast.success("Registro atualizado");
           onSaved();
         },
-        onError: (e) => toast.error("Erro ao salvar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao salvar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -784,7 +784,7 @@ function EmployeeDossieView({ employeeId }: { employeeId: string }) {
       { employeeId, orgId: currentOrg.org_id, category, source: "dossie", file },
       {
         onSuccess: () => toast.success("Anexo enviado"),
-        onError: (err) => toast.error("Erro ao enviar", { description: String(err) }),
+        onError: (err) => toast.error("Erro ao enviar", { description: getErrorMessage(err) }),
       },
     );
     e.target.value = "";
@@ -793,7 +793,7 @@ function EmployeeDossieView({ employeeId }: { employeeId: string }) {
   const abrirAnexo = (path: string) => {
     getSignedUrl.mutate(path, {
       onSuccess: (url) => window.open(url, "_blank"),
-      onError: (err) => toast.error("Erro ao abrir anexo", { description: String(err) }),
+      onError: (err) => toast.error("Erro ao abrir anexo", { description: getErrorMessage(err) }),
     });
   };
 
@@ -810,7 +810,7 @@ function EmployeeDossieView({ employeeId }: { employeeId: string }) {
           setAcaoOpen(false);
           setNovaAcao({ methodology: "", expectedDate: "" });
         },
-        onError: (e) => toast.error("Erro ao registrar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao registrar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -1051,7 +1051,8 @@ function SelfServiceView({ employee }: { employee: Employee }) {
                     { employeeId: employee.id, contentSnapshot: TERMO_CIENCIA_TEXTO },
                     {
                       onSuccess: () => toast.success("Termo assinado"),
-                      onError: (e) => toast.error("Erro ao assinar", { description: String(e) }),
+                      onError: (e) =>
+                        toast.error("Erro ao assinar", { description: getErrorMessage(e) }),
                     },
                   )
                 }

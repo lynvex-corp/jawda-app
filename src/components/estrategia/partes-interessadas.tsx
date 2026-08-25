@@ -24,6 +24,7 @@ import {
 import { Plus, Lock, History, FilePlus2 } from "lucide-react";
 import { toast } from "sonner";
 import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
+import { getErrorMessage } from "@/lib/utils";
 import {
   useStakeholderCurrent,
   useStakeholderHistory,
@@ -70,7 +71,7 @@ export function PartesInteressadasPage() {
           setNova({ nome: "", requisitos: "", expectativas: "" });
           setNovaOpen(false);
         },
-        onError: (e) => toast.error("Erro ao adicionar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao adicionar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -88,7 +89,8 @@ export function PartesInteressadasPage() {
           setFormalizeOpen(false);
           setVersionLabel("");
         },
-        onError: (e) => toast.error("Não foi possível formalizar", { description: String(e) }),
+        onError: (e) =>
+          toast.error("Não foi possível formalizar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -97,7 +99,7 @@ export function PartesInteressadasPage() {
     startNewVersion.mutate(undefined, {
       onSuccess: () => toast.success("Nova versão criada a partir da última formalizada"),
       onError: (e) =>
-        toast.error("Não foi possível iniciar nova versão", { description: String(e) }),
+        toast.error("Não foi possível iniciar nova versão", { description: getErrorMessage(e) }),
     });
   };
 

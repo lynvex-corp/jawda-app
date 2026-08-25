@@ -2,6 +2,7 @@ import { toast } from "sonner";
 import { ciclosFora, severidadeGatilho } from "@/lib/kpi-data";
 import { useCreateNC, type CreateNCInput } from "@/lib/queries/ncs";
 import type { Indicator } from "@/lib/queries/indicators";
+import { getErrorMessage } from "@/lib/utils";
 
 /** Depois de salvar uma medição fora da meta, verifica se as últimas N
  * medições consecutivas (N = auto_nc_after_cycles) estão fora e, se sim,
@@ -28,7 +29,8 @@ export function avisarGatilhoNc(
     createNc.mutate(input, {
       onSuccess: (nc) =>
         toast.success("NC criada", { description: `${nc.codigo} · origem Indicador` }),
-      onError: (err) => toast.error("Não foi possível criar a NC", { description: String(err) }),
+      onError: (err) =>
+        toast.error("Não foi possível criar a NC", { description: getErrorMessage(err) }),
     });
   };
 

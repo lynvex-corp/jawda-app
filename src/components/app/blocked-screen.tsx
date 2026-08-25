@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { JawdaLogo } from "@/components/brand/logo";
 import { useAuth } from "@/hooks/use-auth";
 import { useExportOrganizationData } from "@/lib/queries/org-access";
+import { getErrorMessage } from "@/lib/utils";
 
 /** 4º gatilho da escada (seção 7 do Guia): bloqueio total de acesso.
  * Substitui a árvore de rotas inteira — sem sidebar, sem topbar, nenhuma
@@ -18,7 +19,8 @@ export function BlockedScreen() {
   function handleExport() {
     exportData.mutate(undefined, {
       onSuccess: () => toast.success("Exportação gerada", { description: "Download iniciado." }),
-      onError: (err) => toast.error("Não foi possível exportar", { description: String(err) }),
+      onError: (err) =>
+        toast.error("Não foi possível exportar", { description: getErrorMessage(err) }),
     });
   }
 

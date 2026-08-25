@@ -23,6 +23,7 @@ import { Calendar, Plus, ArrowLeft, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useOrgMembers } from "@/lib/queries/action-plans";
+import { getErrorMessage } from "@/lib/utils";
 import {
   useEmployees,
   usePerformanceCycles,
@@ -89,7 +90,8 @@ function EvaluationListPage({ onOpen }: { onOpen: (id: string) => void }) {
           toast.success("Ciclo configurado");
           setCicloOpen(false);
         },
-        onError: (e) => toast.error("Erro ao configurar ciclo", { description: String(e) }),
+        onError: (e) =>
+          toast.error("Erro ao configurar ciclo", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -110,7 +112,7 @@ function EvaluationListPage({ onOpen }: { onOpen: (id: string) => void }) {
         setAvaliacaoOpen(false);
         setNovaAvaliacao({ employeeId: "", cycleId: "", avaliadorUserId: "", scheduledAt: "" });
       },
-      onError: (e) => toast.error("Erro ao programar", { description: String(e) }),
+      onError: (e) => toast.error("Erro ao programar", { description: getErrorMessage(e) }),
     });
   };
 
@@ -387,7 +389,7 @@ function EvaluationDetailPage({ id, onBack }: { id: string; onBack: () => void }
       { evaluationId: id, ...matrix },
       {
         onSuccess: () => toast.success("Matriz de Apoio à Decisão salva"),
-        onError: (e) => toast.error("Erro ao salvar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao salvar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -401,7 +403,7 @@ function EvaluationDetailPage({ id, onBack }: { id: string; onBack: () => void }
       { evaluationId: id, devolutivaRegistro: devolutiva },
       {
         onSuccess: () => toast.success("Devolutiva registrada"),
-        onError: (e) => toast.error("Erro ao salvar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao salvar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -411,7 +413,7 @@ function EvaluationDetailPage({ id, onBack }: { id: string; onBack: () => void }
       { id },
       {
         onSuccess: () => toast.success("Avaliação concluída"),
-        onError: (e) => toast.error("Erro ao concluir", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao concluir", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -425,7 +427,7 @@ function EvaluationDetailPage({ id, onBack }: { id: string; onBack: () => void }
       {
         onSuccess: (plan) =>
           toast.success("Plano de ação gerado", { description: `Vínculo criado: ${plan.code}` }),
-        onError: (e) => toast.error("Erro ao gerar plano", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao gerar plano", { description: getErrorMessage(e) }),
       },
     );
   };

@@ -33,7 +33,7 @@ import {
   ThumbsDown,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import {
   useChangesImprovements,
   useCreateChangeImprovement,
@@ -120,7 +120,7 @@ export function MudancasSGPage() {
           setNova({ tipo: "melhoria", descricao: "", proposito: "", dataInicio: "" });
           setNovaOpen(false);
         },
-        onError: (e) => toast.error("Erro ao registrar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao registrar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -130,7 +130,7 @@ export function MudancasSGPage() {
       { id: m.id },
       {
         onSuccess: () => toast.success("Enviada para avaliação"),
-        onError: (e) => toast.error("Não foi possível enviar", { description: String(e) }),
+        onError: (e) => toast.error("Não foi possível enviar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -175,7 +175,7 @@ export function MudancasSGPage() {
           toast.success("Marcada como Avaliada — aguardando aprovação");
           setEvaluating(null);
         },
-        onError: (e) => toast.error("Erro ao avaliar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao avaliar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -185,7 +185,7 @@ export function MudancasSGPage() {
       { id: m.id, approve },
       {
         onSuccess: () => toast.success(approve ? "Aprovada" : "Rejeitada"),
-        onError: (e) => toast.error("Erro ao decidir", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao decidir", { description: getErrorMessage(e) }),
       },
     );
   };

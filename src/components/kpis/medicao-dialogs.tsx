@@ -22,7 +22,7 @@ import {
 } from "@/lib/queries/indicator-measurements";
 import { useCreateNC } from "@/lib/queries/ncs";
 import type { Indicator } from "@/lib/queries/indicators";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { avisarGatilhoNc } from "./nc-gatilho";
 
 function sugestaoIA(indicador: Indicator, valor: number) {
@@ -86,12 +86,12 @@ export function LancarMedicaoDialog({
           setSugestao(null);
         },
         onError: (err) => {
-          if (String(err).includes("duplicate key")) {
+          if (getErrorMessage(err).includes("duplicate key")) {
             toast.error("Já existe medição para este período.", {
               description: "Use outro período de referência.",
             });
           } else {
-            toast.error("Não foi possível salvar a medição", { description: String(err) });
+            toast.error("Não foi possível salvar a medição", { description: getErrorMessage(err) });
           }
         },
       },

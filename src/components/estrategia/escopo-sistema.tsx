@@ -49,6 +49,7 @@ import {
   useUpdateScopeItemJustification,
 } from "@/lib/queries/estrategia";
 import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
+import { getErrorMessage } from "@/lib/utils";
 
 const normas = [
   { codigo: "ISO 9001:2015", titulo: "Sistemas de Gestão da Qualidade" },
@@ -99,7 +100,7 @@ export function EscopoSistemaPage() {
           toast.success("Declaração atualizada");
           setEditOpen(false);
         },
-        onError: (e) => toast.error("Erro ao salvar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao salvar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -120,7 +121,7 @@ export function EscopoSistemaPage() {
           setNova({ requisito: "", descricao: "", justificativa: "" });
           setNovaOpen(false);
         },
-        onError: (e) => toast.error("Erro ao registrar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao registrar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -135,7 +136,7 @@ export function EscopoSistemaPage() {
           setTratando(null);
           setJustif("");
         },
-        onError: (e) => toast.error("Erro ao salvar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao salvar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -146,7 +147,7 @@ export function EscopoSistemaPage() {
       { id: document.id },
       {
         onSuccess: () => toast.success("Enviado para aprovação da Alta Direção"),
-        onError: (e) => toast.error("Não foi possível enviar", { description: String(e) }),
+        onError: (e) => toast.error("Não foi possível enviar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -157,7 +158,8 @@ export function EscopoSistemaPage() {
       { id: document.id },
       {
         onSuccess: () => toast.success("Escopo aprovado — agora é a versão vigente"),
-        onError: (e) => toast.error("Não foi possível aprovar", { description: String(e) }),
+        onError: (e) =>
+          toast.error("Não foi possível aprovar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -166,7 +168,7 @@ export function EscopoSistemaPage() {
     startNewRevision.mutate(undefined, {
       onSuccess: () => toast.success("Nova revisão criada a partir da última vigente"),
       onError: (e) =>
-        toast.error("Não foi possível iniciar nova revisão", { description: String(e) }),
+        toast.error("Não foi possível iniciar nova revisão", { description: getErrorMessage(e) }),
     });
   };
 

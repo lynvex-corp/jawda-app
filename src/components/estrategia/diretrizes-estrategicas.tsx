@@ -26,6 +26,7 @@ import {
   useUpdateStrategicValue,
 } from "@/lib/queries/estrategia";
 import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
+import { getErrorMessage } from "@/lib/utils";
 
 export function DiretrizesEstrategicasPage() {
   const { data, isLoading } = useStrategicDirectivesCurrent();
@@ -60,7 +61,7 @@ export function DiretrizesEstrategicasPage() {
     if (!directive) return;
     updateText.mutate(
       { id: directive.id, missao, visao, proposito },
-      { onError: (e) => toast.error("Erro ao salvar", { description: String(e) }) },
+      { onError: (e) => toast.error("Erro ao salvar", { description: getErrorMessage(e) }) },
     );
   };
 
@@ -81,7 +82,7 @@ export function DiretrizesEstrategicasPage() {
           toast.success("Valor adicionado");
           setNovoValor({ nome: "", descricao: "" });
         },
-        onError: (e) => toast.error("Erro ao adicionar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao adicionar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -101,7 +102,8 @@ export function DiretrizesEstrategicasPage() {
           setFormalizeOpen(false);
           setVersionLabel("");
         },
-        onError: (e) => toast.error("Não foi possível formalizar", { description: String(e) }),
+        onError: (e) =>
+          toast.error("Não foi possível formalizar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -110,7 +112,7 @@ export function DiretrizesEstrategicasPage() {
     startNewVersion.mutate(undefined, {
       onSuccess: () => toast.success("Nova versão criada a partir da última formalizada"),
       onError: (e) =>
-        toast.error("Não foi possível iniciar nova versão", { description: String(e) }),
+        toast.error("Não foi possível iniciar nova versão", { description: getErrorMessage(e) }),
     });
   };
 

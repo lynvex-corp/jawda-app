@@ -33,7 +33,7 @@ import {
   type BibliotecaItem,
   type FonteDados,
 } from "@/lib/kpi-data";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { PassoMetaPolaridade } from "./wizard-step-meta";
 import { Field, type Draft } from "./wizard-shared";
 
@@ -127,7 +127,7 @@ export function NovoIndicadorDialog({
           setDraft(draftVazio);
         },
         onError: (err) =>
-          toast.error("Não foi possível criar o indicador", { description: String(err) }),
+          toast.error("Não foi possível criar o indicador", { description: getErrorMessage(err) }),
       },
     );
   }

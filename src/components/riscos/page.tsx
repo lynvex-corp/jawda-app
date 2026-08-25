@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, Link2, ShieldAlert, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import {
   useRisksOpportunities,
   useCreateRiskOpportunity,
@@ -121,7 +121,7 @@ export function RiscosPage() {
             acao: "",
           });
         },
-        onError: (e) => toast.error("Erro ao registrar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao registrar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -137,7 +137,7 @@ export function RiscosPage() {
       {
         onSuccess: (plan) =>
           toast.success("Plano de ação gerado", { description: `Vínculo criado: ${plan.code}` }),
-        onError: (e) => toast.error("Erro ao gerar plano", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao gerar plano", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -151,7 +151,7 @@ export function RiscosPage() {
           toast.success("Reavaliação registrada", { description: "Histórico preservado." });
           setReassessOpen(null);
         },
-        onError: (e) => toast.error("Erro ao reavaliar", { description: String(e) }),
+        onError: (e) => toast.error("Erro ao reavaliar", { description: getErrorMessage(e) }),
       },
     );
   };
