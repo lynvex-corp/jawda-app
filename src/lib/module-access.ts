@@ -27,11 +27,6 @@ export const ROUTE_MODULE: Record<string, ContractModule> = {
   "/processos": "processes",
   "/documentos": "documents",
   "/aquisicao": "acquisition",
-  // "/producao" é a versão legada (modelo "Obra"/ERP externo, abandonado —
-  // ver src/legado/) que ainda está no ar; "/produto-servico" é a versão
-  // real desta aba. Mapeados ao mesmo módulo até a rota antiga ser retirada
-  // (decisão pendente do usuário, não tomada unilateralmente aqui).
-  "/producao": "production",
   "/produto-servico": "production",
   "/comunicacoes": "communications",
   "/cargos": "people",
