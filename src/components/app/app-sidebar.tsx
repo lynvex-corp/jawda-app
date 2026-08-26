@@ -45,6 +45,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { JawdaLogo } from "@/components/brand/logo";
+import { useSobreJawda } from "@/components/app/sobre-jawda";
 import { navTop, navGroups, navFooter, mockPlanos, mockNCs, type NavItem } from "@/lib/mock-data";
 import { useEnabledModules } from "@/lib/queries/contract";
 import { moduleForRoute } from "@/lib/module-access";
@@ -168,6 +169,7 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const navigate = useNavigate();
   const { data: enabledModules } = useEnabledModules();
+  const { setOpen: setSobreJawdaOpen } = useSobreJawda();
 
   // Enquanto o contrato ainda carrega (enabledModules undefined), nada
   // aparece bloqueado — mesmo critério do ModuleGate, evita cadeado
@@ -189,7 +191,14 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="px-4 py-5">
-        <JawdaLogo showWordmark={!collapsed} size={26} />
+        <button
+          type="button"
+          onClick={() => setSobreJawdaOpen(true)}
+          className="cursor-pointer rounded-md transition-opacity hover:opacity-80"
+          aria-label="Sobre a Jáwda"
+        >
+          <JawdaLogo showWordmark={!collapsed} size={26} />
+        </button>
       </SidebarHeader>
       <SidebarContent className="px-2">
         {/* Top single item */}
