@@ -1,18 +1,6 @@
-import {
-  TrendingUp,
-  AlertTriangle,
-  Clock,
-  CalendarCheck,
-  ArrowRight,
-} from "lucide-react";
+import { TrendingUp, AlertTriangle, Clock, CalendarCheck, ArrowRight } from "lucide-react";
 import { ListChecks } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +30,7 @@ import { eficaciaPlanosMensal } from "@/lib/mock-data";
 import { useJawda } from "@/lib/jawda-store";
 import { Line, LineChart } from "recharts";
 import { Link } from "@tanstack/react-router";
+import { ReconhecimentoPanel } from "@/components/dashboard/reconhecimento";
 
 const chartConfig: ChartConfig = {
   abertas: { label: "Abertas", color: "var(--brand)" },
@@ -74,12 +63,12 @@ function KpiCard({
           <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {label}
           </div>
-          <div className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
-            {value}
-          </div>
+          <div className="mt-2 text-3xl font-semibold tracking-tight text-foreground">{value}</div>
           {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
         </div>
-        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${toneMap[tone ?? "default"]}`}>
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-lg ${toneMap[tone ?? "default"]}`}
+        >
           <Icon className="h-5 w-5" />
         </div>
       </CardContent>
@@ -90,9 +79,7 @@ function KpiCard({
 export function Dashboard() {
   const { naoConformidades, kpis } = useJawda();
   const source = naoConformidades.length ? naoConformidades : mockNCs;
-  const ultimasNCs = [...source]
-    .sort((a, b) => (a.criadoEm < b.criadoEm ? 1 : -1))
-    .slice(0, 5);
+  const ultimasNCs = [...source].sort((a, b) => (a.criadoEm < b.criadoEm ? 1 : -1)).slice(0, 5);
   const planosAtrasados = kpis.planosAtrasados;
   const eficaciaAtual = eficaciaPlanosMensal[eficaciaPlanosMensal.length - 1].taxa;
 
@@ -113,10 +100,34 @@ export function Dashboard() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard icon={TrendingUp} label="Conformidade geral" value={`${kpis.conformidade}%`} hint="+2,4 pts vs. mês anterior" tone="success" />
-        <KpiCard icon={AlertTriangle} label="NCs abertas" value={String(kpis.ncsAbertas)} hint="6 registradas nesta semana" tone="default" />
-        <KpiCard icon={Clock} label="NCs vencidas" value={String(kpis.ncsVencidas)} hint="Requer ação imediata" tone="danger" />
-        <KpiCard icon={CalendarCheck} label="Próximas auditorias" value={String(kpis.proximasAuditorias)} hint="Nos próximos 30 dias" tone="warning" />
+        <KpiCard
+          icon={TrendingUp}
+          label="Conformidade geral"
+          value={`${kpis.conformidade}%`}
+          hint="+2,4 pts vs. mês anterior"
+          tone="success"
+        />
+        <KpiCard
+          icon={AlertTriangle}
+          label="NCs abertas"
+          value={String(kpis.ncsAbertas)}
+          hint="6 registradas nesta semana"
+          tone="default"
+        />
+        <KpiCard
+          icon={Clock}
+          label="NCs vencidas"
+          value={String(kpis.ncsVencidas)}
+          hint="Requer ação imediata"
+          tone="danger"
+        />
+        <KpiCard
+          icon={CalendarCheck}
+          label="Próximas auditorias"
+          value={String(kpis.proximasAuditorias)}
+          hint="Nos próximos 30 dias"
+          tone="warning"
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -124,8 +135,12 @@ export function Dashboard() {
           <Card className="rounded-xl border-border/80 shadow-sm transition-colors hover:border-brand/40">
             <CardContent className="flex items-start justify-between p-5">
               <div>
-                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Planos de Ação Atrasados</div>
-                <div className="mt-2 text-3xl font-semibold tracking-tight text-foreground">{planosAtrasados}</div>
+                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Planos de Ação Atrasados
+                </div>
+                <div className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
+                  {planosAtrasados}
+                </div>
                 <div className="mt-1 text-xs text-muted-foreground">Clique para ver detalhes →</div>
               </div>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[color:var(--severity-critical)]/10 text-[color:var(--severity-critical)]">
@@ -146,13 +161,29 @@ export function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={{ taxa: { label: "Eficácia %", color: "var(--brand)" } }} className="h-[120px] w-full">
+            <ChartContainer
+              config={{ taxa: { label: "Eficácia %", color: "var(--brand)" } }}
+              className="h-[120px] w-full"
+            >
               <LineChart data={eficaciaPlanosMensal}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="mes" tickLine={false} axisLine={false} tickMargin={6} style={{ fontSize: 11 }} />
+                <XAxis
+                  dataKey="mes"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={6}
+                  style={{ fontSize: 11 }}
+                />
                 <YAxis hide domain={[60, 100]} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Line dataKey="taxa" type="monotone" stroke="var(--brand)" strokeWidth={2.5} dot={{ r: 3, fill: "var(--brand)" }} activeDot={{ r: 5 }} />
+                <Line
+                  dataKey="taxa"
+                  type="monotone"
+                  stroke="var(--brand)"
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: "var(--brand)" }}
+                  activeDot={{ r: 5 }}
+                />
               </LineChart>
             </ChartContainer>
           </CardContent>
@@ -162,7 +193,9 @@ export function Dashboard() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="rounded-xl border-border/80 shadow-sm lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Não conformidades — últimos 6 meses</CardTitle>
+            <CardTitle className="text-base font-semibold">
+              Não conformidades — últimos 6 meses
+            </CardTitle>
             <CardDescription>Abertas x fechadas por período</CardDescription>
           </CardHeader>
           <CardContent>
@@ -189,7 +222,13 @@ export function Dashboard() {
               <BarChart data={ncsPorGravidade} layout="vertical" margin={{ left: 8, right: 16 }}>
                 <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis type="number" tickLine={false} axisLine={false} />
-                <YAxis type="category" dataKey="gravidade" tickLine={false} axisLine={false} width={70} />
+                <YAxis
+                  type="category"
+                  dataKey="gravidade"
+                  tickLine={false}
+                  axisLine={false}
+                  width={70}
+                />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="total" radius={[0, 6, 6, 0]}>
                   {ncsPorGravidade.map((entry) => (
@@ -225,8 +264,13 @@ export function Dashboard() {
             </TableHeader>
             <TableBody>
               {ultimasNCs.map((nc) => (
-                <TableRow key={nc.id} className="cursor-pointer border-border/60 transition-colors hover:bg-brand-soft/30">
-                  <TableCell className="pl-6 font-mono text-xs font-medium text-brand">{nc.codigo}</TableCell>
+                <TableRow
+                  key={nc.id}
+                  className="cursor-pointer border-border/60 transition-colors hover:bg-brand-soft/30"
+                >
+                  <TableCell className="pl-6 font-mono text-xs font-medium text-brand">
+                    {nc.codigo}
+                  </TableCell>
                   <TableCell className="max-w-[420px] truncate text-sm">{nc.descricao}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -239,12 +283,18 @@ export function Dashboard() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={`rounded-md border ${severityClasses(nc.gravidade)}`}>
+                    <Badge
+                      variant="outline"
+                      className={`rounded-md border ${severityClasses(nc.gravidade)}`}
+                    >
                       {nc.gravidade}
                     </Badge>
                   </TableCell>
                   <TableCell className="pr-6">
-                    <Badge variant="outline" className={`rounded-md border font-normal ${statusClasses(nc.status)}`}>
+                    <Badge
+                      variant="outline"
+                      className={`rounded-md border font-normal ${statusClasses(nc.status)}`}
+                    >
                       {nc.status}
                     </Badge>
                   </TableCell>
@@ -254,6 +304,16 @@ export function Dashboard() {
           </Table>
         </CardContent>
       </Card>
+
+      <div>
+        <div className="mb-3">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">Reconhecimento</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Rankings e selos de sequência — engajamento com a cultura de qualidade.
+          </p>
+        </div>
+        <ReconhecimentoPanel />
+      </div>
     </div>
   );
 }
