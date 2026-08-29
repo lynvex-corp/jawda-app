@@ -5,9 +5,17 @@ export const Route = createFileRoute("/indicadores/")({
   head: () => ({
     meta: [
       { title: "Painel de Indicadores e KPIs — Jáwda" },
-      { name: "description", content: "Acompanhe metas, semáforos, objetivos da qualidade e análise crítica por período." },
+      {
+        name: "description",
+        content:
+          "Acompanhe metas, semáforos, objetivos da qualidade e análise crítica por período.",
+      },
       { property: "og:title", content: "Painel de Indicadores e KPIs — Jáwda" },
-      { property: "og:description", content: "Acompanhe metas, semáforos, objetivos da qualidade e análise crítica por período." },
+      {
+        property: "og:description",
+        content:
+          "Acompanhe metas, semáforos, objetivos da qualidade e análise crítica por período.",
+      },
     ],
   }),
   component: IndicadoresModule,

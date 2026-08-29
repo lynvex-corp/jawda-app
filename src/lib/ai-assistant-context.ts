@@ -31,7 +31,10 @@ const MODULES: Array<{ match: (p: string) => boolean; ctx: AiModuleContext }> = 
         "Vejo que você está no Dashboard Executivo. Posso destacar riscos abertos, planos atrasados ou preparar um resumo para a diretoria.",
       chips: [
         { label: "Resumo executivo", prompt: "Faça um resumo executivo do momento atual do SGI." },
-        { label: "Onde estão os gargalos?", prompt: "Onde estão os principais gargalos do sistema?" },
+        {
+          label: "Onde estão os gargalos?",
+          prompt: "Onde estão os principais gargalos do sistema?",
+        },
         { label: "Ideias de melhoria", prompt: "Sugira 3 iniciativas de melhoria contínua." },
       ],
     },
@@ -44,8 +47,14 @@ const MODULES: Array<{ match: (p: string) => boolean; ctx: AiModuleContext }> = 
         "Estamos em Não Conformidades. Posso ajudar a redigir uma NC, sugerir gravidade/SLA ou conduzir uma análise de causa raiz.",
       chips: [
         { label: "Redigir nova NC", prompt: "Ajude-me a redigir uma nova não conformidade." },
-        { label: "Classificar gravidade", prompt: "Como classificar corretamente a gravidade de uma NC?" },
-        { label: "Sugerir análise de causa", prompt: "Sugira uma análise de causa raiz para uma NC de reincidência." },
+        {
+          label: "Classificar gravidade",
+          prompt: "Como classificar corretamente a gravidade de uma NC?",
+        },
+        {
+          label: "Sugerir análise de causa",
+          prompt: "Sugira uma análise de causa raiz para uma NC de reincidência.",
+        },
       ],
     },
   },
@@ -56,7 +65,10 @@ const MODULES: Array<{ match: (p: string) => boolean; ctx: AiModuleContext }> = 
       greeting:
         "Você está em Planos de Ação. Posso gerar um detalhamento completo da ação a partir de uma NC ou risco e sugerir prazos por criticidade.",
       chips: [
-        { label: "Gerar plano com IA", prompt: "Gere um plano de ação para uma NC crítica de reincidência." },
+        {
+          label: "Gerar plano com IA",
+          prompt: "Gere um plano de ação para uma NC crítica de reincidência.",
+        },
         { label: "Riscos de atraso", prompt: "Quais planos correm risco de atraso?" },
         { label: "Sugerir contenção", prompt: "Sugira uma ação de contenção imediata." },
       ],
@@ -70,7 +82,10 @@ const MODULES: Array<{ match: (p: string) => boolean; ctx: AiModuleContext }> = 
         "Estamos em Auditorias. Posso ajudar a redigir apontamentos, montar plano de auditoria por normas e sugerir escopos.",
       chips: [
         { label: "Montar plano com IA", prompt: "Monte um plano de auditoria ISO 9001 em 2 dias." },
-        { label: "Redigir apontamento", prompt: "Ajude-me a redigir um apontamento no padrão de auditoria." },
+        {
+          label: "Redigir apontamento",
+          prompt: "Ajude-me a redigir um apontamento no padrão de auditoria.",
+        },
         { label: "Sugerir escopo", prompt: "Sugira um escopo para auditoria de suprimentos." },
       ],
     },
@@ -82,7 +97,10 @@ const MODULES: Array<{ match: (p: string) => boolean; ctx: AiModuleContext }> = 
       greeting:
         "Você está em Riscos e Oportunidades. Posso sugerir riscos típicos de um processo e propor ações de tratamento.",
       chips: [
-        { label: "Identificar riscos", prompt: "Identifique riscos típicos do processo de envase." },
+        {
+          label: "Identificar riscos",
+          prompt: "Identifique riscos típicos do processo de envase.",
+        },
         { label: "Riscos sem ação", prompt: "Quais riscos altos estão sem plano vinculado?" },
         { label: "Sugerir oportunidade", prompt: "Sugira uma oportunidade de melhoria." },
       ],
@@ -96,7 +114,10 @@ const MODULES: Array<{ match: (p: string) => boolean; ctx: AiModuleContext }> = 
         "Estamos na Análise de Cenário. Posso analisar seu SWOT e propor estratégias cruzando forças com oportunidades.",
       chips: [
         { label: "Analisar SWOT", prompt: "Analise o SWOT e proponha estratégias." },
-        { label: "Sugerir fraquezas", prompt: "Que fraquezas costumam faltar num SWOT industrial?" },
+        {
+          label: "Sugerir fraquezas",
+          prompt: "Que fraquezas costumam faltar num SWOT industrial?",
+        },
         { label: "Estratégias FO", prompt: "Sugira 3 estratégias força-oportunidade." },
       ],
     },
@@ -108,8 +129,14 @@ const MODULES: Array<{ match: (p: string) => boolean; ctx: AiModuleContext }> = 
       greeting:
         "Você está em Partes Interessadas. Posso sugerir stakeholders comumente esquecidos com necessidades e requisitos pré-preenchidos.",
       chips: [
-        { label: "Mapear partes com IA", prompt: "Sugira partes interessadas para uma indústria alimentícia." },
-        { label: "Priorizar stakeholders", prompt: "Como priorizar stakeholders pelo mapa influência × interesse?" },
+        {
+          label: "Mapear partes com IA",
+          prompt: "Sugira partes interessadas para uma indústria alimentícia.",
+        },
+        {
+          label: "Priorizar stakeholders",
+          prompt: "Como priorizar stakeholders pelo mapa influência × interesse?",
+        },
         { label: "Requisitos legais", prompt: "Quais requisitos legais aplicáveis considerar?" },
       ],
     },
@@ -221,7 +248,8 @@ Posso criar esta NC no seu quadro agora.`,
         kind: "create_plano",
         code: "PA",
         payload: {
-          descricao: "Revisar POP-ENV-03, retreinar operadores e instalar poka-yoke na etiquetadora",
+          descricao:
+            "Revisar POP-ENV-03, retreinar operadores e instalar poka-yoke na etiquetadora",
           origemTipo: "Não Conformidade",
           pdca: "Plan",
           status: "Planejado",

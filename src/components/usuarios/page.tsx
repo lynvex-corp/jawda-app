@@ -7,36 +7,176 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Search, UserPlus, ShieldCheck } from "lucide-react";
 
 const usuarios = [
-  { nome: "Ana Ribeiro", email: "ana.ribeiro@construtora.com.br", perfil: "Gestor da Qualidade", unidade: "Matriz — SP", ultimo: "há 5 min", ativo: true },
-  { nome: "Bruno Alves", email: "bruno@construtora.com.br", perfil: "Administrador", unidade: "Matriz — SP", ultimo: "há 1 h", ativo: true },
-  { nome: "Carla Menezes", email: "carla.m@construtora.com.br", perfil: "Auditor", unidade: "Filial — Campinas", ultimo: "há 2 h", ativo: true },
-  { nome: "Diego Farias", email: "diego@construtora.com.br", perfil: "Gestor de Área", unidade: "Obra Vila Nova", ultimo: "ontem", ativo: true },
-  { nome: "Eduarda Prado", email: "eduarda@construtora.com.br", perfil: "Colaborador", unidade: "Obra Vila Nova", ultimo: "há 3 dias", ativo: true },
-  { nome: "Felipe Rocha", email: "felipe.r@construtora.com.br", perfil: "Somente Leitura", unidade: "Filial — RJ", ultimo: "há 12 dias", ativo: false },
-  { nome: "Gabriela Souza", email: "gabi.souza@construtora.com.br", perfil: "Auditor", unidade: "Matriz — SP", ultimo: "há 4 h", ativo: true },
-  { nome: "Henrique Lima", email: "henrique@construtora.com.br", perfil: "Colaborador", unidade: "Obra Centro", ultimo: "há 1 dia", ativo: true },
+  {
+    nome: "Ana Ribeiro",
+    email: "ana.ribeiro@construtora.com.br",
+    perfil: "Gestor da Qualidade",
+    unidade: "Matriz — SP",
+    ultimo: "há 5 min",
+    ativo: true,
+  },
+  {
+    nome: "Bruno Alves",
+    email: "bruno@construtora.com.br",
+    perfil: "Administrador",
+    unidade: "Matriz — SP",
+    ultimo: "há 1 h",
+    ativo: true,
+  },
+  {
+    nome: "Carla Menezes",
+    email: "carla.m@construtora.com.br",
+    perfil: "Auditor",
+    unidade: "Filial — Campinas",
+    ultimo: "há 2 h",
+    ativo: true,
+  },
+  {
+    nome: "Diego Farias",
+    email: "diego@construtora.com.br",
+    perfil: "Gestor de Área",
+    unidade: "Obra Vila Nova",
+    ultimo: "ontem",
+    ativo: true,
+  },
+  {
+    nome: "Eduarda Prado",
+    email: "eduarda@construtora.com.br",
+    perfil: "Colaborador",
+    unidade: "Obra Vila Nova",
+    ultimo: "há 3 dias",
+    ativo: true,
+  },
+  {
+    nome: "Felipe Rocha",
+    email: "felipe.r@construtora.com.br",
+    perfil: "Somente Leitura",
+    unidade: "Filial — RJ",
+    ultimo: "há 12 dias",
+    ativo: false,
+  },
+  {
+    nome: "Gabriela Souza",
+    email: "gabi.souza@construtora.com.br",
+    perfil: "Auditor",
+    unidade: "Matriz — SP",
+    ultimo: "há 4 h",
+    ativo: true,
+  },
+  {
+    nome: "Henrique Lima",
+    email: "henrique@construtora.com.br",
+    perfil: "Colaborador",
+    unidade: "Obra Centro",
+    ultimo: "há 1 dia",
+    ativo: true,
+  },
 ];
 
-const modulos = ["Não Conformidades", "Planos de Ação", "Auditorias", "Documentos", "Indicadores", "Riscos", "Estratégia", "Configurações"];
+const modulos = [
+  "Não Conformidades",
+  "Planos de Ação",
+  "Auditorias",
+  "Documentos",
+  "Indicadores",
+  "Riscos",
+  "Estratégia",
+  "Configurações",
+];
 const perms = ["Ver", "Criar", "Editar", "Aprovar", "Excluir"] as const;
 
 type Perm = (typeof perms)[number];
 
-const perfis: { nome: string; descricao: string; usuarios: number; matriz: Record<string, Perm[]> }[] = [
-  { nome: "Administrador", descricao: "Acesso total à plataforma e configurações.", usuarios: 2, matriz: Object.fromEntries(modulos.map((m) => [m, [...perms]])) },
-  { nome: "Gestor da Qualidade", descricao: "Comanda o SGI, aprova ações e auditorias.", usuarios: 3, matriz: Object.fromEntries(modulos.map((m) => [m, ["Ver", "Criar", "Editar", "Aprovar"] as Perm[]])) },
-  { nome: "Auditor", descricao: "Executa auditorias e registra apontamentos.", usuarios: 5, matriz: { "Não Conformidades": ["Ver", "Criar"], "Planos de Ação": ["Ver"], Auditorias: ["Ver", "Criar", "Editar"], Documentos: ["Ver"], Indicadores: ["Ver"], Riscos: ["Ver"], Estratégia: ["Ver"], Configurações: [] } },
-  { nome: "Gestor de Área", descricao: "Responsável pelas ações do seu processo/setor.", usuarios: 8, matriz: { "Não Conformidades": ["Ver", "Criar", "Editar"], "Planos de Ação": ["Ver", "Criar", "Editar"], Auditorias: ["Ver"], Documentos: ["Ver"], Indicadores: ["Ver", "Editar"], Riscos: ["Ver", "Criar"], Estratégia: ["Ver"], Configurações: [] } },
-  { nome: "Colaborador", descricao: "Executa ações e registra ocorrências.", usuarios: 42, matriz: { "Não Conformidades": ["Ver", "Criar"], "Planos de Ação": ["Ver"], Auditorias: [], Documentos: ["Ver"], Indicadores: ["Ver"], Riscos: [], Estratégia: [], Configurações: [] } },
-  { nome: "Somente Leitura", descricao: "Consulta dados sem realizar alterações.", usuarios: 6, matriz: Object.fromEntries(modulos.map((m) => [m, ["Ver"] as Perm[]])) },
+const perfis: {
+  nome: string;
+  descricao: string;
+  usuarios: number;
+  matriz: Record<string, Perm[]>;
+}[] = [
+  {
+    nome: "Administrador",
+    descricao: "Acesso total à plataforma e configurações.",
+    usuarios: 2,
+    matriz: Object.fromEntries(modulos.map((m) => [m, [...perms]])),
+  },
+  {
+    nome: "Gestor da Qualidade",
+    descricao: "Comanda o SGI, aprova ações e auditorias.",
+    usuarios: 3,
+    matriz: Object.fromEntries(
+      modulos.map((m) => [m, ["Ver", "Criar", "Editar", "Aprovar"] as Perm[]]),
+    ),
+  },
+  {
+    nome: "Auditor",
+    descricao: "Executa auditorias e registra apontamentos.",
+    usuarios: 5,
+    matriz: {
+      "Não Conformidades": ["Ver", "Criar"],
+      "Planos de Ação": ["Ver"],
+      Auditorias: ["Ver", "Criar", "Editar"],
+      Documentos: ["Ver"],
+      Indicadores: ["Ver"],
+      Riscos: ["Ver"],
+      Estratégia: ["Ver"],
+      Configurações: [],
+    },
+  },
+  {
+    nome: "Gestor de Área",
+    descricao: "Responsável pelas ações do seu processo/setor.",
+    usuarios: 8,
+    matriz: {
+      "Não Conformidades": ["Ver", "Criar", "Editar"],
+      "Planos de Ação": ["Ver", "Criar", "Editar"],
+      Auditorias: ["Ver"],
+      Documentos: ["Ver"],
+      Indicadores: ["Ver", "Editar"],
+      Riscos: ["Ver", "Criar"],
+      Estratégia: ["Ver"],
+      Configurações: [],
+    },
+  },
+  {
+    nome: "Colaborador",
+    descricao: "Executa ações e registra ocorrências.",
+    usuarios: 42,
+    matriz: {
+      "Não Conformidades": ["Ver", "Criar"],
+      "Planos de Ação": ["Ver"],
+      Auditorias: [],
+      Documentos: ["Ver"],
+      Indicadores: ["Ver"],
+      Riscos: [],
+      Estratégia: [],
+      Configurações: [],
+    },
+  },
+  {
+    nome: "Somente Leitura",
+    descricao: "Consulta dados sem realizar alterações.",
+    usuarios: 6,
+    matriz: Object.fromEntries(modulos.map((m) => [m, ["Ver"] as Perm[]])),
+  },
 ];
 
 function initials(name: string) {
-  return name.split(" ").map((n) => n[0]).slice(0, 2).join("");
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("");
 }
 
 export function UsuariosPage() {
@@ -112,7 +252,9 @@ export function UsuariosPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">Editar</Button>
+                        <Button variant="ghost" size="sm">
+                          Editar
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -138,7 +280,9 @@ export function UsuariosPage() {
                     <div className="text-sm font-semibold">{p.nome}</div>
                   </div>
                   <p className="mt-1.5 text-xs text-muted-foreground">{p.descricao}</p>
-                  <div className="mt-3 text-[11px] text-muted-foreground">{p.usuarios} usuários</div>
+                  <div className="mt-3 text-[11px] text-muted-foreground">
+                    {p.usuarios} usuários
+                  </div>
                 </button>
               ))}
             </div>
@@ -153,7 +297,9 @@ export function UsuariosPage() {
                     <TableRow>
                       <TableHead>Módulo</TableHead>
                       {perms.map((p) => (
-                        <TableHead key={p} className="text-center">{p}</TableHead>
+                        <TableHead key={p} className="text-center">
+                          {p}
+                        </TableHead>
                       ))}
                     </TableRow>
                   </TableHeader>

@@ -17,8 +17,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   useMyTickets,
   useCreateTicket,
@@ -43,15 +56,22 @@ const STATUS_LABEL: Record<SupportTicketStatus, string> = {
 };
 
 const STATUS_CLASSES: Record<SupportTicketStatus, string> = {
-  aberto: "bg-[color:var(--severity-high)]/15 text-[color:var(--severity-high)] border-[color:var(--severity-high)]/30",
+  aberto:
+    "bg-[color:var(--severity-high)]/15 text-[color:var(--severity-high)] border-[color:var(--severity-high)]/30",
   em_atendimento: "bg-brand/15 text-brand border-brand/30",
-  aguardando_cliente: "bg-[color:var(--warning)]/20 text-[color:var(--warning)] border-[color:var(--warning)]/40",
-  resolvido: "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
+  aguardando_cliente:
+    "bg-[color:var(--warning)]/20 text-[color:var(--warning)] border-[color:var(--warning)]/40",
+  resolvido:
+    "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
   fechado: "bg-muted text-muted-foreground border-border",
 };
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 export function SuportePage() {
@@ -82,7 +102,8 @@ export function SuportePage() {
           setOpen(false);
           resetForm();
         },
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Erro ao abrir chamado."),
+        onError: (err) =>
+          toast.error(err instanceof Error ? err.message : "Erro ao abrir chamado."),
       },
     );
   }
@@ -117,13 +138,18 @@ export function SuportePage() {
               <DialogHeader>
                 <DialogTitle>Abrir novo chamado</DialogTitle>
                 <DialogDescription>
-                  Descreva sua dúvida, problema ou sugestão. Nossa equipe responde em até 1 dia útil.
+                  Descreva sua dúvida, problema ou sugestão. Nossa equipe responde em até 1 dia
+                  útil.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-foreground">Assunto</label>
-                  <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Resumo do chamado" />
+                  <Input
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="Resumo do chamado"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-foreground">Tipo</label>
@@ -196,17 +222,25 @@ export function SuportePage() {
                 {tickets.map((t) => (
                   <TableRow key={t.id} className="cursor-pointer hover:bg-muted/40">
                     <TableCell>
-                      <Link to="/suporte/$id" params={{ id: t.id }} className="block font-medium text-foreground">
+                      <Link
+                        to="/suporte/$id"
+                        params={{ id: t.id }}
+                        className="block font-medium text-foreground"
+                      >
                         {t.subject}
                       </Link>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{TYPE_LABEL[t.type]}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {TYPE_LABEL[t.type]}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={STATUS_CLASSES[t.status]}>
                         {STATUS_LABEL[t.status]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{formatDate(t.createdAt)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDate(t.createdAt)}
+                    </TableCell>
                     <TableCell>
                       <Link to="/suporte/$id" params={{ id: t.id }}>
                         <Button variant="ghost" size="sm">

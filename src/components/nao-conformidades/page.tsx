@@ -200,13 +200,7 @@ function KpiCard({
   );
 }
 
-function KanbanCard({
-  nc,
-  onDragStart,
-}: {
-  nc: NC;
-  onDragStart: (id: string) => void;
-}) {
+function KanbanCard({ nc, onDragStart }: { nc: NC; onDragStart: (id: string) => void }) {
   return (
     <div
       draggable
@@ -226,7 +220,10 @@ function KanbanCard({
       </div>
       <p className="mt-2 line-clamp-2 text-sm text-foreground">{nc.descricao}</p>
       <div className="mt-3 flex items-center justify-between">
-        <Badge variant="outline" className={cn("rounded-md border text-[10px]", severityClasses(nc.gravidade))}>
+        <Badge
+          variant="outline"
+          className={cn("rounded-md border text-[10px]", severityClasses(nc.gravidade))}
+        >
           {nc.gravidade}
         </Badge>
         <div className="flex items-center gap-1.5">
@@ -271,7 +268,9 @@ export function NaoConformidadesPage() {
   }, [items, busca, origem, periodo, setor, gravidade, reincidente]);
 
   const kpis = useMemo(() => {
-    const abertas = filtered.filter((nc) => nc.status !== "Encerrada" && nc.status !== "Cancelada").length;
+    const abertas = filtered.filter(
+      (nc) => nc.status !== "Encerrada" && nc.status !== "Cancelada",
+    ).length;
     const andamento = filtered.filter((nc) =>
       ["Em Classificação", "Em Análise", "Plano em Execução", "Em Avaliação"].includes(nc.status),
     ).length;
@@ -348,10 +347,10 @@ export function NaoConformidadesPage() {
               </p>
             </div>
             <Button asChild className="rounded-lg bg-brand text-brand-foreground hover:bg-brand/90">
-  <Link to="/nao-conformidades/nova">
-    <Plus className="mr-1 h-4 w-4" /> Nova Não Conformidade
-  </Link>
-</Button>
+              <Link to="/nao-conformidades/nova">
+                <Plus className="mr-1 h-4 w-4" /> Nova Não Conformidade
+              </Link>
+            </Button>
           </div>
 
           {/* KPIs */}
@@ -401,7 +400,10 @@ export function NaoConformidadesPage() {
                 <ListFilter className="h-3.5 w-3.5" />
                 Filtros
                 {activeFiltersCount > 0 && (
-                  <Badge variant="outline" className="ml-1 rounded-md border-brand/30 bg-brand-soft text-brand">
+                  <Badge
+                    variant="outline"
+                    className="ml-1 rounded-md border-brand/30 bg-brand-soft text-brand"
+                  >
                     {activeFiltersCount} ativo{activeFiltersCount > 1 ? "s" : ""}
                   </Badge>
                 )}
@@ -423,7 +425,9 @@ export function NaoConformidadesPage() {
                   <SelectContent>
                     <SelectItem value="all">Todas as origens</SelectItem>
                     {ORIGENS.map((o) => (
-                      <SelectItem key={o} value={o}>{o}</SelectItem>
+                      <SelectItem key={o} value={o}>
+                        {o}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -434,7 +438,9 @@ export function NaoConformidadesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {PERIODOS.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -445,7 +451,9 @@ export function NaoConformidadesPage() {
                   <SelectContent>
                     <SelectItem value="all">Todos os setores</SelectItem>
                     {SETORES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -456,7 +464,9 @@ export function NaoConformidadesPage() {
                   <SelectContent>
                     <SelectItem value="all">Todas</SelectItem>
                     {GRAVIDADES.map((g) => (
-                      <SelectItem key={g} value={g}>{g}</SelectItem>
+                      <SelectItem key={g} value={g}>
+                        {g}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -502,9 +512,17 @@ export function NaoConformidadesPage() {
                     </TableHeader>
                     <TableBody>
                       {visible.map((nc) => (
-                        <TableRow key={nc.id} className="border-border/60 transition-colors hover:bg-brand-soft/30">
+                        <TableRow
+                          key={nc.id}
+                          className="border-border/60 transition-colors hover:bg-brand-soft/30"
+                        >
                           <TableCell className="pl-6">
-                            <Button asChild variant="ghost" size="sm" className="h-8 gap-1 text-brand hover:bg-brand-soft">
+                            <Button
+                              asChild
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1 text-brand hover:bg-brand-soft"
+                            >
                               <Link to="/nao-conformidades/$id" params={{ id: nc.id }}>
                                 <Eye className="h-4 w-4" /> Ver
                               </Link>
@@ -523,17 +541,25 @@ export function NaoConformidadesPage() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="max-w-[340px] truncate text-sm">{nc.descricao}</TableCell>
+                          <TableCell className="max-w-[340px] truncate text-sm">
+                            {nc.descricao}
+                          </TableCell>
                           <TableCell>
                             <Badge
                               variant="outline"
-                              className={cn("rounded-md border font-normal", origemClasses(nc.origem))}
+                              className={cn(
+                                "rounded-md border font-normal",
+                                origemClasses(nc.origem),
+                              )}
                             >
                               {nc.origem}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={cn("rounded-md border", severityClasses(nc.gravidade))}>
+                            <Badge
+                              variant="outline"
+                              className={cn("rounded-md border", severityClasses(nc.gravidade))}
+                            >
                               {nc.gravidade}
                             </Badge>
                           </TableCell>
@@ -548,7 +574,13 @@ export function NaoConformidadesPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={cn("rounded-md border font-normal", statusClasses(nc.status))}>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "rounded-md border font-normal",
+                                statusClasses(nc.status),
+                              )}
+                            >
                               {nc.status}
                             </Badge>
                           </TableCell>
@@ -557,7 +589,10 @@ export function NaoConformidadesPage() {
                       ))}
                       {visible.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={8} className="py-12 text-center text-sm text-muted-foreground">
+                          <TableCell
+                            colSpan={8}
+                            className="py-12 text-center text-sm text-muted-foreground"
+                          >
                             Nenhuma não conformidade encontrada com os filtros atuais.
                           </TableCell>
                         </TableRow>
@@ -591,7 +626,10 @@ export function NaoConformidadesPage() {
                         <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
                           {status}
                         </span>
-                        <Badge variant="outline" className="rounded-md border-border/60 bg-card text-[10px] text-muted-foreground">
+                        <Badge
+                          variant="outline"
+                          className="rounded-md border-border/60 bg-card text-[10px] text-muted-foreground"
+                        >
                           {columnItems.length}
                         </Badge>
                       </div>

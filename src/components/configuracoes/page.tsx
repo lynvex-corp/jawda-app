@@ -7,14 +7,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { JawdaLogo } from "@/components/brand/logo";
 import { Upload, Plug, CheckCircle2, ArrowRight } from "lucide-react";
 
 const normas = [
   { nome: "ISO 9001", desc: "Gestão da Qualidade", ativa: true, cor: "bg-brand" },
-  { nome: "ISO 14001", desc: "Gestão Ambiental", ativa: false, cor: "bg-[color:var(--severity-low)]" },
-  { nome: "ISO 45001", desc: "Saúde e Segurança Ocupacional", ativa: false, cor: "bg-[color:var(--severity-high)]" },
+  {
+    nome: "ISO 14001",
+    desc: "Gestão Ambiental",
+    ativa: false,
+    cor: "bg-[color:var(--severity-low)]",
+  },
+  {
+    nome: "ISO 45001",
+    desc: "Saúde e Segurança Ocupacional",
+    ativa: false,
+    cor: "bg-[color:var(--severity-high)]",
+  },
 ];
 
 const slas = [
@@ -25,16 +42,40 @@ const slas = [
 ];
 
 const integracoes = [
-  { nome: "RH — Senior Sistemas", desc: "Sincroniza cargos, colaboradores e treinamentos.", status: "conectado" },
-  { nome: "ERP / Suprimentos — TOTVS", desc: "Ordens de compra e cadastro de fornecedores.", status: "conectado" },
-  { nome: "Controle de Frota — Cobli", desc: "Manutenções e checklist de veículos.", status: "disponivel" },
-  { nome: "Requisitos Legais — Verde Ghaia", desc: "Consultoria de obrigações legais aplicáveis.", status: "disponivel" },
-  { nome: "BI — Power BI", desc: "Exporta indicadores para dashboards corporativos.", status: "disponivel" },
+  {
+    nome: "RH — Senior Sistemas",
+    desc: "Sincroniza cargos, colaboradores e treinamentos.",
+    status: "conectado",
+  },
+  {
+    nome: "ERP / Suprimentos — TOTVS",
+    desc: "Ordens de compra e cadastro de fornecedores.",
+    status: "conectado",
+  },
+  {
+    nome: "Controle de Frota — Cobli",
+    desc: "Manutenções e checklist de veículos.",
+    status: "disponivel",
+  },
+  {
+    nome: "Requisitos Legais — Verde Ghaia",
+    desc: "Consultoria de obrigações legais aplicáveis.",
+    status: "disponivel",
+  },
+  {
+    nome: "BI — Power BI",
+    desc: "Exporta indicadores para dashboards corporativos.",
+    status: "disponivel",
+  },
   { nome: "SSO — Microsoft Entra ID", desc: "Login corporativo unificado.", status: "conectado" },
 ];
 
 export function ConfiguracoesPage() {
-  const [contratadas, setContratadas] = useState<Record<string, boolean>>({ "ISO 9001": true, "ISO 14001": false, "ISO 45001": false });
+  const [contratadas, setContratadas] = useState<Record<string, boolean>>({
+    "ISO 9001": true,
+    "ISO 14001": false,
+    "ISO 45001": false,
+  });
 
   return (
     <AppShell>
@@ -57,7 +98,9 @@ export function ConfiguracoesPage() {
           <TabsContent value="identidade" className="mt-4">
             <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
               <Card className="rounded-xl">
-                <CardHeader><CardTitle className="text-base">Marca da empresa cliente</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle className="text-base">Marca da empresa cliente</CardTitle>
+                </CardHeader>
                 <CardContent className="space-y-5">
                   <div>
                     <Label>Logo</Label>
@@ -65,9 +108,13 @@ export function ConfiguracoesPage() {
                       <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-border bg-muted/30">
                         <JawdaLogo showWordmark={false} size={40} />
                       </div>
-                      <Button variant="outline" className="gap-2"><Upload className="h-4 w-4" /> Enviar logo</Button>
+                      <Button variant="outline" className="gap-2">
+                        <Upload className="h-4 w-4" /> Enviar logo
+                      </Button>
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground">PNG ou SVG, fundo transparente, até 1 MB.</p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      PNG ou SVG, fundo transparente, até 1 MB.
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -83,21 +130,30 @@ export function ConfiguracoesPage() {
                     <div>
                       <Label>Cor primária</Label>
                       <div className="mt-2 flex items-center gap-2">
-                        <div className="h-9 w-9 rounded-lg border border-border" style={{ background: "#1F4E8C" }} />
+                        <div
+                          className="h-9 w-9 rounded-lg border border-border"
+                          style={{ background: "#1F4E8C" }}
+                        />
                         <Input defaultValue="#1F4E8C" className="h-9" />
                       </div>
                     </div>
                     <div>
                       <Label>Cor de destaque</Label>
                       <div className="mt-2 flex items-center gap-2">
-                        <div className="h-9 w-9 rounded-lg border border-border" style={{ background: "#DCE6F5" }} />
+                        <div
+                          className="h-9 w-9 rounded-lg border border-border"
+                          style={{ background: "#DCE6F5" }}
+                        />
                         <Input defaultValue="#DCE6F5" className="h-9" />
                       </div>
                     </div>
                     <div>
                       <Label>Cor de texto</Label>
                       <div className="mt-2 flex items-center gap-2">
-                        <div className="h-9 w-9 rounded-lg border border-border" style={{ background: "#1A1A1A" }} />
+                        <div
+                          className="h-9 w-9 rounded-lg border border-border"
+                          style={{ background: "#1A1A1A" }}
+                        />
                         <Input defaultValue="#1A1A1A" className="h-9" />
                       </div>
                     </div>
@@ -106,7 +162,9 @@ export function ConfiguracoesPage() {
               </Card>
 
               <Card className="rounded-xl">
-                <CardHeader><CardTitle className="text-base">Prévia</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle className="text-base">Prévia</CardTitle>
+                </CardHeader>
                 <CardContent>
                   <div className="overflow-hidden rounded-xl border border-border">
                     <div className="flex items-center justify-between border-b border-border bg-brand px-4 py-3 text-brand-foreground">
@@ -118,7 +176,9 @@ export function ConfiguracoesPage() {
                     <div className="space-y-3 p-4">
                       <div className="h-3 w-2/3 rounded bg-muted" />
                       <div className="h-3 w-1/2 rounded bg-muted" />
-                      <Button className="mt-2 bg-brand text-brand-foreground">Botão de exemplo</Button>
+                      <Button className="mt-2 bg-brand text-brand-foreground">
+                        Botão de exemplo
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -128,14 +188,17 @@ export function ConfiguracoesPage() {
 
           <TabsContent value="normas" className="mt-4">
             <p className="mb-4 text-sm text-muted-foreground">
-              Cada norma é um módulo independente — contrate no modelo add-on conforme a maturidade do seu sistema de gestão.
+              Cada norma é um módulo independente — contrate no modelo add-on conforme a maturidade
+              do seu sistema de gestão.
             </p>
             <div className="grid gap-4 md:grid-cols-3">
               {normas.map((n) => (
                 <Card key={n.nome} className="rounded-xl">
                   <CardHeader>
                     <div className="flex items-start justify-between">
-                      <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${n.cor} text-white text-xs font-bold`}>
+                      <div
+                        className={`flex h-11 w-11 items-center justify-center rounded-xl ${n.cor} text-white text-xs font-bold`}
+                      >
                         {n.nome.split(" ")[1]}
                       </div>
                       {contratadas[n.nome] && (
@@ -165,7 +228,9 @@ export function ConfiguracoesPage() {
 
           <TabsContent value="sla" className="mt-4">
             <Card className="rounded-xl">
-              <CardHeader><CardTitle className="text-base">Prazos padrão de resposta por gravidade</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Prazos padrão de resposta por gravidade</CardTitle>
+              </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
@@ -182,14 +247,23 @@ export function ConfiguracoesPage() {
                       <TableRow key={s.grav}>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.cor }} />
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ background: s.cor }}
+                            />
                             <span className="font-medium">{s.grav}</span>
                           </div>
                         </TableCell>
-                        <TableCell><Input defaultValue={s.prazo} className="h-8 w-20" /></TableCell>
+                        <TableCell>
+                          <Input defaultValue={s.prazo} className="h-8 w-20" />
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{s.unidade}</TableCell>
-                        <TableCell><Switch defaultChecked /></TableCell>
-                        <TableCell><Switch defaultChecked={s.grav === "Crítica" || s.grav === "Alta"} /></TableCell>
+                        <TableCell>
+                          <Switch defaultChecked />
+                        </TableCell>
+                        <TableCell>
+                          <Switch defaultChecked={s.grav === "Crítica" || s.grav === "Alta"} />
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

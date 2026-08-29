@@ -150,7 +150,12 @@ export function AIAssistant() {
                   </SheetDescription>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label="Fechar">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setOpen(false)}
+                aria-label="Fechar"
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>

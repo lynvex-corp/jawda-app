@@ -65,7 +65,8 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(
       authenticated: true,
       userId: session.user.id,
       email: session.user.email ?? null,
-      mustResetPassword: (profile as { must_reset_password: boolean } | null)?.must_reset_password ?? false,
+      mustResetPassword:
+        (profile as { must_reset_password: boolean } | null)?.must_reset_password ?? false,
     };
   },
 );

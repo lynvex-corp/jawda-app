@@ -59,7 +59,9 @@ function CsatPrompt({ ticketId }: { ticketId: string }) {
               <Star
                 className={cn(
                   "h-7 w-7 transition",
-                  n <= rating ? "fill-[color:var(--warning)] text-[color:var(--warning)]" : "text-muted-foreground/40",
+                  n <= rating
+                    ? "fill-[color:var(--warning)] text-[color:var(--warning)]"
+                    : "text-muted-foreground/40",
                 )}
               />
             </button>
@@ -73,7 +75,8 @@ function CsatPrompt({ ticketId }: { ticketId: string }) {
               { ticketId, rating },
               {
                 onSuccess: () => toast.success("Obrigado pela avaliação!"),
-                onError: (err) => toast.error(err instanceof Error ? err.message : "Erro ao avaliar."),
+                onError: (err) =>
+                  toast.error(err instanceof Error ? err.message : "Erro ao avaliar."),
               },
             )
           }
@@ -99,7 +102,8 @@ export function SupportTicketDetailPage() {
       { ticketId: id, message: reply.trim() },
       {
         onSuccess: () => setReply(""),
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Erro ao enviar mensagem."),
+        onError: (err) =>
+          toast.error(err instanceof Error ? err.message : "Erro ao enviar mensagem."),
       },
     );
   }
@@ -107,7 +111,10 @@ export function SupportTicketDetailPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-[900px] space-y-5">
-        <Link to="/suporte" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          to="/suporte"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" />
           Voltar para Suporte
         </Link>
@@ -115,7 +122,9 @@ export function SupportTicketDetailPage() {
         {ticket && (
           <header className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-foreground">{ticket.subject}</h1>
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                {ticket.subject}
+              </h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 {TYPE_LABEL[ticket.type]} · Aberto em {formatDateTime(ticket.createdAt)}
               </p>
@@ -126,12 +135,19 @@ export function SupportTicketDetailPage() {
 
         <Card>
           <CardContent className="flex flex-col gap-4 p-4">
-            {loadingMessages && <p className="text-sm text-muted-foreground">Carregando mensagens...</p>}
+            {loadingMessages && (
+              <p className="text-sm text-muted-foreground">Carregando mensagens...</p>
+            )}
             {messages.map((m) => (
-              <div key={m.id} className={cn("flex gap-2", m.senderType === "client" && "justify-end")}>
+              <div
+                key={m.id}
+                className={cn("flex gap-2", m.senderType === "client" && "justify-end")}
+              >
                 {m.senderType === "staff" && (
                   <Avatar className="h-7 w-7">
-                    <AvatarFallback className="bg-brand text-[10px] font-semibold text-brand-foreground">JA</AvatarFallback>
+                    <AvatarFallback className="bg-brand text-[10px] font-semibold text-brand-foreground">
+                      JA
+                    </AvatarFallback>
                   </Avatar>
                 )}
                 <div
@@ -141,7 +157,8 @@ export function SupportTicketDetailPage() {
                   )}
                 >
                   <div className="mb-0.5 text-[10px] font-semibold opacity-70">
-                    {m.senderType === "client" ? "Você" : "Equipe Jáwda"} · {formatDateTime(m.createdAt)}
+                    {m.senderType === "client" ? "Você" : "Equipe Jáwda"} ·{" "}
+                    {formatDateTime(m.createdAt)}
                   </div>
                   {m.message}
                 </div>

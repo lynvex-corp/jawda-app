@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import {
   mockNCs,
   mockPlanos,
@@ -180,7 +173,9 @@ interface JawdaContextValue extends JawdaState {
   addAuditoria: (a: Partial<Auditoria> & { escopo: string }) => Auditoria;
   updateAuditoria: (id: string, patch: Partial<Auditoria>) => void;
   updateAuditoriaStatus: (id: string, status: Auditoria["status"]) => void;
-  addApontamento: (a: Partial<Apontamento> & { auditoriaId: string; requisito: string; tipo: Apontamento["tipo"] }) => Apontamento;
+  addApontamento: (
+    a: Partial<Apontamento> & { auditoriaId: string; requisito: string; tipo: Apontamento["tipo"] },
+  ) => Apontamento;
   addRisco: (r: Partial<Risco> & { descricao: string }) => Risco;
   addSwotItem: (item: Omit<SwotItem, "id">) => SwotItem;
   updateSwotItem: (id: string, patch: Partial<SwotItem>) => void;
@@ -235,29 +230,100 @@ const seedSwot: SwotItem[] = [
 ];
 
 const seedPartes: ParteInteressada[] = [
-  { id: "pi-1", nome: "Clientes Corporativos (Top 20)", categoria: "Cliente", influencia: 5, interesse: 5, necessidades: "Prazo, qualidade e rastreabilidade", requisitos: "ISO 9001, SLA ≤ 5 dias" },
-  { id: "pi-2", nome: "Colaboradores diretos", categoria: "Colaborador", influencia: 4, interesse: 5, necessidades: "Ambiente seguro e desenvolvimento", requisitos: "NR-05, NR-35, plano de carreira" },
-  { id: "pi-3", nome: "Fornecedores críticos (Classe A)", categoria: "Fornecedor", influencia: 4, interesse: 3, necessidades: "Previsibilidade de compra e pagamento", requisitos: "Homologação + auditoria anual" },
-  { id: "pi-4", nome: "ANVISA", categoria: "Órgão regulador", influencia: 5, interesse: 3, necessidades: "Conformidade sanitária plena", requisitos: "RDC 658/2022 — BPF" },
-  { id: "pi-5", nome: "Comunidade do entorno", categoria: "Comunidade", influencia: 2, interesse: 4, necessidades: "Baixo impacto ambiental e ruído", requisitos: "Licenciamento IBAMA" },
-  { id: "pi-6", nome: "Acionistas / Board", categoria: "Acionista", influencia: 5, interesse: 4, necessidades: "Retorno financeiro sustentável", requisitos: "Relatórios trimestrais + compliance" },
+  {
+    id: "pi-1",
+    nome: "Clientes Corporativos (Top 20)",
+    categoria: "Cliente",
+    influencia: 5,
+    interesse: 5,
+    necessidades: "Prazo, qualidade e rastreabilidade",
+    requisitos: "ISO 9001, SLA ≤ 5 dias",
+  },
+  {
+    id: "pi-2",
+    nome: "Colaboradores diretos",
+    categoria: "Colaborador",
+    influencia: 4,
+    interesse: 5,
+    necessidades: "Ambiente seguro e desenvolvimento",
+    requisitos: "NR-05, NR-35, plano de carreira",
+  },
+  {
+    id: "pi-3",
+    nome: "Fornecedores críticos (Classe A)",
+    categoria: "Fornecedor",
+    influencia: 4,
+    interesse: 3,
+    necessidades: "Previsibilidade de compra e pagamento",
+    requisitos: "Homologação + auditoria anual",
+  },
+  {
+    id: "pi-4",
+    nome: "ANVISA",
+    categoria: "Órgão regulador",
+    influencia: 5,
+    interesse: 3,
+    necessidades: "Conformidade sanitária plena",
+    requisitos: "RDC 658/2022 — BPF",
+  },
+  {
+    id: "pi-5",
+    nome: "Comunidade do entorno",
+    categoria: "Comunidade",
+    influencia: 2,
+    interesse: 4,
+    necessidades: "Baixo impacto ambiental e ruído",
+    requisitos: "Licenciamento IBAMA",
+  },
+  {
+    id: "pi-6",
+    nome: "Acionistas / Board",
+    categoria: "Acionista",
+    influencia: 5,
+    interesse: 4,
+    necessidades: "Retorno financeiro sustentável",
+    requisitos: "Relatórios trimestrais + compliance",
+  },
 ];
 
 const ESCOPO_INICIAL =
   "O Sistema de Gestão Integrada da Indústria Nova Aurora Ltda. abrange as atividades de recebimento, fabricação, envase, controle de qualidade, armazenagem e expedição de produtos alimentícios e farmacêuticos nas unidades da Matriz (Betim/MG) e Filial SP (Guarulhos/SP), contemplando todos os processos de suporte relacionados — suprimentos, engenharia, manutenção, recursos humanos, segurança do trabalho e meio ambiente.";
 
 const seedRevisoes: EscopoRevisao[] = [
-  { rev: "05", data: "2025-08-14T10:00:00Z", texto: "Inclusão da Filial SP no escopo operacional.", autor: "Ana Ribeiro" },
-  { rev: "06", data: "2026-01-22T10:00:00Z", texto: "Filial RS adicionada como centro de distribuição.", autor: "Rafael Costa" },
+  {
+    rev: "05",
+    data: "2025-08-14T10:00:00Z",
+    texto: "Inclusão da Filial SP no escopo operacional.",
+    autor: "Ana Ribeiro",
+  },
+  {
+    rev: "06",
+    data: "2026-01-22T10:00:00Z",
+    texto: "Filial RS adicionada como centro de distribuição.",
+    autor: "Rafael Costa",
+  },
   { rev: "07", data: "2026-03-12T10:00:00Z", texto: ESCOPO_INICIAL, autor: "Ana Ribeiro" },
 ];
 
 const seedExclusoes: Exclusao[] = [
-  { id: "exc-1", requisito: "ISO 9001 · 8.3", descricao: "Projeto e desenvolvimento de produtos", justificativa: "A organização atua exclusivamente na fabricação sob especificação do cliente, não realizando projeto próprio." },
-  { id: "exc-2", requisito: "ISO 9001 · 7.1.5.2", descricao: "Rastreabilidade de medição", justificativa: "Aplicável apenas a instrumentos críticos — em revisão pela metrologia." },
+  {
+    id: "exc-1",
+    requisito: "ISO 9001 · 8.3",
+    descricao: "Projeto e desenvolvimento de produtos",
+    justificativa:
+      "A organização atua exclusivamente na fabricação sob especificação do cliente, não realizando projeto próprio.",
+  },
+  {
+    id: "exc-2",
+    requisito: "ISO 9001 · 7.1.5.2",
+    descricao: "Rastreabilidade de medição",
+    justificativa: "Aplicável apenas a instrumentos críticos — em revisão pela metrologia.",
+  },
 ];
 
-function seedNotifications(state: Pick<JawdaState, "planosDeAcao" | "naoConformidades" | "auditorias">): AppNotification[] {
+function seedNotifications(
+  state: Pick<JawdaState, "planosDeAcao" | "naoConformidades" | "auditorias">,
+): AppNotification[] {
   const notifs: AppNotification[] = [];
   state.planosDeAcao
     .filter((p) => p.status === "Atrasado")
@@ -318,7 +384,11 @@ function seedActivities(state: Pick<JawdaState, "naoConformidades" | "planosDeAc
     acts.push({
       id: `act-plano-${p.id}`,
       at: new Date(Date.parse(NOW_ISO) - (i + 5) * 5400000).toISOString(),
-      actor: { nome: p.responsavel.nome, iniciais: p.responsavel.iniciais, cargo: p.responsavel.departamento },
+      actor: {
+        nome: p.responsavel.nome,
+        iniciais: p.responsavel.iniciais,
+        cargo: p.responsavel.departamento,
+      },
       verb: p.status === "Concluído" ? "concluiu" : "avançou",
       target: p.codigo,
       targetType: "Plano",
@@ -355,7 +425,11 @@ export function JawdaProvider({ children }: { children: ReactNode }) {
   const [exclusoes, setExclusoes] = useState<Exclusao[]>(seedExclusoes);
   const [colaboradores] = useState<Colaborador[]>([]);
   const [notificacoes, setNotificacoes] = useState<AppNotification[]>(() =>
-    seedNotifications({ planosDeAcao: mockPlanos, naoConformidades: mockNCs, auditorias: mockAuditorias }),
+    seedNotifications({
+      planosDeAcao: mockPlanos,
+      naoConformidades: mockNCs,
+      auditorias: mockAuditorias,
+    }),
   );
   const [logAtividades, setLog] = useState<Activity[]>(() =>
     seedActivities({ naoConformidades: mockNCs, planosDeAcao: mockPlanos }),
@@ -432,7 +506,10 @@ export function JawdaProvider({ children }: { children: ReactNode }) {
         descricao: input.descricao,
         origem,
         gravidade: input.gravidade ?? "Média",
-        responsavel: input.responsavel ?? { nome: CURRENT_USER.nome, iniciais: CURRENT_USER.iniciais },
+        responsavel: input.responsavel ?? {
+          nome: CURRENT_USER.nome,
+          iniciais: CURRENT_USER.iniciais,
+        },
         status: input.status ?? "Em Classificação",
         prazoSLA: input.prazoSLA ?? new Date(Date.now() + 5 * 86400000).toISOString(),
         slaStatus: input.slaStatus ?? "ok",
@@ -464,12 +541,11 @@ export function JawdaProvider({ children }: { children: ReactNode }) {
         origemTipo: input.origemTipo ?? "Melhoria Contínua",
         vinculadoCodigo: input.vinculadoCodigo ?? null,
         vinculadoLink: input.vinculadoLink ?? null,
-        responsavel:
-          input.responsavel ?? {
-            nome: CURRENT_USER.nome,
-            iniciais: CURRENT_USER.iniciais,
-            departamento: "Qualidade",
-          },
+        responsavel: input.responsavel ?? {
+          nome: CURRENT_USER.nome,
+          iniciais: CURRENT_USER.iniciais,
+          departamento: "Qualidade",
+        },
         pdca: input.pdca ?? "Plan",
         status: input.status ?? "Planejado",
         inicio: input.inicio ?? new Date().toISOString(),
@@ -529,7 +605,10 @@ export function JawdaProvider({ children }: { children: ReactNode }) {
         mesFim: input.mesFim ?? new Date().getMonth() + 1,
         dataInicio: input.dataInicio ?? new Date().toISOString().slice(0, 10),
         dataFim: input.dataFim ?? new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
-        auditorLider: input.auditorLider ?? { nome: CURRENT_USER.nome, iniciais: CURRENT_USER.iniciais },
+        auditorLider: input.auditorLider ?? {
+          nome: CURRENT_USER.nome,
+          iniciais: CURRENT_USER.iniciais,
+        },
         locais: input.locais ?? ["Sede/Escritório"],
         apontamentos: input.apontamentos ?? { opm: 0, ncSimples: 0, ncModerada: 0, ncCritica: 0 },
       };
@@ -567,7 +646,13 @@ export function JawdaProvider({ children }: { children: ReactNode }) {
   );
 
   const addApontamento = useCallback(
-    (input: Partial<Apontamento> & { auditoriaId: string; requisito: string; tipo: Apontamento["tipo"] }): Apontamento => {
+    (
+      input: Partial<Apontamento> & {
+        auditoriaId: string;
+        requisito: string;
+        tipo: Apontamento["tipo"];
+      },
+    ): Apontamento => {
       const codigo = input.codigo ?? nextCode("APT");
       const apt: Apontamento = {
         id: `apt-${Date.now()}`,
@@ -608,18 +693,26 @@ export function JawdaProvider({ children }: { children: ReactNode }) {
         criadoEm: new Date().toISOString(),
       };
       setRiscos((prev) => [risco, ...prev]);
-      logActivity({ verb: "registrou risco", target: codigo, targetType: "Risco", refId: risco.id });
+      logActivity({
+        verb: "registrou risco",
+        target: codigo,
+        targetType: "Risco",
+        refId: risco.id,
+      });
       return risco;
     },
     [nextCode, logActivity],
   );
 
-  const addSwotItem = useCallback((item: Omit<SwotItem, "id">) => {
-    const s: SwotItem = { ...item, id: `swot-${Date.now()}` };
-    setSwot((prev) => [s, ...prev]);
-    logActivity({ verb: "adicionou item SWOT", target: item.quadrante, targetType: "Sistema" });
-    return s;
-  }, [logActivity]);
+  const addSwotItem = useCallback(
+    (item: Omit<SwotItem, "id">) => {
+      const s: SwotItem = { ...item, id: `swot-${Date.now()}` };
+      setSwot((prev) => [s, ...prev]);
+      logActivity({ verb: "adicionou item SWOT", target: item.quadrante, targetType: "Sistema" });
+      return s;
+    },
+    [logActivity],
+  );
 
   const updateSwotItem = useCallback((id: string, patch: Partial<SwotItem>) => {
     setSwot((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -629,12 +722,9 @@ export function JawdaProvider({ children }: { children: ReactNode }) {
     setSwot((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
-  const moveSwotItem = useCallback(
-    (id: string, quadrante: SwotItem["quadrante"]) => {
-      setSwot((prev) => prev.map((s) => (s.id === id ? { ...s, quadrante } : s)));
-    },
-    [],
-  );
+  const moveSwotItem = useCallback((id: string, quadrante: SwotItem["quadrante"]) => {
+    setSwot((prev) => prev.map((s) => (s.id === id ? { ...s, quadrante } : s)));
+  }, []);
 
   const addParte = useCallback(
     (p: Omit<ParteInteressada, "id">) => {
@@ -677,19 +767,22 @@ export function JawdaProvider({ children }: { children: ReactNode }) {
     [logActivity, addNotification],
   );
 
-  const addExclusao = useCallback((e: Omit<Exclusao, "id">) => {
-    const ex: Exclusao = { ...e, id: `exc-${Date.now()}` };
-    setExclusoes((prev) => [...prev, ex]);
-    if (!e.justificativa.trim()) {
-      addNotification({
-        title: "Exclusão sem justificativa",
-        description: `${e.requisito} — risco de NC no item 4.3`,
-        tone: "danger",
-        link: "/escopo-sistema",
-      });
-    }
-    return ex;
-  }, [addNotification]);
+  const addExclusao = useCallback(
+    (e: Omit<Exclusao, "id">) => {
+      const ex: Exclusao = { ...e, id: `exc-${Date.now()}` };
+      setExclusoes((prev) => [...prev, ex]);
+      if (!e.justificativa.trim()) {
+        addNotification({
+          title: "Exclusão sem justificativa",
+          description: `${e.requisito} — risco de NC no item 4.3`,
+          tone: "danger",
+          link: "/escopo-sistema",
+        });
+      }
+      return ex;
+    },
+    [addNotification],
+  );
 
   const updateExclusao = useCallback((id: string, patch: Partial<Exclusao>) => {
     setExclusoes((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -703,7 +796,9 @@ export function JawdaProvider({ children }: { children: ReactNode }) {
     const encerradas = ncs.filter((n) => n.status === "Encerrada").length;
     const total = ncs.length;
     const conformidade = total ? Math.round((encerradas / total) * 100) : 0;
-    const ncsAbertas = ncs.filter((n) => n.status !== "Encerrada" && n.status !== "Cancelada").length;
+    const ncsAbertas = ncs.filter(
+      (n) => n.status !== "Encerrada" && n.status !== "Cancelada",
+    ).length;
     const ncsVencidas = ncs.filter((n) => n.slaStatus === "vencido").length;
     const proximasAuditorias = auditorias.filter((a) => a.status === "Programada").length;
     const planosAtrasados = planos.filter((p) => p.status === "Atrasado").length;
