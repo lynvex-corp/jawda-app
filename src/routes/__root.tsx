@@ -140,11 +140,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     // no próprio navegador — precisa rodar sem sessão prévia, igual /login.
     const isImpersonarRoute = location.pathname === "/impersonar";
     const isResetPasswordRoute = location.pathname === "/redefinir-senha";
+    // Convite de dono de empresa (ABA 8): sessão sem senha e sem 2FA, nunca
+    // chega a aal2 pelo /login normal — ver needsFirstAccess em getAuthState.
+    const isFirstAccessRoute = location.pathname === "/primeiro-acesso";
 
-    if (!authState.authenticated && !isLoginRoute && !isImpersonarRoute) {
-      throw redirect({ to: "/login" });
+    if (!authState.authenticated) {
+      if (authState.needsFirstAccess) {
+        if (!isFirstAccessRoute) throw redirect({ to: "/primeiro-acesso" });
+        return { authState };
+      }
+      // Sem convite pendente, /primeiro-acesso não tem sessão pra completar.
+      if (isFirstAccessRoute || (!isLoginRoute && !isImpersonarRoute)) {
+        throw redirect({ to: "/login" });
+      }
+      return { authState };
     }
-    if (authState.authenticated && isLoginRoute) {
+
+    if (isLoginRoute || isFirstAccessRoute) {
       throw redirect({ to: "/" });
     }
 
@@ -152,7 +164,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     // antes de qualquer outra rota, sem exceção — mesmo digitando a URL
     // direto (por isso a checagem fica aqui, no beforeLoad server-side, não
     // num gate client-side que só monta depois da rota já ter carregado).
-    if (authState.authenticated && !isImpersonarRoute) {
+    if (!isImpersonarRoute) {
       if (authState.mustResetPassword && !isResetPasswordRoute) {
         throw redirect({ to: "/redefinir-senha" });
       }

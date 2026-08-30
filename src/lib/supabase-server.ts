@@ -28,7 +28,7 @@ export const getSupabaseServerClient = createServerOnlyFn(() => {
 });
 
 export type AuthState =
-  | { authenticated: false }
+  | { authenticated: false; needsFirstAccess: boolean }
   | { authenticated: true; userId: string; email: string | null; mustResetPassword: boolean };
 
 // Usado pelo guard de rota em __root.tsx. Exige aal2 (2FA já verificado nesta
@@ -41,6 +41,13 @@ export type AuthState =
 // qualquer rota renderizar) para que o redirecionamento para
 // /redefinir-senha valha mesmo em navegação direta por URL (ABA 11, item 1)
 // — uma checagem só no client daria tempo de a página errada piscar/montar.
+//
+// needsFirstAccess: convite de dono de empresa (ABA 8, jawda-admin) cria o
+// usuário via auth.admin.inviteUserByEmail sem senha e sem 2FA — essa
+// sessão nunca teria como chegar a aal2 sozinha, então status='invited' é
+// checado ANTES do aal2 e desvia pra /primeiro-acesso em vez de cair em
+// "não autenticado" genérico (que mandaria pra /login, onde não há senha
+// nenhuma pra digitar).
 export const getAuthState = createServerFn({ method: "GET" }).handler(
   async (): Promise<AuthState> => {
     const supabase = getSupabaseServerClient();
@@ -48,25 +55,29 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(
       data: { session },
     } = await supabase.auth.getSession();
 
-    if (!session) return { authenticated: false };
-
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (aal?.currentLevel !== "aal2") {
-      return { authenticated: false };
-    }
+    if (!session) return { authenticated: false, needsFirstAccess: false };
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("must_reset_password")
+      .select("status, must_reset_password")
       .eq("id", session.user.id)
       .single();
+    const profileRow = profile as { status: string; must_reset_password: boolean } | null;
+
+    if (profileRow?.status === "invited") {
+      return { authenticated: false, needsFirstAccess: true };
+    }
+
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.currentLevel !== "aal2") {
+      return { authenticated: false, needsFirstAccess: false };
+    }
 
     return {
       authenticated: true,
       userId: session.user.id,
       email: session.user.email ?? null,
-      mustResetPassword:
-        (profile as { must_reset_password: boolean } | null)?.must_reset_password ?? false,
+      mustResetPassword: profileRow?.must_reset_password ?? false,
     };
   },
 );

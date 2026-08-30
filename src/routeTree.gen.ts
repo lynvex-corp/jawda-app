@@ -16,6 +16,7 @@ import { Route as RiscosRouteImport } from './routes/riscos'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as ProdutoServicoRouteImport } from './routes/produto-servico'
 import { Route as ProcessosRouteImport } from './routes/processos'
+import { Route as PrimeiroAcessoRouteImport } from './routes/primeiro-acesso'
 import { Route as PlanosDeAcaoRouteImport } from './routes/planos-de-acao'
 import { Route as PartesInteressadasRouteImport } from './routes/partes-interessadas'
 import { Route as NaoConformidadesRouteImport } from './routes/nao-conformidades'
@@ -84,6 +85,11 @@ const ProdutoServicoRoute = ProdutoServicoRouteImport.update({
 const ProcessosRoute = ProcessosRouteImport.update({
   id: '/processos',
   path: '/processos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrimeiroAcessoRoute = PrimeiroAcessoRouteImport.update({
+  id: '/primeiro-acesso',
+  path: '/primeiro-acesso',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlanosDeAcaoRoute = PlanosDeAcaoRouteImport.update({
@@ -278,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/nao-conformidades': typeof NaoConformidadesRouteWithChildren
   '/partes-interessadas': typeof PartesInteressadasRoute
   '/planos-de-acao': typeof PlanosDeAcaoRouteWithChildren
+  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/processos': typeof ProcessosRoute
   '/produto-servico': typeof ProdutoServicoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -316,6 +323,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/mudancas-sg': typeof MudancasSgRoute
   '/partes-interessadas': typeof PartesInteressadasRoute
+  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/processos': typeof ProcessosRoute
   '/produto-servico': typeof ProdutoServicoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -360,6 +368,7 @@ export interface FileRoutesById {
   '/nao-conformidades': typeof NaoConformidadesRouteWithChildren
   '/partes-interessadas': typeof PartesInteressadasRoute
   '/planos-de-acao': typeof PlanosDeAcaoRouteWithChildren
+  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/processos': typeof ProcessosRoute
   '/produto-servico': typeof ProdutoServicoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -405,6 +414,7 @@ export interface FileRouteTypes {
     | '/nao-conformidades'
     | '/partes-interessadas'
     | '/planos-de-acao'
+    | '/primeiro-acesso'
     | '/processos'
     | '/produto-servico'
     | '/redefinir-senha'
@@ -443,6 +453,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/mudancas-sg'
     | '/partes-interessadas'
+    | '/primeiro-acesso'
     | '/processos'
     | '/produto-servico'
     | '/redefinir-senha'
@@ -486,6 +497,7 @@ export interface FileRouteTypes {
     | '/nao-conformidades'
     | '/partes-interessadas'
     | '/planos-de-acao'
+    | '/primeiro-acesso'
     | '/processos'
     | '/produto-servico'
     | '/redefinir-senha'
@@ -530,6 +542,7 @@ export interface RootRouteChildren {
   NaoConformidadesRoute: typeof NaoConformidadesRouteWithChildren
   PartesInteressadasRoute: typeof PartesInteressadasRoute
   PlanosDeAcaoRoute: typeof PlanosDeAcaoRouteWithChildren
+  PrimeiroAcessoRoute: typeof PrimeiroAcessoRoute
   ProcessosRoute: typeof ProcessosRoute
   ProdutoServicoRoute: typeof ProdutoServicoRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
@@ -588,6 +601,13 @@ declare module '@tanstack/react-router' {
       path: '/processos'
       fullPath: '/processos'
       preLoaderRoute: typeof ProcessosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/primeiro-acesso': {
+      id: '/primeiro-acesso'
+      path: '/primeiro-acesso'
+      fullPath: '/primeiro-acesso'
+      preLoaderRoute: typeof PrimeiroAcessoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/planos-de-acao': {
@@ -938,6 +958,7 @@ const rootRouteChildren: RootRouteChildren = {
   NaoConformidadesRoute: NaoConformidadesRouteWithChildren,
   PartesInteressadasRoute: PartesInteressadasRoute,
   PlanosDeAcaoRoute: PlanosDeAcaoRouteWithChildren,
+  PrimeiroAcessoRoute: PrimeiroAcessoRoute,
   ProcessosRoute: ProcessosRoute,
   ProdutoServicoRoute: ProdutoServicoRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
