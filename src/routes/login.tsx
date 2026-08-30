@@ -345,6 +345,11 @@ function LoginPage() {
                 <p className="text-[11px] text-muted-foreground">Ou digite manualmente:</p>
                 <p className="break-all font-mono text-xs text-foreground">{step.secret}</p>
               </div>
+              <p className="text-center text-[11px] text-muted-foreground">
+                Já tinha um autenticador cadastrado nesta conta? Apague a entrada antiga do seu app
+                depois de confirmar o código abaixo — o app não sabe diferenciar as duas, e a antiga
+                não funciona mais.
+              </p>
               <Form {...codeForm}>
                 <form
                   onSubmit={codeForm.handleSubmit((values) => onSubmitCode(values, step.factorId))}
