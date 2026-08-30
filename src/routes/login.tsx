@@ -174,6 +174,40 @@ function LoginPage() {
     }
   }
 
+  async function onResetMfa(factorId: string) {
+    setSubmitting(true);
+    try {
+      const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId });
+      if (unenrollError) {
+        toast.error("Não foi possível reconfigurar o 2FA", {
+          description: unenrollError.message,
+        });
+        return;
+      }
+
+      const { data: enrollData, error: enrollError } = await supabase.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName: "Autenticador",
+      });
+      if (enrollError || !enrollData) {
+        toast.error("Erro ao gerar novo QR code", {
+          description: enrollError?.message,
+        });
+        return;
+      }
+
+      codeForm.resetField("code");
+      setStep({
+        name: "mfa-enroll",
+        factorId: enrollData.id,
+        qrCode: enrollData.totp.qr_code,
+        secret: enrollData.totp.secret,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function onSelectOrg(orgId: string) {
     setSubmitting(true);
     try {
@@ -360,6 +394,14 @@ function LoginPage() {
                   </Button>
                 </form>
               </Form>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => onResetMfa(step.factorId)}
+                className="w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-brand hover:underline disabled:opacity-50"
+              >
+                Trocou de aparelho? Reconfigurar 2FA
+              </button>
             </div>
           )}
 
