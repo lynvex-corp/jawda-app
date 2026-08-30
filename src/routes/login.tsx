@@ -174,9 +174,39 @@ function LoginPage() {
     }
   }
 
+  // O Supabase recusa unenroll de um fator verified fora de aal2 ("AAL2
+  // required to unenroll verified factor") — confirmado testando direto
+  // contra o projeto real. Por isso o reset exige o código ATUAL válido
+  // antes de trocar o fator: verify() eleva a sessão a aal2, só depois
+  // disso o unenroll é aceito.
   async function onResetMfa(factorId: string) {
+    const codeIsValid = await codeForm.trigger("code");
+    if (!codeIsValid) return;
+    const code = codeForm.getValues("code");
+
     setSubmitting(true);
     try {
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId,
+      });
+      if (challengeError || !challenge) {
+        toast.error("Não foi possível gerar o desafio de verificação", {
+          description: challengeError?.message,
+        });
+        return;
+      }
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.id,
+        code,
+      });
+      if (verifyError) {
+        toast.error("Código inválido", { description: verifyError.message });
+        codeForm.resetField("code");
+        return;
+      }
+
       const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId });
       if (unenrollError) {
         toast.error("Não foi possível reconfigurar o 2FA", {
@@ -400,7 +430,8 @@ function LoginPage() {
                 onClick={() => onResetMfa(step.factorId)}
                 className="w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-brand hover:underline disabled:opacity-50"
               >
-                Trocou de aparelho? Reconfigurar 2FA
+                Vai trocar de aparelho? Digite o código atual acima e toque aqui para gerar um QR
+                code novo
               </button>
             </div>
           )}
