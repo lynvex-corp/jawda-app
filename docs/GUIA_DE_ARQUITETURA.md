@@ -398,11 +398,13 @@ Isso vale para tudo que sai do sistema para o mundo externo: relatÃ³rio de aud
 
 Descoberto auditando o convite de dono de empresa (ABA 8): `auth.admin.inviteUserByEmail`/`generateLink` aceitam um `redirectTo` explícito no código, mas o servidor do Supabase **ignora silenciosamente** qualquer valor que não esteja cadastrado em Authentication → URL Configuration → Redirect URLs do projeto — sem erro, sem aviso, só cai de volta pra Site URL configurada. Confirmado testando contra o projeto real: `https://app.jawda.com.br` e até uma URL forjada (`evil-attacker.example.com`) voltaram ambos redirecionados pro Site URL, só `https://jawda-app.vercel.app` (já cadastrado) passou.
 
+**Pegadinha adicional, também confirmada testando contra o projeto real:** o padrão cadastrado no allowlist (`https://app.jawda.com.br/**`) só casa com URLs que têm algo depois do domínio — `https://app.jawda.com.br` (sem barra final) cai no Site URL, `https://app.jawda.com.br/` (com barra) passa. Por isso `getClientAppUrl()` (jawda-admin, `src/lib/server/client-app-url.ts`) normaliza a barra final antes de usar o valor como `redirectTo`, em vez de confiar que `CLIENT_APP_URL` sempre vai vir formatada certo.
+
 **Por que isso importa:** é proteção padrão contra open-redirect, então não dá pra "resolver só no código" — mudar o `redirectTo` de qualquer fluxo de e-mail do Supabase Auth (convite, recuperação de senha, magic link de impersonation) exige **duas mudanças em paralelo**: o `redirectTo` no código E o cadastro da URL correspondente no dashboard do Supabase, ou o código simplesmente não tem efeito nenhum.
 
-**Estado atual (2026-08-30):** Site URL e allowlist apontam para `https://jawda-app.vercel.app`. O domínio custom usado como *fallback* no código (`CLIENT_APP_URL`, ver `jawda-admin/src/lib/server/invite-owner.ts` e `impersonate.ts`), `https://app.jawda.com.br`, **ainda não está na allowlist** — hoje isso não quebra nada (cai de volta pro `.vercel.app`, que funciona), mas é exatamente o tipo de coisa que passa despercebida até o dia da migração de domínio.
+**Estado atual (2026-08-30):** Site URL aponta para `https://jawda-app.vercel.app`, e `https://app.jawda.com.br/**` já foi pré-cadastrado no allowlist de Redirect URLs — mesmo o domínio ainda não estando em uso em produção — justamente para não ser esquecido no dia da migração de domínio.
 
-**Regra permanente:** toda vez que o domínio de produção do jawda-app mudar (migração pra `app.jawda.com.br`, troca de provedor, etc.), atualizar **Site URL** e **Redirect URLs** no dashboard do Supabase (Authentication → URL Configuration) no mesmo momento — isso não é coberto por nenhum deploy, `.env`, ou migração de banco, então não aparece em nenhum diff de código pra lembrar de fazer.
+**Regra permanente:** toda vez que o domínio de produção do jawda-app mudar de novo (troca de provedor, novo domínio, etc.), atualizar **Site URL** e **Redirect URLs** no dashboard do Supabase (Authentication → URL Configuration) no mesmo momento — isso não é coberto por nenhum deploy, `.env`, ou migração de banco, então não aparece em nenhum diff de código pra lembrar de fazer.
 
 ---
 
