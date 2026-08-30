@@ -394,12 +394,22 @@ Isso vale para tudo que sai do sistema para o mundo externo: relatÃ³rio de aud
 
 **ImplementaÃ§Ã£o recomendada:** criar um componente/template Ãºnico de "cabeÃ§alho e rodapÃ© de documento exportÃ¡vel" reutilizÃ¡vel, que leia o logo e os dados da empresa do contexto atual, em vez de cada mÃ³dulo montar seu prÃ³prio cabeÃ§alho. Isso garante consistÃªncia visual e um Ãºnico ponto de manutenÃ§Ã£o. Quando o primeiro mÃ³dulo implementar exportaÃ§Ã£o real, esse template deve nascer como peÃ§a compartilhada, nÃ£o local.
 
+### 21.9 — Redirect URLs do Supabase Auth são allowlist manual, fora do código (fácil de esquecer numa migração de domínio)
+
+Descoberto auditando o convite de dono de empresa (ABA 8): `auth.admin.inviteUserByEmail`/`generateLink` aceitam um `redirectTo` explícito no código, mas o servidor do Supabase **ignora silenciosamente** qualquer valor que não esteja cadastrado em Authentication → URL Configuration → Redirect URLs do projeto — sem erro, sem aviso, só cai de volta pra Site URL configurada. Confirmado testando contra o projeto real: `https://app.jawda.com.br` e até uma URL forjada (`evil-attacker.example.com`) voltaram ambos redirecionados pro Site URL, só `https://jawda-app.vercel.app` (já cadastrado) passou.
+
+**Por que isso importa:** é proteção padrão contra open-redirect, então não dá pra "resolver só no código" — mudar o `redirectTo` de qualquer fluxo de e-mail do Supabase Auth (convite, recuperação de senha, magic link de impersonation) exige **duas mudanças em paralelo**: o `redirectTo` no código E o cadastro da URL correspondente no dashboard do Supabase, ou o código simplesmente não tem efeito nenhum.
+
+**Estado atual (2026-08-30):** Site URL e allowlist apontam para `https://jawda-app.vercel.app`. O domínio custom usado como *fallback* no código (`CLIENT_APP_URL`, ver `jawda-admin/src/lib/server/invite-owner.ts` e `impersonate.ts`), `https://app.jawda.com.br`, **ainda não está na allowlist** — hoje isso não quebra nada (cai de volta pro `.vercel.app`, que funciona), mas é exatamente o tipo de coisa que passa despercebida até o dia da migração de domínio.
+
+**Regra permanente:** toda vez que o domínio de produção do jawda-app mudar (migração pra `app.jawda.com.br`, troca de provedor, etc.), atualizar **Site URL** e **Redirect URLs** no dashboard do Supabase (Authentication → URL Configuration) no mesmo momento — isso não é coberto por nenhum deploy, `.env`, ou migração de banco, então não aparece em nenhum diff de código pra lembrar de fazer.
+
 ---
 
 ## Versionamento deste documento
 
 Toda alteraÃ§Ã£o de arquitetura precisa passar por este documento antes de virar cÃ³digo. Se o Claude Code for programar algo que contradiz este documento, ele deve parar e apontar a contradiÃ§Ã£o, nÃ£o implementar.
 
-**RevisÃ£o registrada em:** fim das Abas 4-7 (padrÃµes 21.1 a 21.5), depois estendida na Aba 12 (21.6), depois antes da migraÃ§Ã£o dos mÃ³dulos novos (21.7 e 21.8), e agora com a revisÃ£o da seÃ§Ã£o 3 sobre hospedagem (Vercel com regiÃ£o `gru1` fixada, aprovado para produÃ§Ã£o real, com VPS Hostinger mantido como evoluÃ§Ã£o futura).
+**RevisÃ£o registrada em:** fim das Abas 4-7 (padrÃµes 21.1 a 21.5), depois estendida na Aba 12 (21.6), depois antes da migraÃ§Ã£o dos mÃ³dulos novos (21.7 e 21.8), e agora com a revisÃ£o da seÃ§Ã£o 3 sobre hospedagem (Vercel com regiÃ£o `gru1` fixada, aprovado para produÃ§Ã£o real, com VPS Hostinger mantido como evoluÃ§Ã£o futura), e agora com a descoberta da allowlist de Redirect URLs do Supabase Auth (21.9).
 
 **PrÃ³xima revisÃ£o prevista:** ao final da migraÃ§Ã£o da EstratÃ©gia (Aba 16), para consolidar o que a primeira migraÃ§Ã£o de mÃ³dulo novo ensinar.
