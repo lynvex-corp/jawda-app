@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -61,6 +61,15 @@ function FirstAccessPage() {
   const supabase = getSupabaseBrowserClient();
   const [step, setStep] = useState<Step>({ name: "password" });
   const [submitting, setSubmitting] = useState(false);
+  const [invitedEmail, setInvitedEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadInvitedEmail() {
+      const { data } = await supabase.auth.getUser();
+      setInvitedEmail(data.user?.email ?? null);
+    }
+    void loadInvitedEmail();
+  }, [supabase]);
 
   const passwordForm = useForm<PasswordForm>({
     resolver: zodResolver(passwordSchema),
@@ -210,6 +219,11 @@ function FirstAccessPage() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   Essa será a senha usada para entrar na plataforma daqui pra frente.
                 </p>
+                {invitedEmail && (
+                  <p className="mt-2 truncate rounded-lg bg-muted/50 px-3 py-1.5 text-xs font-medium text-foreground">
+                    {invitedEmail}
+                  </p>
+                )}
               </div>
               <Form {...passwordForm}>
                 <form onSubmit={passwordForm.handleSubmit(onSubmitPassword)} className="space-y-4">

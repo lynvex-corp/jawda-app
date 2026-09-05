@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Convite Jáwda</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f4f5f7; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <span style="display:none; max-height:0; overflow:hidden; opacity:0;">
+      Seu acesso à Jáwda está pronto — defina sua senha para começar.
+    </span>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7; padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%; background-color:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #e5e7eb;">
+            <tr>
+              <td align="center" style="padding:32px 32px 16px 32px;">
+                <img src="https://jawda-app.vercel.app/logo-mark.png" width="48" height="48" alt="Jáwda" style="display:block; border-radius:12px;" />
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:0 32px;">
+                <h1 style="margin:0; font-size:20px; font-weight:600; color:#111827;">Bem-vindo à Jáwda</h1>
+                <p style="margin:8px 0 0 0; font-size:13px; color:#6b7280;">Gestão de conformidade e qualidade</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 32px 0 32px;">
+                <p style="margin:0 0 16px 0; font-size:14px; line-height:1.6; color:#374151;">
+                  Olá{{ if .Data.full_name }} {{ .Data.full_name }}{{ end }},
+                </p>
+                <p style="margin:0 0 16px 0; font-size:14px; line-height:1.6; color:#374151;">
+                  Você foi convidado a acessar a Jáwda. Para começar, clique no botão abaixo e crie sua própria senha — por segurança, nunca enviamos uma senha pronta por e-mail.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:8px 32px 24px 32px;">
+                <a href="{{ .ConfirmationURL }}" style="display:inline-block; background-color:#1F4E8C; color:#ffffff; text-decoration:none; font-size:14px; font-weight:600; padding:12px 28px; border-radius:8px;">
+                  Criar minha senha e acessar
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 32px 32px 32px;">
+                <p style="margin:0; font-size:12px; line-height:1.6; color:#9ca3af;">
+                  Este link expira em 1 hora e só pode ser usado uma vez. Se você não esperava este convite, pode ignorar este e-mail com segurança.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px; background-color:#f9fafb; border-top:1px solid #e5e7eb;">
+                <p style="margin:0; font-size:11px; color:#9ca3af; text-align:center;">
+                  © Jáwda · Plataforma de gestão de conformidade e qualidade
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

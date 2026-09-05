@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,11 +48,54 @@ type Step =
   | { name: "mfa-verify"; factorId: string }
   | { name: "select-org"; options: OrgOption[] };
 
+// Convite (ABA 8), recuperação de senha e qualquer outro magic-link do
+// Supabase Auth chegam com #access_token=...&refresh_token=...&type=... no
+// FRAGMENTO da URL — nunca no servidor (fragmento não viaja em requisição
+// HTTP). O beforeLoad de __root.tsx roda no servidor, não vê sessão nenhuma
+// (zero cookie ainda) e redireciona pra /login antes de qualquer JS rodar;
+// o navegador preserva o fragmento original nesse redirect (Location sem
+// fragmento próprio herda o da URL de origem), por isso o token sempre
+// sobra pendurado em /login#access_token=... — sem este efeito, ele fica
+// aí parado pra sempre, e a pessoa convidada nunca sai da tela de senha.
+function hasAuthFragment() {
+  return typeof window !== "undefined" && window.location.hash.includes("access_token");
+}
+
 function LoginPage() {
   const navigate = useNavigate();
   const supabase = getSupabaseBrowserClient();
   const [step, setStep] = useState<Step>({ name: "credentials" });
   const [submitting, setSubmitting] = useState(false);
+  const [resolvingInvite, setResolvingInvite] = useState(hasAuthFragment);
+
+  useEffect(() => {
+    if (!hasAuthFragment()) return;
+
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    const access_token = params.get("access_token");
+    const refresh_token = params.get("refresh_token");
+
+    (async () => {
+      if (!access_token || !refresh_token) {
+        setResolvingInvite(false);
+        return;
+      }
+      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+      window.history.replaceState(null, "", window.location.pathname);
+      if (error) {
+        toast.error("Não foi possível validar o link do convite", {
+          description: error.message,
+        });
+        setResolvingInvite(false);
+        return;
+      }
+      // Navegação completa (não SPA): o beforeLoad de __root.tsx roda no
+      // servidor e precisa do cookie de sessão que setSession() acabou de
+      // gravar — só uma requisição nova ao servidor enxerga esse cookie e
+      // manda a pessoa pro /primeiro-acesso correto (status='invited').
+      window.location.assign("/");
+    })();
+  }, [supabase]);
 
   const credentialsForm = useForm<CredentialsForm>({
     resolver: zodResolver(credentialsSchema),
@@ -267,208 +310,226 @@ function LoginPage() {
         </div>
 
         <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
-          {step.name === "credentials" && (
-            <Form {...credentialsForm}>
-              <form
-                onSubmit={credentialsForm.handleSubmit(onSubmitCredentials)}
-                className="space-y-4"
-              >
-                <FormField
-                  control={credentialsForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium">E-mail corporativo</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="voce@empresa.com"
-                          className="h-10 rounded-lg"
-                          autoComplete="email"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={credentialsForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex items-center justify-between">
-                        <FormLabel className="text-xs font-medium">Senha</FormLabel>
-                        <a href="#" className="text-xs font-medium text-brand hover:underline">
-                          Esqueci
-                        </a>
-                      </div>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          className="h-10 rounded-lg"
-                          autoComplete="current-password"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  disabled={submitting}
-                  className="mt-2 h-10 w-full rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
-                >
-                  {submitting ? "Entrando…" : "Entrar"}
-                </Button>
-              </form>
-            </Form>
-          )}
-
-          {step.name === "mfa-enroll" && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <h2 className="text-sm font-semibold text-foreground">
-                  Configure a verificação em duas etapas
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Escaneie o QR code com seu aplicativo autenticador (Google Authenticator, Authy…)
-                  e informe o código gerado.
-                </p>
-              </div>
-              <div className="flex justify-center rounded-lg border border-border/60 bg-white p-3">
-                <img src={step.qrCode} alt="QR code para configurar o 2FA" className="h-40 w-40" />
-              </div>
-              <div className="rounded-lg bg-muted/50 p-2 text-center">
-                <p className="text-[11px] text-muted-foreground">Ou digite manualmente:</p>
-                <p className="break-all font-mono text-xs text-foreground">{step.secret}</p>
-              </div>
-              <p className="text-center text-[11px] text-muted-foreground">
-                Já tinha um autenticador cadastrado nesta conta? Apague a entrada antiga do seu app
-                depois de confirmar o código abaixo — o app não sabe diferenciar as duas, e a antiga
-                não funciona mais.
-              </p>
-              <Form {...codeForm}>
-                <form
-                  onSubmit={codeForm.handleSubmit((values) => onSubmitCode(values, step.factorId))}
-                  className="space-y-4"
-                >
-                  <FormField
-                    control={codeForm.control}
-                    name="code"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col items-center">
-                        <FormLabel className="text-xs font-medium">Código de 6 dígitos</FormLabel>
-                        <FormControl>
-                          <InputOTP maxLength={6} {...field}>
-                            <InputOTPGroup>
-                              {Array.from({ length: 6 }).map((_, i) => (
-                                <InputOTPSlot key={i} index={i} />
-                              ))}
-                            </InputOTPGroup>
-                          </InputOTP>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={submitting}
-                    className="h-10 w-full rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
+          {resolvingInvite ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Validando seu convite…</p>
+          ) : (
+            <>
+              {step.name === "credentials" && (
+                <Form {...credentialsForm}>
+                  <form
+                    onSubmit={credentialsForm.handleSubmit(onSubmitCredentials)}
+                    className="space-y-4"
                   >
-                    {submitting ? "Confirmando…" : "Confirmar e entrar"}
-                  </Button>
-                </form>
-              </Form>
-            </div>
-          )}
+                    <FormField
+                      control={credentialsForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium">E-mail corporativo</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="voce@empresa.com"
+                              className="h-10 rounded-lg"
+                              autoComplete="email"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={credentialsForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center justify-between">
+                            <FormLabel className="text-xs font-medium">Senha</FormLabel>
+                            <a href="#" className="text-xs font-medium text-brand hover:underline">
+                              Esqueci
+                            </a>
+                          </div>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="••••••••"
+                              className="h-10 rounded-lg"
+                              autoComplete="current-password"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={submitting}
+                      className="mt-2 h-10 w-full rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
+                    >
+                      {submitting ? "Entrando…" : "Entrar"}
+                    </Button>
+                  </form>
+                </Form>
+              )}
 
-          {step.name === "mfa-verify" && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <h2 className="text-sm font-semibold text-foreground">
-                  Verificação em duas etapas
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Informe o código de 6 dígitos do seu aplicativo autenticador.
-                </p>
-              </div>
-              <Form {...codeForm}>
-                <form
-                  onSubmit={codeForm.handleSubmit((values) => onSubmitCode(values, step.factorId))}
-                  className="space-y-4"
-                >
-                  <FormField
-                    control={codeForm.control}
-                    name="code"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col items-center">
-                        <FormLabel className="text-xs font-medium">Código de 6 dígitos</FormLabel>
-                        <FormControl>
-                          <InputOTP maxLength={6} {...field}>
-                            <InputOTPGroup>
-                              {Array.from({ length: 6 }).map((_, i) => (
-                                <InputOTPSlot key={i} index={i} />
-                              ))}
-                            </InputOTPGroup>
-                          </InputOTP>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={submitting}
-                    className="h-10 w-full rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
-                  >
-                    {submitting ? "Verificando…" : "Verificar"}
-                  </Button>
-                </form>
-              </Form>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => onResetMfa(step.factorId)}
-                className="w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-brand hover:underline disabled:opacity-50"
-              >
-                Vai trocar de aparelho? Digite o código atual acima e toque aqui para gerar um QR
-                code novo
-              </button>
-            </div>
-          )}
+              {step.name === "mfa-enroll" && (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Configure a verificação em duas etapas
+                    </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Escaneie o QR code com seu aplicativo autenticador (Google Authenticator,
+                      Authy…) e informe o código gerado.
+                    </p>
+                  </div>
+                  <div className="flex justify-center rounded-lg border border-border/60 bg-white p-3">
+                    <img
+                      src={step.qrCode}
+                      alt="QR code para configurar o 2FA"
+                      className="h-40 w-40"
+                    />
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-2 text-center">
+                    <p className="text-[11px] text-muted-foreground">Ou digite manualmente:</p>
+                    <p className="break-all font-mono text-xs text-foreground">{step.secret}</p>
+                  </div>
+                  <p className="text-center text-[11px] text-muted-foreground">
+                    Já tinha um autenticador cadastrado nesta conta? Apague a entrada antiga do seu
+                    app depois de confirmar o código abaixo — o app não sabe diferenciar as duas, e
+                    a antiga não funciona mais.
+                  </p>
+                  <Form {...codeForm}>
+                    <form
+                      onSubmit={codeForm.handleSubmit((values) =>
+                        onSubmitCode(values, step.factorId),
+                      )}
+                      className="space-y-4"
+                    >
+                      <FormField
+                        control={codeForm.control}
+                        name="code"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col items-center">
+                            <FormLabel className="text-xs font-medium">
+                              Código de 6 dígitos
+                            </FormLabel>
+                            <FormControl>
+                              <InputOTP maxLength={6} {...field}>
+                                <InputOTPGroup>
+                                  {Array.from({ length: 6 }).map((_, i) => (
+                                    <InputOTPSlot key={i} index={i} />
+                                  ))}
+                                </InputOTPGroup>
+                              </InputOTP>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={submitting}
+                        className="h-10 w-full rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
+                      >
+                        {submitting ? "Confirmando…" : "Confirmar e entrar"}
+                      </Button>
+                    </form>
+                  </Form>
+                </div>
+              )}
 
-          {step.name === "select-org" && (
-            <div className="space-y-3">
-              <div className="text-center">
-                <h2 className="text-sm font-semibold text-foreground">Selecione a empresa</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Você tem acesso a mais de uma organização.
-                </p>
-              </div>
-              <div className="space-y-2">
-                {step.options.map((org) => (
+              {step.name === "mfa-verify" && (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Verificação em duas etapas
+                    </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Informe o código de 6 dígitos do seu aplicativo autenticador.
+                    </p>
+                  </div>
+                  <Form {...codeForm}>
+                    <form
+                      onSubmit={codeForm.handleSubmit((values) =>
+                        onSubmitCode(values, step.factorId),
+                      )}
+                      className="space-y-4"
+                    >
+                      <FormField
+                        control={codeForm.control}
+                        name="code"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col items-center">
+                            <FormLabel className="text-xs font-medium">
+                              Código de 6 dígitos
+                            </FormLabel>
+                            <FormControl>
+                              <InputOTP maxLength={6} {...field}>
+                                <InputOTPGroup>
+                                  {Array.from({ length: 6 }).map((_, i) => (
+                                    <InputOTPSlot key={i} index={i} />
+                                  ))}
+                                </InputOTPGroup>
+                              </InputOTP>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={submitting}
+                        className="h-10 w-full rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
+                      >
+                        {submitting ? "Verificando…" : "Verificar"}
+                      </Button>
+                    </form>
+                  </Form>
                   <button
-                    key={org.org_id}
                     type="button"
                     disabled={submitting}
-                    onClick={() => onSelectOrg(org.org_id)}
-                    className="w-full rounded-lg border border-border/70 p-3 text-left text-sm font-medium text-foreground transition-colors hover:border-brand hover:bg-brand-soft/40 disabled:opacity-50"
+                    onClick={() => onResetMfa(step.factorId)}
+                    className="w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-brand hover:underline disabled:opacity-50"
                   >
-                    {org.trade_name || org.legal_name}
+                    Vai trocar de aparelho? Digite o código atual acima e toque aqui para gerar um
+                    QR code novo
                   </button>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {step.name === "credentials" && (
-            <div className="mt-6 border-t border-border/60 pt-4 text-center text-xs text-muted-foreground">
-              Ao entrar, você concorda com os termos e a política de privacidade.
-            </div>
+              {step.name === "select-org" && (
+                <div className="space-y-3">
+                  <div className="text-center">
+                    <h2 className="text-sm font-semibold text-foreground">Selecione a empresa</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Você tem acesso a mais de uma organização.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {step.options.map((org) => (
+                      <button
+                        key={org.org_id}
+                        type="button"
+                        disabled={submitting}
+                        onClick={() => onSelectOrg(org.org_id)}
+                        className="w-full rounded-lg border border-border/70 p-3 text-left text-sm font-medium text-foreground transition-colors hover:border-brand hover:bg-brand-soft/40 disabled:opacity-50"
+                      >
+                        {org.trade_name || org.legal_name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {step.name === "credentials" && (
+                <div className="mt-6 border-t border-border/60 pt-4 text-center text-xs text-muted-foreground">
+                  Ao entrar, você concorda com os termos e a política de privacidade.
+                </div>
+              )}
+            </>
           )}
         </div>
 

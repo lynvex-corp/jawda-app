@@ -243,10 +243,22 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Modelo do e-mail de convite (ABA 8/seção 7 do Guia: convite de dono de
+# empresa, nunca senha pronta). Supabase só aceita customizar template de
+# e-mail com SMTP próprio configurado (plano free + mailer padrão recusa a
+# alteração) — e o SMTP próprio (Resend) só pode ser ligado em produção
+# depois que um domínio verificar lá (resend.com/domains), porque o
+# remetente de teste onboarding@resend.dev só entrega pro dono da conta
+# Resend, não para clientes reais. Enquanto isso não acontece, produção
+# segue no mailer padrão do Supabase (convite funciona, mas com a aparência
+# genérica). Quando o domínio verificar: configurar smtp_host/user/pass/
+# sender via PATCH direto em /v1/projects/{ref}/config/auth (nunca via
+# `config push` — esse comando sobrescreveria site_url e uri_allow_list
+# deste arquivo local com os valores de dev, derrubando o redirect real de
+# produção), depois aplicar este template do mesmo jeito.
+[auth.email.template.invite]
+subject = "Bem-vindo à Jáwda — defina sua senha para começar"
+content_path = "./supabase/templates/invite.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
