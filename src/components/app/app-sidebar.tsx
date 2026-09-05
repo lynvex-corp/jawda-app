@@ -47,6 +47,7 @@ import {
 import { JawdaLogo } from "@/components/brand/logo";
 import { useSobreJawda } from "@/components/app/sobre-jawda";
 import { navTop, navGroups, navFooter, mockPlanos, mockNCs, type NavItem } from "@/lib/mock-data";
+import { useAuth } from "@/hooks/use-auth";
 import { useEnabledModules } from "@/lib/queries/contract";
 import { moduleForRoute } from "@/lib/module-access";
 import { cn } from "@/lib/utils";
@@ -170,6 +171,8 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { data: enabledModules } = useEnabledModules();
   const { setOpen: setSobreJawdaOpen } = useSobreJawda();
+  const { currentOrg } = useAuth();
+  const orgName = currentOrg?.trade_name || currentOrg?.legal_name || null;
 
   // Enquanto o contrato ainda carrega (enabledModules undefined), nada
   // aparece bloqueado — mesmo critério do ModuleGate, evita cadeado
@@ -297,7 +300,14 @@ export function AppSidebar() {
           ))}
         </SidebarMenu>
         {!collapsed && (
-          <div className="mt-3 px-2 text-[10px] text-muted-foreground">v1.0 · Jáwda Quality</div>
+          <div className="mt-3 px-2">
+            {orgName && (
+              <div className="truncate text-xs font-medium text-foreground" title={orgName}>
+                {orgName}
+              </div>
+            )}
+            <div className="text-[10px] text-muted-foreground">v1.0 · Jáwda Quality</div>
+          </div>
         )}
       </SidebarFooter>
     </Sidebar>
