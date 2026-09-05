@@ -17,7 +17,7 @@ export function JawdaLogo({
           className="text-[15px] font-semibold tracking-tight text-foreground"
           style={{ letterSpacing: "-0.01em" }}
         >
-          Jáwda
+          Jawda
         </span>
       )}
     </div>
