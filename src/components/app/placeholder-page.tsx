@@ -17,7 +17,7 @@ export function PlaceholderPage({ title, description }: { title: string; descrip
             </div>
             <h2 className="text-base font-semibold text-foreground">Módulo em construção</h2>
             <p className="max-w-sm text-sm text-muted-foreground">
-              Esta área faz parte do protótipo Jáwda. As telas serão liberadas nos próximos ciclos.
+              Esta área faz parte do protótipo Jawda. As telas serão liberadas nos próximos ciclos.
             </p>
           </CardContent>
         </Card>

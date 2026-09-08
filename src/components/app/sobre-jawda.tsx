@@ -10,7 +10,7 @@ import { JawdaLogo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 import { Repeat, Lightbulb, Languages, Fingerprint, Wrench } from "lucide-react";
 
-/** Modal "Sobre a Jáwda" — identidade da Jáwda como produto/empresa
+/** Modal "Sobre a Jawda" — identidade da Jawda como produto/empresa
  * (estática, igual para todo cliente, sem org_id). NÃO confundir com a
  * sub-aba "Missão, Visão, Valores e Propósito" (strategic_directives),
  * que é o documento formal versionado de CADA empresa cliente — essa
@@ -95,7 +95,7 @@ export function SobreJawdaProvider({ children }: { children: ReactNode }) {
           <div className="flex flex-col items-center gap-2 border-b border-border/70 bg-brand-soft/30 px-6 py-8 text-center">
             <JawdaLogo showWordmark={false} size={52} />
             <DialogTitle className="text-lg font-semibold tracking-[0.18em] text-foreground">
-              JÁWDA
+              JAWDA
             </DialogTitle>
             <DialogDescription className="max-w-md text-sm font-medium text-brand">
               Qualidade como cultura, sistema como facilitador.
@@ -114,12 +114,12 @@ export function SobreJawdaProvider({ children }: { children: ReactNode }) {
                 parede — mas a cultura não muda.
               </p>
               <p className="text-sm leading-relaxed text-foreground/90">
-                Foi observando essa cena se repetir que nasceu a pergunta que deu origem à Jáwda: e
+                Foi observando essa cena se repetir que nasceu a pergunta que deu origem à Jawda: e
                 se o sistema de gestão da qualidade não fosse feito para o auditor, mas para as
                 pessoas que vivem o processo todos os dias?
               </p>
               <p className="text-sm leading-relaxed text-foreground/90">
-                Jáwda significa qualidade, em árabe. Uma escolha de origem: qualidade como algo que
+                Jawda significa qualidade, em árabe. Uma escolha de origem: qualidade como algo que
                 se enraíza, não que se decreta uma vez por ano numa sala de reunião.
               </p>
             </section>

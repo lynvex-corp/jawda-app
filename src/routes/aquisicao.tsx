@@ -10,7 +10,7 @@ function AquisicaoRoute() {
   );
 }
 
-const title = "Fornecedores — Suprimentos · Jáwda";
+const title = "Fornecedores — Suprimentos · Jawda";
 const description =
   "Cadastro, critérios de qualificação, parâmetros e avaliações de fornecedores de material e serviço, com controle de pendências e reavaliação periódica.";
 

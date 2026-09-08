@@ -37,7 +37,7 @@ export function EscolhaCriacaoDialog({
         <DialogHeader>
           <DialogTitle>Como deseja criar o indicador?</DialogTitle>
           <DialogDescription>
-            Comece do zero ou adote indicadores prontos da biblioteca Jáwda.
+            Comece do zero ou adote indicadores prontos da biblioteca Jawda.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">

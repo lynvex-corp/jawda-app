@@ -10,7 +10,7 @@ function DocumentosRoute() {
   );
 }
 
-const title = "Documentos — Jáwda SGQ";
+const title = "Documentos — Jawda SGQ";
 const description =
   "Controle de documentos internos, externos e repositório: permissões de alteração e redação, histórico de revisões, obsolescência e política de backup.";
 

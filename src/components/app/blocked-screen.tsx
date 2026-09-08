@@ -10,7 +10,7 @@ import { getErrorMessage } from "@/lib/utils";
 /** 4º gatilho da escada (seção 7 do Guia): bloqueio total de acesso.
  * Substitui a árvore de rotas inteira — sem sidebar, sem topbar, nenhuma
  * outra rota acessível. Só exportação (sempre liberada, em qualquer nível)
- * e contato com a Jáwda ficam disponíveis. Renderizado por OrgAccessGate. */
+ * e contato com a Jawda ficam disponíveis. Renderizado por OrgAccessGate. */
 export function BlockedScreen() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
@@ -44,7 +44,7 @@ export function BlockedScreen() {
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             O acesso ao sistema foi suspenso por atraso no pagamento. Regularize sua situação
-            financeira com a Jáwda para restaurar o acesso completo. Você ainda pode exportar os
+            financeira com a Jawda para restaurar o acesso completo. Você ainda pode exportar os
             seus dados a qualquer momento.
           </p>
         </div>
@@ -58,7 +58,7 @@ export function BlockedScreen() {
           </Button>
           <a href="mailto:contato@jawda.com.br" className="w-full">
             <Button variant="outline" className="w-full rounded-lg">
-              <Mail className="mr-1.5 h-4 w-4" /> Falar com a Jáwda
+              <Mail className="mr-1.5 h-4 w-4" /> Falar com a Jawda
             </Button>
           </a>
           <Button

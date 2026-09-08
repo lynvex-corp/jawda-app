@@ -17,13 +17,13 @@ export const Route = createFileRoute("/planos-de-acao/novo")({
   }),
   head: () => ({
     meta: [
-      { title: "Novo Plano de Ação | Jáwda" },
+      { title: "Novo Plano de Ação | Jawda" },
       {
         name: "description",
         content:
           "Cadastre ações corretivas 5W2H individuais, com contingência imediata, prazo e responsável por ação.",
       },
-      { property: "og:title", content: "Novo Plano de Ação | Jáwda" },
+      { property: "og:title", content: "Novo Plano de Ação | Jawda" },
       {
         property: "og:description",
         content: "Ações corretivas 5W2H com prazo e responsável definidos ação por ação.",

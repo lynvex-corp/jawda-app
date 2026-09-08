@@ -157,7 +157,7 @@ export function SupportTicketDetailPage() {
                   )}
                 >
                   <div className="mb-0.5 text-[10px] font-semibold opacity-70">
-                    {m.senderType === "client" ? "Você" : "Equipe Jáwda"} ·{" "}
+                    {m.senderType === "client" ? "Você" : "Equipe Jawda"} ·{" "}
                     {formatDateTime(m.createdAt)}
                   </div>
                   {m.message}

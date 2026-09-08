@@ -21,7 +21,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 export const Route = createFileRoute("/redefinir-senha")({
   head: () => ({
-    meta: [{ title: "Redefinir senha — Jáwda" }],
+    meta: [{ title: "Redefinir senha — Jawda" }],
   }),
   component: ResetPasswordPage,
 });

@@ -83,26 +83,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "theme-color", content: "#2183b4" },
-      { title: "Jáwda — Gestão de Conformidade e Qualidade" },
+      { title: "Jawda / Sistema de Gestão" },
       {
         name: "description",
         content:
-          "Jáwda: plataforma SaaS B2B para gestão de não conformidades, auditorias, riscos e indicadores de qualidade (ISO 9001).",
+          "Jawda / Sistema de Gestão: plataforma SaaS B2B para não conformidades, auditorias, riscos e indicadores da qualidade (ISO 9001).",
       },
-      { name: "author", content: "Jáwda" },
-      { property: "og:title", content: "Jáwda — Gestão de Conformidade e Qualidade" },
+      { name: "author", content: "Jawda" },
+      { name: "application-name", content: "Jawda / Sistema de Gestão" },
+      { name: "apple-mobile-web-app-title", content: "Jawda" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { property: "og:title", content: "Jawda / Sistema de Gestão" },
       {
         property: "og:description",
         content:
-          "Jáwda: plataforma SaaS B2B para gestão de não conformidades, auditorias, riscos e indicadores de qualidade (ISO 9001).",
+          "Jawda / Sistema de Gestão: plataforma SaaS B2B para não conformidades, auditorias, riscos e indicadores da qualidade (ISO 9001).",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Jáwda — Gestão de Conformidade e Qualidade" },
+      { name: "twitter:title", content: "Jawda / Sistema de Gestão" },
       {
         name: "twitter:description",
         content:
-          "Jáwda: plataforma SaaS B2B para gestão de não conformidades, auditorias, riscos e indicadores de qualidade (ISO 9001).",
+          "Jawda / Sistema de Gestão: plataforma SaaS B2B para não conformidades, auditorias, riscos e indicadores da qualidade (ISO 9001).",
       },
       {
         property: "og:image",

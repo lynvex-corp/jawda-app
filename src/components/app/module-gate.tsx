@@ -6,7 +6,7 @@ import type { ContractModule } from "@/lib/queries/contract";
 
 /** Trava o módulo inteiro (não só o item da sidebar) quando o contrato não
  * inclui — gancho crítico da seção 4/7 do Guia: "módulos não contratados
- * aparecem com cadeado e 'falar com a Jáwda'". Enquanto o contrato ainda
+ * aparecem com cadeado e 'falar com a Jawda'". Enquanto o contrato ainda
  * está carregando, deixa passar (undefined = "ainda não sei"), pra não
  * bloquear a tela por um instante em todo carregamento normal. */
 export function ModuleGate({
@@ -28,11 +28,11 @@ export function ModuleGate({
           <div>
             <h1 className="text-lg font-semibold text-foreground">Módulo não contratado</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Este módulo não está incluído no seu plano atual. Fale com a Jáwda para contratar.
+              Este módulo não está incluído no seu plano atual. Fale com a Jawda para contratar.
             </p>
           </div>
           <Button className="rounded-lg bg-brand text-white hover:bg-brand/90" disabled>
-            Falar com a Jáwda
+            Falar com a Jawda
           </Button>
         </div>
       </AppShell>

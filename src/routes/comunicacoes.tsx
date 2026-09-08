@@ -13,13 +13,13 @@ function ComunicacoesRoute() {
 export const Route = createFileRoute("/comunicacoes")({
   head: () => ({
     meta: [
-      { title: "Comunicações · Jáwda" },
+      { title: "Comunicações · Jawda" },
       {
         name: "description",
         content:
           "Processo de comunicação e disparo de comunicados internos e externos, com códigos COM_INT/COM_EXT e registro de ciência.",
       },
-      { property: "og:title", content: "Comunicações · Jáwda" },
+      { property: "og:title", content: "Comunicações · Jawda" },
       {
         property: "og:description",
         content:

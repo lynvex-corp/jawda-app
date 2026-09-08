@@ -171,7 +171,7 @@ function AuditoriaExternaPanel({ auditId, orgId }: { auditId: string; orgId: str
       <div className="flex items-start gap-2 rounded-xl border border-brand/30 bg-brand-soft/40 p-4 text-sm">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
         <p className="text-muted-foreground">
-          Auditorias externas são conduzidas no sistema da própria certificadora. Aqui a Jáwda
+          Auditorias externas são conduzidas no sistema da própria certificadora. Aqui a Jawda
           mantém apenas o registro programado — datas, auditores, escopo e o relatório recebido. Não
           há plano detalhado, checklist ou apontamentos internos.
         </p>

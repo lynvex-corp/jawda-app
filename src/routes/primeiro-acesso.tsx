@@ -28,7 +28,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase";
 // erro do Supabase e o usuário vê o toast, sem crash.
 export const Route = createFileRoute("/primeiro-acesso")({
   head: () => ({
-    meta: [{ title: "Primeiro acesso — Jáwda" }],
+    meta: [{ title: "Primeiro acesso — Jawda" }],
   }),
   component: FirstAccessPage,
 });
@@ -203,7 +203,7 @@ function FirstAccessPage() {
           <JawdaLogo showWordmark={false} size={48} />
           <div className="text-center">
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Bem-vindo à Jáwda
+              Bem-vindo à Jawda
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Vamos concluir a configuração da sua conta.
@@ -357,7 +357,7 @@ function FirstAccessPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          © 2026 Jáwda · Todos os direitos reservados
+          © 2026 Jawda · Todos os direitos reservados
         </p>
       </div>
     </div>

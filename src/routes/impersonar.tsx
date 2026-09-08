@@ -23,7 +23,7 @@ export const Route = createFileRoute("/impersonar")({
     token_hash: z.string(),
     imp_session_id: z.string(),
   }),
-  head: () => ({ meta: [{ title: "Acessando como cliente — Jáwda" }] }),
+  head: () => ({ meta: [{ title: "Acessando como cliente — Jawda" }] }),
   component: ImpersonarPage,
 });
 

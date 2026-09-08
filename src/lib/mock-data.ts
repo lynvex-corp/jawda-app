@@ -308,7 +308,7 @@ export type NavItem = {
 export type NavGroup = { label: string; icon: string; items: NavItem[] };
 
 export const navTop: NavItem = {
-  label: "Dashboard Executivo",
+  label: "Gestão à Vista",
   to: "/",
   icon: "LayoutDashboard",
 };

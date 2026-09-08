@@ -368,7 +368,7 @@ function seedNotifications(
 
 function seedActivities(state: Pick<JawdaState, "naoConformidades" | "planosDeAcao">): Activity[] {
   const acts: Activity[] = [];
-  const auth = { nome: "Sistema", iniciais: "SJ", cargo: "Jáwda" };
+  const auth = { nome: "Sistema", iniciais: "SJ", cargo: "Jawda" };
   state.naoConformidades.slice(0, 4).forEach((n, i) => {
     acts.push({
       id: `act-nc-${n.id}`,
@@ -400,7 +400,7 @@ function seedActivities(state: Pick<JawdaState, "naoConformidades" | "planosDeAc
     at: new Date(Date.parse(NOW_ISO) - 20 * 3600000).toISOString(),
     actor: auth,
     verb: "iniciou sessão",
-    target: "Jáwda",
+    target: "Jawda",
     targetType: "Sistema",
   });
   return acts.sort((a, b) => (a.at < b.at ? 1 : -1));

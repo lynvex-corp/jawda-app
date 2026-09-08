@@ -118,7 +118,7 @@ export function SuportePage() {
               Suporte
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Fale com a equipe Jáwda. Horário comercial, resposta em até 1 dia útil.
+              Fale com a equipe Jawda. Horário comercial, resposta em até 1 dia útil.
             </p>
           </div>
           <Dialog

@@ -12,9 +12,9 @@ export interface AiModuleContext {
 }
 
 const DEFAULT_CTX: AiModuleContext = {
-  moduleName: "Jáwda",
+  moduleName: "Jawda",
   greeting:
-    "Olá, Ana! Sou a IA Jáwda. Posso ajudar a interpretar indicadores, redigir registros e sugerir ações. Como posso ajudar?",
+    "Olá, Ana! Sou a IA Jawda. Posso ajudar a interpretar indicadores, redigir registros e sugerir ações. Como posso ajudar?",
   chips: [
     { label: "Resumir a semana", prompt: "Resuma os principais eventos da semana no SGI." },
     { label: "O que priorizar hoje?", prompt: "O que devo priorizar hoje?" },
@@ -26,9 +26,9 @@ const MODULES: Array<{ match: (p: string) => boolean; ctx: AiModuleContext }> = 
   {
     match: (p) => p === "/" || p.startsWith("/dashboard"),
     ctx: {
-      moduleName: "Dashboard Executivo",
+      moduleName: "Gestão à Vista",
       greeting:
-        "Vejo que você está no Dashboard Executivo. Posso destacar riscos abertos, planos atrasados ou preparar um resumo para a diretoria.",
+        "Vejo que você está no Gestão à Vista. Posso destacar riscos abertos, planos atrasados ou preparar um resumo para a diretoria.",
       chips: [
         { label: "Resumo executivo", prompt: "Faça um resumo executivo do momento atual do SGI." },
         {

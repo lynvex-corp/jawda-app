@@ -22,8 +22,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Entrar — Jáwda" },
-      { name: "description", content: "Acesse a plataforma Jáwda de gestão de conformidade." },
+      { title: "Entrar — Jawda" },
+      { name: "description", content: "Acesse o Jawda / Sistema de Gestão." },
     ],
   }),
   component: LoginPage,
@@ -303,9 +303,9 @@ function LoginPage() {
           <JawdaLogo showWordmark={false} size={48} />
           <div className="text-center">
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Bem-vindo à Jáwda
+              Bem-vindo à Jawda
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">Gestão de conformidade e qualidade</p>
+            <p className="mt-1 text-sm text-muted-foreground">Sistema de Gestão</p>
           </div>
         </div>
 
@@ -534,7 +534,7 @@ function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          © 2026 Jáwda · Todos os direitos reservados
+          © 2026 Jawda · Todos os direitos reservados
         </p>
       </div>
     </div>

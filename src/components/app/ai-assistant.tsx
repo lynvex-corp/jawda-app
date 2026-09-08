@@ -117,7 +117,7 @@ export function AIAssistant() {
     <>
       {/* Floating trigger */}
       <button
-        aria-label="Abrir Assistente IA Jáwda"
+        aria-label="Abrir Assistente IA Jawda"
         onClick={() => setOpen(true)}
         className={cn(
           "fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full",
@@ -144,7 +144,7 @@ export function AIAssistant() {
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
-                  <SheetTitle className="text-base">Assistente IA Jáwda</SheetTitle>
+                  <SheetTitle className="text-base">Assistente IA Jawda</SheetTitle>
                   <SheetDescription className="text-xs">
                     Contexto: {ctx.moduleName}
                   </SheetDescription>
@@ -212,7 +212,7 @@ export function AIAssistant() {
                     send(input);
                   }
                 }}
-                placeholder="Pergunte à IA Jáwda…"
+                placeholder="Pergunte à IA Jawda…"
                 rows={2}
                 className="min-h-[52px] resize-none rounded-lg"
                 disabled={thinking}
@@ -292,7 +292,7 @@ function ThinkingBubble() {
       </div>
       <div className="rounded-2xl rounded-bl-sm bg-muted px-4 py-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>Jáwda IA está analisando</span>
+          <span>Jawda IA está analisando</span>
           <span className="flex gap-1">
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand [animation-delay:0ms]" />
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand [animation-delay:150ms]" />

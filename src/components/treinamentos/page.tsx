@@ -85,7 +85,7 @@ export function TreinamentosPage() {
     <AppShell>
       <div className="mx-auto max-w-[1400px] space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Jáwda Academy</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Jawda Academy</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Trilhas de capacitação para dominar a plataforma e o Sistema de Gestão da Qualidade.
           </p>
@@ -97,7 +97,7 @@ export function TreinamentosPage() {
               <Badge className="w-fit bg-brand-soft text-brand hover:bg-brand-soft">
                 Comece por aqui
               </Badge>
-              <h2 className="text-2xl font-semibold tracking-tight">O que é o Jáwda?</h2>
+              <h2 className="text-2xl font-semibold tracking-tight">O que é o Jawda?</h2>
               <p className="text-sm text-muted-foreground">
                 Uma visão geral de 6 minutos sobre como a plataforma organiza a gestão de
                 conformidade, da estratégia à execução — passando por não conformidades, auditorias

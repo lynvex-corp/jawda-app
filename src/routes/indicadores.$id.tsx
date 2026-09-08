@@ -9,12 +9,12 @@ function DetalheRoute() {
 export const Route = createFileRoute("/indicadores/$id")({
   head: () => ({
     meta: [
-      { title: "Detalhe do indicador — Jáwda" },
+      { title: "Detalhe do indicador — Jawda" },
       {
         name: "description",
         content: "Histórico de medições, análise por período, configuração e trilha do indicador.",
       },
-      { property: "og:title", content: "Detalhe do indicador — Jáwda" },
+      { property: "og:title", content: "Detalhe do indicador — Jawda" },
       {
         property: "og:description",
         content: "Histórico de medições, análise por período, configuração e trilha do indicador.",

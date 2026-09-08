@@ -13,13 +13,13 @@ function ProdutoServicoRoute() {
 export const Route = createFileRoute("/produto-servico")({
   head: () => ({
     meta: [
-      { title: "Produto ou Serviço | Jáwda" },
+      { title: "Produto ou Serviço | Jawda" },
       {
         name: "description",
         content:
           "Acompanhe cada demanda de produto ou serviço do requisito do cliente até a entrega, com etapas, responsáveis e comparação pedido × entrega.",
       },
-      { property: "og:title", content: "Produto ou Serviço | Jáwda" },
+      { property: "og:title", content: "Produto ou Serviço | Jawda" },
       {
         property: "og:description",
         content:

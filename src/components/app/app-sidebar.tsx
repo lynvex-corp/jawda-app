@@ -46,9 +46,10 @@ import {
 } from "@/components/ui/sidebar";
 import { JawdaLogo } from "@/components/brand/logo";
 import { useSobreJawda } from "@/components/app/sobre-jawda";
-import { navTop, navGroups, navFooter, mockPlanos, mockNCs, type NavItem } from "@/lib/mock-data";
+import { navTop, navGroups, navFooter, type NavItem } from "@/lib/mock-data";
 import { useAuth } from "@/hooks/use-auth";
 import { useEnabledModules } from "@/lib/queries/contract";
+import { useAlertCounters } from "@/lib/queries/dashboard";
 import { moduleForRoute } from "@/lib/module-access";
 import { cn } from "@/lib/utils";
 
@@ -84,14 +85,12 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 function useBadge(to: string): number | null {
-  if (to === "/planos-de-acao") {
-    const n = mockPlanos.filter((p) => p.status === "Atrasado").length;
-    return n > 0 ? n : null;
-  }
-  if (to === "/nao-conformidades") {
-    const n = mockNCs.filter((n) => n.slaStatus === "vencido").length;
-    return n > 0 ? n : null;
-  }
+  // Contagem real da própria empresa (useAlertCounters), não mais o total
+  // fixo de mockPlanos/mockNCs — que era igual para todo cliente.
+  const { data } = useAlertCounters();
+  if (!data) return null;
+  if (to === "/planos-de-acao") return data.planosAtrasados > 0 ? data.planosAtrasados : null;
+  if (to === "/nao-conformidades") return data.ncsVencidas > 0 ? data.ncsVencidas : null;
   return null;
 }
 
@@ -113,7 +112,7 @@ function NavRow({
   const Icon = iconMap[item.icon] ?? LayoutDashboard;
   const badge = useBadge(item.to);
 
-  // Módulo não contratado: sem cadeado e "falar com a Jáwda" (seção 4/7 do
+  // Módulo não contratado: sem cadeado e "falar com a Jawda" (seção 4/7 do
   // Guia). Item continua visível (dá noção do produto completo), mas não é
   // um <Link> — clicar não navega, o bloqueio de verdade é o ModuleGate na
   // rota (defesa em profundidade: cadeado aqui é só UX, quem impede acesso
@@ -123,7 +122,7 @@ function NavRow({
       <SidebarMenuItem>
         <SidebarMenuButton
           disabled
-          tooltip="Disponível mediante contratação — fale com a Jáwda"
+          tooltip="Disponível mediante contratação — fale com a Jawda"
           className="h-9 cursor-not-allowed rounded-lg text-muted-foreground/60"
         >
           <Icon className="h-[18px] w-[18px]" />
@@ -198,7 +197,7 @@ export function AppSidebar() {
           type="button"
           onClick={() => setSobreJawdaOpen(true)}
           className="cursor-pointer rounded-md transition-opacity hover:opacity-80"
-          aria-label="Sobre a Jáwda"
+          aria-label="Sobre a Jawda"
         >
           <JawdaLogo showWordmark={!collapsed} size={26} />
         </button>
@@ -306,7 +305,7 @@ export function AppSidebar() {
                 {orgName}
               </div>
             )}
-            <div className="text-[10px] text-muted-foreground">v1.0 · Jáwda Quality</div>
+            <div className="text-[10px] text-muted-foreground">Jawda versão 1</div>
           </div>
         )}
       </SidebarFooter>

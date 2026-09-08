@@ -343,7 +343,7 @@ export function AnaliseCenarioPage() {
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Matriz SWOT do sistema de gestão — arraste os cards entre quadrantes, gere planos de
-              ação a partir de fraquezas e ameaças ou peça uma análise cruzada à IA Jáwda.
+              ação a partir de fraquezas e ameaças ou peça uma análise cruzada à IA Jawda.
             </p>
           </div>
           <div className="flex gap-2">
@@ -649,7 +649,7 @@ export function AnaliseCenarioPage() {
               <Wand2 className="h-5 w-5 text-brand" /> Análise cruzada por IA
             </DialogTitle>
             <DialogDescription>
-              A IA Jáwda combina os quadrantes e propõe estratégias acionáveis.
+              A IA Jawda combina os quadrantes e propõe estratégias acionáveis.
             </DialogDescription>
           </DialogHeader>
           {aiLoading ? (
