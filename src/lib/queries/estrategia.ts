@@ -29,6 +29,11 @@ export interface SwotCard {
 export interface SwotAnalysis {
   id: string;
   status: SwotAnalysisStatus;
+  /** Sequencial gerado pelo banco ao formalizar (1, 2, 3…). Null enquanto a
+   * análise é rascunho. Exibir com `formatarVersaoSwot`. */
+  versionNumber: number | null;
+  /** Rótulo livre das versões anteriores à numeração sequencial. Mantido só
+   * para não perder o que já foi escrito e pode estar citado em ata. */
   versionLabel: string | null;
   contextoInterno: string;
   contextoExterno: string;
@@ -49,11 +54,12 @@ const swotKeys = {
 };
 
 const SWOT_ANALYSIS_SELECT =
-  "id, status, version_label, contexto_interno, contexto_externo, formalized_at, formalized_by_profile:profiles!formalized_by(full_name)";
+  "id, status, version_number, version_label, contexto_interno, contexto_externo, formalized_at, formalized_by_profile:profiles!formalized_by(full_name)";
 
 interface SwotAnalysisRow {
   id: string;
   status: SwotAnalysisStatus;
+  version_number: number | null;
   version_label: string | null;
   contexto_interno: string | null;
   contexto_externo: string | null;
@@ -61,10 +67,22 @@ interface SwotAnalysisRow {
   formalized_by_profile: { full_name: string } | null;
 }
 
+/** Versão da Análise de Cenário no formato 001, 002… (Bloco 2, item 3).
+ * Cai no rótulo livre antigo quando a versão é anterior à numeração
+ * sequencial, para o histórico não exibir linhas sem identificação. */
+export function formatarVersaoSwot(a: {
+  versionNumber: number | null;
+  versionLabel: string | null;
+}): string {
+  if (a.versionNumber !== null) return String(a.versionNumber).padStart(3, "0");
+  return a.versionLabel ?? "—";
+}
+
 function mapAnalysis(row: SwotAnalysisRow): SwotAnalysis {
   return {
     id: row.id,
     status: row.status,
+    versionNumber: row.version_number,
     versionLabel: row.version_label,
     contextoInterno: row.contexto_interno ?? "",
     contextoExterno: row.contexto_externo ?? "",
@@ -137,12 +155,54 @@ export function useSwotCurrent() {
           "id, quadrant, description, source_nc_id, generated_action_plan_id, created_at, source_nc:ncs!source_nc_id(code), generated_action_plan:action_plans!generated_action_plan_id(code)",
         )
         .eq("swot_analysis_id", row.id)
+        .is("deleted_at", null)
         .order("created_at");
       if (cardsErr) throw cardsErr;
 
       return {
         analysis: mapAnalysis(row),
         isDraft,
+        cards: ((cards as unknown as SwotCardRow[]) ?? []).map(mapCard),
+      };
+    },
+  });
+}
+
+/** Detalhe de uma versão formalizada específica — usado pelo ícone de olho
+ * na listagem de Análises de Cenário (Bloco 2, item 3). Somente leitura:
+ * traz a análise e os cards dela como estavam ao ser formalizada.
+ *
+ * Cards excluídos (soft delete) ficam de fora, igual à tela principal: se um
+ * card foi removido durante o rascunho, ele nunca fez parte da versão
+ * formalizada e não deve aparecer na consulta dela. */
+export function useSwotAnalysisDetail(analysisId: string | undefined) {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: [...swotKeys.all, "detail", analysisId ?? null],
+    enabled: !!analysisId,
+    queryFn: async (): Promise<SwotAnalysisWithCards | null> => {
+      if (!analysisId) return null;
+      const { data: row, error } = await supabase
+        .from("swot_analyses")
+        .select(SWOT_ANALYSIS_SELECT)
+        .eq("id", analysisId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!row) return null;
+
+      const { data: cards, error: cardsErr } = await supabase
+        .from("swot_cards")
+        .select(
+          "id, quadrant, description, source_nc_id, generated_action_plan_id, created_at, source_nc:ncs!source_nc_id(code), generated_action_plan:action_plans!generated_action_plan_id(code)",
+        )
+        .eq("swot_analysis_id", analysisId)
+        .is("deleted_at", null)
+        .order("created_at");
+      if (cardsErr) throw cardsErr;
+
+      return {
+        analysis: mapAnalysis(row as unknown as SwotAnalysisRow),
+        isDraft: false,
         cards: ((cards as unknown as SwotCardRow[]) ?? []).map(mapCard),
       };
     },
@@ -186,9 +246,12 @@ export function useStartNewSwotVersion() {
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (sourceAnalysisId?: string | null) => {
       assertNotReadOnly();
-      const { error } = await supabase.rpc("start_new_swot_version");
+      // null = começa em branco; um id = copia os cards daquela versão.
+      const { error } = await supabase.rpc("start_new_swot_version", {
+        p_source_analysis_id: sourceAnalysisId ?? null,
+      });
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: swotKeys.all }),
@@ -199,18 +262,39 @@ export function useFormalizeSwotAnalysis() {
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      analysisId,
-      versionLabel,
-    }: {
-      analysisId: string;
-      versionLabel: string;
-    }) => {
+    mutationFn: async (analysisId: string) => {
       assertNotReadOnly();
+      // Sem p_version_label: o número da versão passa a ser gerado pelo
+      // banco (migration 20260910090200).
       const { error } = await supabase.rpc("formalize_swot_analysis", {
         p_analysis_id: analysisId,
-        p_version_label: versionLabel,
       });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: swotKeys.all }),
+  });
+}
+
+/** Exclusão de card do SWOT (Bloco 2, item 1).
+ *
+ * É UPDATE, não DELETE: a seção 20 do Guia proíbe apagar registro, o grant
+ * de swot_cards nunca teve DELETE e existe policy `swot_cards_no_delete`.
+ * Carimbar deleted_at/deleted_by preserva o rastro e continua passando pela
+ * policy de update (org + org_can_write).
+ *
+ * Quem chama só deve oferecer a ação enquanto a análise é rascunho —
+ * formalizada é somente leitura. */
+export function useDeleteSwotCard() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (cardId: string) => {
+      assertNotReadOnly();
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("swot_cards")
+        .update({ deleted_at: new Date().toISOString(), deleted_by: userData.user?.id ?? null })
+        .eq("id", cardId);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: swotKeys.all }),
@@ -825,7 +909,7 @@ export type RiskArea =
   | "rh"
   | "suprimentos"
   | "ti";
-export type RiskDecision = "evitar" | "assumir" | "eliminar_fonte" | "compartilhar";
+export type RiskDecision = "evitar" | "assumir" | "eliminar_fonte" | "compartilhar" | "mitigar";
 
 /** Alfabético por rótulo em português (seção 21.7 do Guia). */
 export const RISK_AREA_OPTIONS: { value: RiskArea; label: string }[] = [
@@ -844,6 +928,7 @@ export const RISK_DECISION_OPTIONS: { value: RiskDecision; label: string }[] = [
   { value: "compartilhar", label: "Compartilhar" },
   { value: "eliminar_fonte", label: "Eliminar a fonte" },
   { value: "evitar", label: "Evitar" },
+  { value: "mitigar", label: "Mitigar" },
 ];
 
 export interface RiskReassessment {

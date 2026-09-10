@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Fragment } from "react";
 import { AppShell } from "@/components/app/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +29,13 @@ import {
 import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
 import { getErrorMessage } from "@/lib/utils";
 
-export function DiretrizesEstrategicasPage() {
+/** `embedded` renderiza só o conteúdo, sem AppShell e sem o cabeçalho da
+ * página — é como esta tela aparece dentro da aba de Identidade
+ * Organizacional (Bloco 2, item 10c), que já tem shell e cabeçalho próprios.
+ * Sem a flag, continua sendo a página completa da rota
+ * /diretrizes-estrategicas, que segue funcionando por URL direta. */
+export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: boolean } = {}) {
+  const Shell = embedded ? Fragment : AppShell;
   const { data, isLoading } = useStrategicDirectivesCurrent();
   const { data: history } = useStrategicDirectivesHistory();
   const startFirstDraft = useStartFirstStrategicDirectivesDraft();
@@ -118,17 +125,17 @@ export function DiretrizesEstrategicasPage() {
 
   if (isLoading) {
     return (
-      <AppShell>
+      <Shell>
         <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
           Carregando…
         </div>
-      </AppShell>
+      </Shell>
     );
   }
 
   if (!directive) {
     return (
-      <AppShell>
+      <Shell>
         <div className="mx-auto flex max-w-lg flex-col items-center gap-4 rounded-2xl border border-dashed border-border p-10 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand">
             <FilePlus2 className="h-6 w-6" />
@@ -148,23 +155,27 @@ export function DiretrizesEstrategicasPage() {
             <Plus className="mr-1.5 h-4 w-4" /> Iniciar rascunho
           </Button>
         </div>
-      </AppShell>
+      </Shell>
     );
   }
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-[1100px] space-y-6">
+    <Shell>
+      <div className={embedded ? "space-y-6" : "mx-auto max-w-[1100px] space-y-6"}>
         <header className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              Missão, Visão, Valores e Propósito
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Escreva as diretrizes que orientam a organização e mantenha-as como referência para
-              todo o sistema de gestão.
-            </p>
-          </div>
+          {embedded ? (
+            <div />
+          ) : (
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                Missão, Visão, Valores e Propósito
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Escreva as diretrizes que orientam a organização e mantenha-as como referência para
+                todo o sistema de gestão.
+              </p>
+            </div>
+          )}
           <div className="flex gap-2">
             {isDraft ? (
               <Button
@@ -342,6 +353,6 @@ export function DiretrizesEstrategicasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AppShell>
+    </Shell>
   );
 }

@@ -51,11 +51,11 @@ import {
 import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
 import { getErrorMessage } from "@/lib/utils";
 
-const normas = [
-  { codigo: "ISO 9001:2015", titulo: "Sistemas de Gestão da Qualidade" },
-  { codigo: "ISO 14001:2015", titulo: "Sistemas de Gestão Ambiental" },
-  { codigo: "ISO 45001:2018", titulo: "Sistemas de Gestão de SST" },
-];
+// Só ISO 9001 por enquanto (Bloco 2, item 6). ISO 14001 e 45001 saíram da
+// UI, mas continuam válidas no check de contract_norms no banco — remover de
+// lá seria destrutivo e difícil de reverter quando o escopo do produto
+// crescer. Para reativar, basta devolver a linha aqui.
+const normas = [{ codigo: "ISO 9001:2015", titulo: "Sistemas de Gestão da Qualidade" }];
 
 const statusLabel: Record<string, string> = {
   rascunho: "Rascunho",

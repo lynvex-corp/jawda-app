@@ -23,6 +23,7 @@ export const ROUTE_MODULE: Record<string, ContractModule> = {
   "/riscos": "strategy",
   "/mudancas-sg": "strategy",
   "/analise-critica": "strategy",
+  "/identidade-organizacional": "strategy",
   "/diretrizes-estrategicas": "strategy",
   "/processos": "processes",
   "/documentos": "documents",

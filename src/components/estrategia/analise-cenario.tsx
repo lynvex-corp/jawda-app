@@ -14,6 +14,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Sparkles,
   Plus,
@@ -24,6 +25,8 @@ import {
   History,
   FilePlus2,
   ShieldAlert,
+  Trash2,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, getErrorMessage } from "@/lib/utils";
@@ -32,6 +35,9 @@ import {
   useSwotHistory,
   useStartFirstSwotDraft,
   useStartNewSwotVersion,
+  useDeleteSwotCard,
+  useSwotAnalysisDetail,
+  formatarVersaoSwot,
   useFormalizeSwotAnalysis,
   useUpdateSwotContext,
   useCreateSwotCard,
@@ -44,7 +50,7 @@ import {
   type SwotQuadrant,
   type SwotCard,
 } from "@/lib/queries/estrategia";
-import { LockedDocumentBanner, VersionHistoryList } from "@/components/estrategia/formal-document";
+import { LockedDocumentBanner } from "@/components/estrategia/formal-document";
 
 const QUADRANTS: SwotQuadrant[] = ["forca", "fraqueza", "oportunidade", "ameaca"];
 
@@ -101,6 +107,7 @@ export function AnaliseCenarioPage() {
   const { data: history } = useSwotHistory();
   const startFirstDraft = useStartFirstSwotDraft();
   const startNewVersion = useStartNewSwotVersion();
+  const deleteCard = useDeleteSwotCard();
   const formalize = useFormalizeSwotAnalysis();
   const updateContext = useUpdateSwotContext();
   const createCard = useCreateSwotCard();
@@ -119,7 +126,13 @@ export function AnaliseCenarioPage() {
   const [aiRecs, setAiRecs] = useState<IARec[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [formalizeOpen, setFormalizeOpen] = useState(false);
-  const [versionLabel, setVersionLabel] = useState("");
+  // Item 4: escolha de qual versão anterior serve de modelo. "branco" começa
+  // do zero; qualquer outro valor é o id da análise a copiar.
+  const [modeloOpen, setModeloOpen] = useState(false);
+  const [modeloEscolhido, setModeloEscolhido] = useState<string>("branco");
+  // Item 3: id da versão aberta pelo ícone de olho na listagem.
+  const [verVersaoId, setVerVersaoId] = useState<string | null>(null);
+  const [cardParaExcluir, setCardParaExcluir] = useState<SwotCard | null>(null);
   const [contextoInterno, setContextoInterno] = useState("");
   const [contextoExterno, setContextoExterno] = useState("");
 
@@ -219,27 +232,59 @@ export function AnaliseCenarioPage() {
   };
 
   const confirmarFormalizacao = () => {
-    if (!analysis || !versionLabel.trim()) {
-      toast.error("Informe o rótulo da versão");
-      return;
-    }
-    formalize.mutate(
-      { analysisId: analysis.id, versionLabel: versionLabel.trim() },
-      {
-        onSuccess: () => {
-          toast.success("Análise formalizada", { description: versionLabel.trim() });
-          setFormalizeOpen(false);
-          setVersionLabel("");
-        },
-        onError: (e) =>
-          toast.error("Não foi possível formalizar", { description: getErrorMessage(e) }),
+    if (!analysis) return;
+    formalize.mutate(analysis.id, {
+      onSuccess: () => {
+        toast.success("Análise formalizada", {
+          description: "O número da versão foi gerado automaticamente.",
+        });
+        setFormalizeOpen(false);
       },
-    );
+      onError: (e) =>
+        toast.error("Não foi possível formalizar", { description: getErrorMessage(e) }),
+    });
+  };
+
+  // Item 1: remover card. É soft delete no banco (carimba deleted_at), então
+  // o registro continua existindo para auditoria — mas some da tela, que é o
+  // que o usuário espera de uma lixeira. Só oferecido em rascunho.
+  const excluirCard = (card: SwotCard) => {
+    setCardParaExcluir(card);
+  };
+
+  const confirmarExclusaoCard = () => {
+    const card = cardParaExcluir;
+    if (!card) return;
+    deleteCard.mutate(card.id, {
+      onSuccess: () => {
+        setCardParaExcluir(null);
+        toast.success("Card removido");
+      },
+      onError: (e) =>
+        toast.error("Não foi possível remover o card", { description: getErrorMessage(e) }),
+    });
   };
 
   const iniciarNovaVersao = () => {
-    startNewVersion.mutate(undefined, {
-      onSuccess: () => toast.success("Nova versão criada a partir da última formalizada"),
+    // Já existe versão formalizada? Pergunta se quer aproveitar alguma como
+    // modelo (Bloco 2, item 4). Sem histórico não há o que escolher, então
+    // vai direto para o rascunho em branco.
+    if (history && history.length > 0) {
+      setModeloEscolhido("branco");
+      setModeloOpen(true);
+      return;
+    }
+    criarNovaVersao(null);
+  };
+
+  const criarNovaVersao = (sourceId: string | null) => {
+    startNewVersion.mutate(sourceId, {
+      onSuccess: () => {
+        setModeloOpen(false);
+        toast.success(
+          sourceId ? "Nova versão criada a partir do modelo" : "Nova versão criada em branco",
+        );
+      },
       onError: (e) =>
         toast.error("Não foi possível iniciar nova versão", { description: getErrorMessage(e) }),
     });
@@ -373,8 +418,8 @@ export function AnaliseCenarioPage() {
         {!isDraft && (
           <div className="mb-4">
             <LockedDocumentBanner>
-              Esta é a última versão formalizada ({analysis.versionLabel}) — somente leitura. Clique
-              em "Nova versão" para editar.
+              Esta é a última versão formalizada ({formatarVersaoSwot(analysis)}) — somente leitura.
+              Clique em "Nova versão" para editar.
             </LockedDocumentBanner>
           </div>
         )}
@@ -425,6 +470,7 @@ export function AnaliseCenarioPage() {
                               setEditing(c);
                               setFormText(c.description);
                             }}
+                            onDelete={() => excluirCard(c)}
                             onGeneratePlan={() => gerarPlano(c)}
                           />
                         ))}
@@ -479,6 +525,7 @@ export function AnaliseCenarioPage() {
                           setEditing(c);
                           setFormText(c.description);
                         }}
+                        onDelete={() => excluirCard(c)}
                         onGeneratePlan={showAction ? () => gerarPlano(c) : undefined}
                         onGenerateRisk={showRiskAction ? () => gerarRisco(c) : undefined}
                         linkedRiskCode={
@@ -508,9 +555,9 @@ export function AnaliseCenarioPage() {
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-foreground">Contexto</h2>
-                  {analysis.versionLabel && (
+                  {analysis.status === "formalizada" && (
                     <Badge variant="outline" className="rounded-md text-[10px]">
-                      {analysis.versionLabel}
+                      Versão {formatarVersaoSwot(analysis)}
                     </Badge>
                   )}
                 </div>
@@ -541,14 +588,52 @@ export function AnaliseCenarioPage() {
                 {history && history.length > 0 && (
                   <>
                     <Separator />
-                    <VersionHistoryList
-                      compact
-                      entries={history.slice(0, 4).map((h) => ({
-                        id: h.id,
-                        label: h.versionLabel ?? "",
-                        date: h.formalizedAt,
-                      }))}
-                    />
+                    {/* Itens 2, 3 e 5: listagem completa das análises já
+                        formalizadas, no mesmo formato do Escopo do Sistema —
+                        versão, quem formalizou e data —, mais o olho para
+                        abrir a versão em somente leitura. Antes isto era um
+                        VersionHistoryList compacto limitado a 4 entradas,
+                        sem autor e sem como consultar o conteúdo. */}
+                    <div className="space-y-2">
+                      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Análises formalizadas
+                      </h3>
+                      <ul className="space-y-1.5">
+                        {history.map((h) => (
+                          <li
+                            key={h.id}
+                            className="flex items-center gap-2 rounded-lg border border-border/60 px-2.5 py-2"
+                          >
+                            <Badge
+                              variant="outline"
+                              className="shrink-0 rounded-md font-mono text-[10px]"
+                            >
+                              {formatarVersaoSwot(h)}
+                            </Badge>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-[11px] font-medium text-foreground">
+                                {h.formalizedByName ?? "Autor não identificado"}
+                              </div>
+                              {h.formalizedAt && (
+                                <div className="text-[10px] text-muted-foreground">
+                                  {new Date(h.formalizedAt).toLocaleDateString("pt-BR")}
+                                </div>
+                              )}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setVerVersaoId(h.id)}
+                              title={`Ver a versão ${formatarVersaoSwot(h)}`}
+                              aria-label={`Ver a versão ${formatarVersaoSwot(h)}`}
+                              className="h-7 w-7 shrink-0 rounded-md p-0"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </>
                 )}
               </CardContent>
@@ -617,16 +702,9 @@ export function AnaliseCenarioPage() {
               A análise vira somente leitura. Para editar de novo, crie uma nova versão.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium">Rótulo da versão</label>
-            <Input
-              value={versionLabel}
-              onChange={(e) => setVersionLabel(e.target.value)}
-              placeholder="Ex.: Análise de Contexto_01.2026"
-              className="rounded-md"
-              autoFocus
-            />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            O número da versão é gerado automaticamente na sequência da última formalizada.
+          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormalizeOpen(false)}>
               Cancelar
@@ -640,6 +718,81 @@ export function AnaliseCenarioPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Item 1 — confirmação de exclusão de card */}
+      <Dialog open={!!cardParaExcluir} onOpenChange={(v) => !v && setCardParaExcluir(null)}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Remover card</DialogTitle>
+            <DialogDescription>
+              O card sai da análise. O registro é mantido no histórico do sistema para fins de
+              auditoria, mas não volta a aparecer nesta tela.
+            </DialogDescription>
+          </DialogHeader>
+          {cardParaExcluir && (
+            <p className="rounded-lg bg-muted/50 p-3 text-sm text-foreground">
+              {cardParaExcluir.description}
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCardParaExcluir(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarExclusaoCard}
+              disabled={deleteCard.isPending}
+              className="bg-[color:var(--severity-critical)] text-white hover:bg-[color:var(--severity-critical)]/90"
+            >
+              {deleteCard.isPending ? "Removendo…" : "Remover"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Item 4 — escolher análise anterior como modelo */}
+      <Dialog open={modeloOpen} onOpenChange={setModeloOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Nova versão da Análise de Cenário</DialogTitle>
+            <DialogDescription>
+              Você pode aproveitar uma análise já formalizada como ponto de partida — os cards dela
+              são copiados para o novo rascunho — ou começar do zero.
+            </DialogDescription>
+          </DialogHeader>
+          <RadioGroup value={modeloEscolhido} onValueChange={setModeloEscolhido} className="gap-2">
+            <label className="flex items-center gap-2 rounded-lg border border-border/70 px-3 py-2 text-xs">
+              <RadioGroupItem value="branco" /> Começar em branco
+            </label>
+            {(history ?? []).map((h) => (
+              <label
+                key={h.id}
+                className="flex items-center gap-2 rounded-lg border border-border/70 px-3 py-2 text-xs"
+              >
+                <RadioGroupItem value={h.id} />
+                <span className="font-mono">{formatarVersaoSwot(h)}</span>
+                <span className="text-muted-foreground">
+                  {h.formalizedAt ? new Date(h.formalizedAt).toLocaleDateString("pt-BR") : ""}
+                </span>
+              </label>
+            ))}
+          </RadioGroup>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModeloOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => criarNovaVersao(modeloEscolhido === "branco" ? null : modeloEscolhido)}
+              disabled={startNewVersion.isPending}
+              className="bg-brand text-white hover:bg-brand/90"
+            >
+              {startNewVersion.isPending ? "Criando…" : "Criar versão"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Item 3 — ver uma versão formalizada (ícone de olho) */}
+      <VerVersaoDialog analysisId={verVersaoId} onClose={() => setVerVersaoId(null)} />
 
       {/* Modal IA */}
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>
@@ -703,6 +856,7 @@ function SwotCardItem({
   onEdit,
   onGeneratePlan,
   onGenerateRisk,
+  onDelete,
   linkedRiskCode,
 }: {
   card: SwotCard;
@@ -711,6 +865,7 @@ function SwotCardItem({
   onEdit: () => void;
   onGeneratePlan?: () => void;
   onGenerateRisk?: () => void;
+  onDelete?: () => void;
   linkedRiskCode?: string | null;
 }) {
   return (
@@ -774,14 +929,123 @@ function SwotCardItem({
                 size="sm"
                 variant="ghost"
                 onClick={onEdit}
+                title="Editar"
+                aria-label="Editar card"
                 className="ml-auto h-7 w-7 rounded-md p-0 opacity-0 group-hover:opacity-100"
               >
                 <Pencil className="h-3 w-3" />
+              </Button>
+            )}
+            {isDraft && onDelete && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onDelete}
+                title="Excluir card"
+                aria-label="Excluir card"
+                className="h-7 w-7 rounded-md p-0 text-[color:var(--severity-critical)] opacity-0 hover:bg-[color:var(--severity-critical)]/10 group-hover:opacity-100"
+              >
+                <Trash2 className="h-3 w-3" />
               </Button>
             )}
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+/** Item 3 — consulta somente leitura de uma versão já formalizada, aberta
+ * pelo ícone de olho na listagem. Reusa a mesma leitura de cards da tela
+ * principal, mas sem nenhuma ação de edição: versão formalizada é evidência,
+ * não rascunho. */
+function VerVersaoDialog({
+  analysisId,
+  onClose,
+}: {
+  analysisId: string | null;
+  onClose: () => void;
+}) {
+  const { data, isLoading } = useSwotAnalysisDetail(analysisId ?? undefined);
+
+  return (
+    <Dialog open={!!analysisId} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>
+            Análise de Cenário {data ? `— versão ${formatarVersaoSwot(data.analysis)}` : ""}
+          </DialogTitle>
+          <DialogDescription>
+            {data?.analysis.formalizedByName
+              ? `Formalizada por ${data.analysis.formalizedByName}`
+              : "Versão formalizada"}
+            {data?.analysis.formalizedAt
+              ? ` em ${new Date(data.analysis.formalizedAt).toLocaleDateString("pt-BR")}`
+              : ""}
+            .
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading && <p className="py-6 text-center text-sm text-muted-foreground">Carregando…</p>}
+
+        {data && (
+          <div className="space-y-4">
+            {(data.analysis.contextoInterno || data.analysis.contextoExterno) && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Contexto interno
+                  </h4>
+                  <p className="whitespace-pre-wrap text-xs text-foreground">
+                    {data.analysis.contextoInterno || "—"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Contexto externo
+                  </h4>
+                  <p className="whitespace-pre-wrap text-xs text-foreground">
+                    {data.analysis.contextoExterno || "—"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {QUADRANTS.map((q) => {
+                const meta = quadrantMeta[q];
+                const list = data.cards.filter((c) => c.quadrant === q);
+                return (
+                  <div key={q} className={cn("rounded-xl border p-3", meta.ring)}>
+                    <div
+                      className={cn(
+                        "mb-2 rounded-md px-2 py-1 text-[11px] font-semibold",
+                        meta.head,
+                      )}
+                    >
+                      {meta.label}
+                    </div>
+                    {list.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground">Nenhum registro.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {list.map((c) => (
+                          <li
+                            key={c.id}
+                            className="rounded-lg border border-border/60 bg-card p-2 text-xs text-foreground"
+                          >
+                            {c.description}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

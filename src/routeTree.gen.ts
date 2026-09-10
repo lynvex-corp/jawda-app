@@ -24,6 +24,7 @@ import { Route as MudancasSgRouteImport } from './routes/mudancas-sg'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndicadoresRouteImport } from './routes/indicadores'
 import { Route as ImpersonarRouteImport } from './routes/impersonar'
+import { Route as IdentidadeOrganizacionalRouteImport } from './routes/identidade-organizacional'
 import { Route as EscopoSistemaRouteImport } from './routes/escopo-sistema'
 import { Route as DocumentosRouteImport } from './routes/documentos'
 import { Route as DiretrizesEstrategicasRouteImport } from './routes/diretrizes-estrategicas'
@@ -127,6 +128,12 @@ const ImpersonarRoute = ImpersonarRouteImport.update({
   path: '/impersonar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IdentidadeOrganizacionalRoute =
+  IdentidadeOrganizacionalRouteImport.update({
+    id: '/identidade-organizacional',
+    path: '/identidade-organizacional',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const EscopoSistemaRoute = EscopoSistemaRouteImport.update({
   id: '/escopo-sistema',
   path: '/escopo-sistema',
@@ -277,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/diretrizes-estrategicas': typeof DiretrizesEstrategicasRoute
   '/documentos': typeof DocumentosRoute
   '/escopo-sistema': typeof EscopoSistemaRoute
+  '/identidade-organizacional': typeof IdentidadeOrganizacionalRoute
   '/impersonar': typeof ImpersonarRoute
   '/indicadores': typeof IndicadoresRouteWithChildren
   '/login': typeof LoginRoute
@@ -319,6 +327,7 @@ export interface FileRoutesByTo {
   '/diretrizes-estrategicas': typeof DiretrizesEstrategicasRoute
   '/documentos': typeof DocumentosRoute
   '/escopo-sistema': typeof EscopoSistemaRoute
+  '/identidade-organizacional': typeof IdentidadeOrganizacionalRoute
   '/impersonar': typeof ImpersonarRoute
   '/login': typeof LoginRoute
   '/mudancas-sg': typeof MudancasSgRoute
@@ -361,6 +370,7 @@ export interface FileRoutesById {
   '/diretrizes-estrategicas': typeof DiretrizesEstrategicasRoute
   '/documentos': typeof DocumentosRoute
   '/escopo-sistema': typeof EscopoSistemaRoute
+  '/identidade-organizacional': typeof IdentidadeOrganizacionalRoute
   '/impersonar': typeof ImpersonarRoute
   '/indicadores': typeof IndicadoresRouteWithChildren
   '/login': typeof LoginRoute
@@ -407,6 +417,7 @@ export interface FileRouteTypes {
     | '/diretrizes-estrategicas'
     | '/documentos'
     | '/escopo-sistema'
+    | '/identidade-organizacional'
     | '/impersonar'
     | '/indicadores'
     | '/login'
@@ -449,6 +460,7 @@ export interface FileRouteTypes {
     | '/diretrizes-estrategicas'
     | '/documentos'
     | '/escopo-sistema'
+    | '/identidade-organizacional'
     | '/impersonar'
     | '/login'
     | '/mudancas-sg'
@@ -490,6 +502,7 @@ export interface FileRouteTypes {
     | '/diretrizes-estrategicas'
     | '/documentos'
     | '/escopo-sistema'
+    | '/identidade-organizacional'
     | '/impersonar'
     | '/indicadores'
     | '/login'
@@ -535,6 +548,7 @@ export interface RootRouteChildren {
   DiretrizesEstrategicasRoute: typeof DiretrizesEstrategicasRoute
   DocumentosRoute: typeof DocumentosRoute
   EscopoSistemaRoute: typeof EscopoSistemaRoute
+  IdentidadeOrganizacionalRoute: typeof IdentidadeOrganizacionalRoute
   ImpersonarRoute: typeof ImpersonarRoute
   IndicadoresRoute: typeof IndicadoresRouteWithChildren
   LoginRoute: typeof LoginRoute
@@ -657,6 +671,13 @@ declare module '@tanstack/react-router' {
       path: '/impersonar'
       fullPath: '/impersonar'
       preLoaderRoute: typeof ImpersonarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/identidade-organizacional': {
+      id: '/identidade-organizacional'
+      path: '/identidade-organizacional'
+      fullPath: '/identidade-organizacional'
+      preLoaderRoute: typeof IdentidadeOrganizacionalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/escopo-sistema': {
@@ -951,6 +972,7 @@ const rootRouteChildren: RootRouteChildren = {
   DiretrizesEstrategicasRoute: DiretrizesEstrategicasRoute,
   DocumentosRoute: DocumentosRoute,
   EscopoSistemaRoute: EscopoSistemaRoute,
+  IdentidadeOrganizacionalRoute: IdentidadeOrganizacionalRoute,
   ImpersonarRoute: ImpersonarRoute,
   IndicadoresRoute: IndicadoresRouteWithChildren,
   LoginRoute: LoginRoute,

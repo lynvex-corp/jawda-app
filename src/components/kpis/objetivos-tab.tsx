@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Target, Archive, MoreHorizontal } from "lucide-react";
+import { Plus, Target, Archive, MoreHorizontal, ExternalLink } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { useQualityPolicyCurrent } from "@/lib/queries/documentos";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -257,6 +259,14 @@ function NovoObjetivoDialog({
               className="rounded-lg text-sm"
             />
           </div>
+          {/* A justificativa sempre foi texto livre pedindo coerência com uma
+              política que não aparecia em lugar nenhum desta tela — quem
+              escrevia tinha que lembrar de cor ou sair do fluxo para
+              consultar. Exibir a versão vigente aqui é o vínculo de leitura
+              do Bloco 2 (item 10). Continua sem FK: a rastreabilidade de
+              contra qual versão cada objetivo foi justificado fica para
+              quando houver necessidade de auditoria completa. */}
+          <PoliticaVigenteResumo />
           <div className="space-y-1.5">
             <Label className="text-[11px]">
               Justificativa de coerência com a Política da Qualidade *
@@ -313,5 +323,47 @@ function NovoObjetivoDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Mostra a Política da Qualidade vigente para consulta enquanto o usuário
+ * escreve a justificativa de coerência do objetivo. Somente leitura — editar
+ * é em Identidade Organizacional. */
+function PoliticaVigenteResumo() {
+  const { data } = useQualityPolicyCurrent();
+  const policy = data?.policy;
+
+  if (!policy || !policy.content.trim()) {
+    return (
+      <div className="rounded-lg border border-dashed border-border/70 p-3 text-[11px] text-muted-foreground">
+        Nenhuma Política da Qualidade formalizada ainda.{" "}
+        <Link
+          to="/identidade-organizacional"
+          className="inline-flex items-center gap-1 text-brand hover:underline"
+        >
+          Definir agora <ExternalLink className="h-3 w-3" />
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5 rounded-lg border border-brand/20 bg-brand-soft/40 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-brand">
+          Política da Qualidade vigente
+          {policy.versionLabel ? ` · ${policy.versionLabel}` : ""}
+        </span>
+        <Link
+          to="/identidade-organizacional"
+          className="inline-flex shrink-0 items-center gap-1 text-[10px] text-brand hover:underline"
+        >
+          Abrir <ExternalLink className="h-3 w-3" />
+        </Link>
+      </div>
+      <p className="max-h-24 overflow-y-auto whitespace-pre-wrap text-[11px] leading-relaxed text-foreground/80">
+        {policy.content}
+      </p>
+    </div>
   );
 }

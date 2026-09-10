@@ -328,13 +328,22 @@ export const navGroups: NavGroup[] = [
     label: "Estratégia",
     icon: "Compass",
     items: [
+      // Identidade Organizacional abre o grupo (Bloco 2, item 10): agrupa
+      // Apresentação da Empresa, Política da Qualidade (vinda de Documentos)
+      // e Missão/Visão/Valores (que era item solto aqui). A rota
+      // /diretrizes-estrategicas continua funcionando por URL direta.
+      { label: "Identidade Organizacional", to: "/identidade-organizacional", icon: "Compass" },
       { label: "Análise de Cenário", to: "/analise-cenario", icon: "Radar" },
       { label: "Partes Interessadas", to: "/partes-interessadas", icon: "Handshake" },
       { label: "Escopo do Sistema", to: "/escopo-sistema", icon: "Target" },
       { label: "Riscos e Oportunidades", to: "/riscos", icon: "ShieldAlert" },
       { label: "Mudanças no SG", to: "/mudancas-sg", icon: "Shuffle" },
-      { label: "Análise Crítica pela Direção", to: "/analise-critica", icon: "Gavel" },
-      { label: "Missão, Visão, Valores e Propósito", to: "/diretrizes-estrategicas", icon: "Flag" },
+      // Análise Crítica pela Direção saiu do menu no Bloco 2 (item 9): vai
+      // migrar para Documentos num bloco futuro. A rota /analise-critica
+      // CONTINUA ativa e funcional — os dados seguem em
+      // critical_analysis_meetings / _agenda_items / _participants /
+      // _action_items / _periods e permanecem consultáveis por URL direta,
+      // sem quebrar links salvos. Só a entrada de navegação foi removida.
     ],
   },
   {

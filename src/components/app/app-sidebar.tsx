@@ -103,11 +103,17 @@ function NavRow({
   active,
   collapsed,
   locked,
+  topLevel = false,
 }: {
   item: NavItem;
   active: boolean;
   collapsed: boolean;
   locked: boolean;
+  /** Item de primeiro nível (fora de qualquer grupo). Recebe a mesma
+   * tipografia, cor e tamanho de ícone dos cabeçalhos de grupo, porque
+   * hierarquicamente está no mesmo nível deles — e não no dos sub-itens,
+   * que é o uso normal deste componente. */
+  topLevel?: boolean;
 }) {
   const Icon = iconMap[item.icon] ?? LayoutDashboard;
   const badge = useBadge(item.to);
@@ -139,10 +145,15 @@ function NavRow({
         asChild
         isActive={active}
         tooltip={item.label}
-        className="h-9 rounded-lg data-[active=true]:bg-brand-soft data-[active=true]:text-brand data-[active=true]:font-medium hover:bg-brand-soft/60"
+        className={cn(
+          "h-9 rounded-lg data-[active=true]:bg-brand-soft data-[active=true]:text-brand hover:bg-brand-soft/60",
+          topLevel
+            ? "text-xs font-semibold uppercase tracking-wide text-muted-foreground data-[active=true]:font-semibold"
+            : "data-[active=true]:font-medium",
+        )}
       >
         <Link to={item.to}>
-          <Icon className="h-[18px] w-[18px]" />
+          <Icon className={topLevel ? "h-[16px] w-[16px]" : "h-[18px] w-[18px]"} />
           <span className="truncate">{item.label}</span>
           {!collapsed && badge !== null && (
             <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[color:var(--severity-critical)] px-1.5 text-[10px] font-semibold text-white">
@@ -212,6 +223,7 @@ export function AppSidebar() {
                 active={isItemActive(pathname, navTop.to)}
                 collapsed={collapsed}
                 locked={isLocked(navTop.to)}
+                topLevel
               />
             </SidebarMenu>
           </SidebarGroupContent>
