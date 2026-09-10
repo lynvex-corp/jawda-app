@@ -120,7 +120,7 @@ export function AnaliseCriticaPage() {
               Análise Crítica pela Direção
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Requisito 9.3 da ISO 9001 — reunião formal periódica, vira ata quando concluída.
+              Agende a reunião da direção, registre a pauta e as decisões e gere a ata ao concluir.
             </p>
           </div>
           <Button

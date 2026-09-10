@@ -83,7 +83,8 @@ export function ConfiguracoesPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Personalização da plataforma, normas contratadas, SLAs e integrações.
+            Ajuste a identidade visual da empresa, os prazos padrão e as demais preferências do
+            sistema.
           </p>
         </div>
 

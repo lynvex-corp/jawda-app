@@ -208,7 +208,9 @@ export function AnaliseCriticaDetailPage() {
                 Análise Crítica —{" "}
                 {new Date(meeting.scheduledDate + "T00:00:00").toLocaleDateString("pt-BR")}
               </h1>
-              <p className="text-xs text-muted-foreground">Requisito 9.3 da ISO 9001</p>
+              <p className="text-xs text-muted-foreground">
+                Registre a pauta e as decisões desta reunião.
+              </p>
             </div>
           </div>
           <div className="flex gap-2">

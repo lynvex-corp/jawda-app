@@ -190,7 +190,8 @@ export function UsuariosPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Usuários e Permissões</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Controle de acesso e perfis operacionais da plataforma.
+              Convide pessoas, defina o perfil de acesso de cada uma e controle o que podem ver e
+              fazer.
             </p>
           </div>
           <Button className="gap-2 bg-brand text-brand-foreground hover:bg-brand/90">

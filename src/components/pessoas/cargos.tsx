@@ -275,7 +275,8 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
               Cargos e Perfis
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Descrições de cargo, competências e colaboradores associados.
+              Registre o cargo com seu perfil de requisitos e, depois, as pessoas que ocupam cada
+              cargo.
             </p>
           </div>
           <div className="flex gap-2">

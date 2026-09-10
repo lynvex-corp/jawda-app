@@ -165,7 +165,8 @@ export function RiscosPage() {
               Riscos e Oportunidades
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Matriz 5×5 e registro completo — requisito 6.1 da ISO 9001.
+              Registre o risco ou a oportunidade, avalie probabilidade e impacto e defina o
+              tratamento dos níveis mais altos.
             </p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>

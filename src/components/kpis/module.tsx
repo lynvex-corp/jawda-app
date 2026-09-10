@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   Plus,
   Upload,
-  FileSpreadsheet,
   Gauge,
   CheckCircle2,
   AlertTriangle,
@@ -26,7 +25,7 @@ import { useIndicators, useQualityObjectives } from "@/lib/queries/indicators";
 import { useIndicatorMeasurements, type Measurement } from "@/lib/queries/indicator-measurements";
 import { processosKpi, semaforo, type BibliotecaItem, type SemaforoKpi } from "@/lib/kpi-data";
 import { KpiCard } from "./shared";
-import { LoteDialog, ImportarDialog } from "./lote-dialog";
+import { LoteDialog } from "./lote-dialog";
 import { NovoIndicadorDialog } from "./wizard-dialog";
 import { BibliotecaDialog, EscolhaCriacaoDialog } from "./biblioteca-dialog";
 import { ObjetivosTab } from "./objetivos-tab";
@@ -60,7 +59,6 @@ export function IndicadoresModule() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [bibliotecaOpen, setBibliotecaOpen] = useState(false);
   const [loteOpen, setLoteOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [preset, setPreset] = useState<BibliotecaItem | null>(null);
   const [objetivoPadrao, setObjetivoPadrao] = useState<string | undefined>();
 
@@ -185,11 +183,10 @@ export function IndicadoresModule() {
       <div className="mx-auto max-w-[1500px] space-y-6">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              Indicadores e KPIs
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Indicadores</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Medição, análise crítica e objetivos da qualidade do SGQ.
+              Cadastre o indicador com sua meta, lance as medições do período e acompanhe o
+              resultado frente ao objetivo.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -207,14 +204,6 @@ export function IndicadoresModule() {
               onClick={() => setLoteOpen(true)}
             >
               <Upload className="mr-1.5 h-4 w-4" /> Lançar medição em lote
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="rounded-lg"
-              onClick={() => setImportOpen(true)}
-            >
-              <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Importar de planilha
             </Button>
           </div>
         </header>
@@ -381,7 +370,6 @@ export function IndicadoresModule() {
         }}
       />
       <LoteDialog open={loteOpen} onOpenChange={setLoteOpen} />
-      <ImportarDialog open={importOpen} onOpenChange={setImportOpen} />
     </AppShell>
   );
 }

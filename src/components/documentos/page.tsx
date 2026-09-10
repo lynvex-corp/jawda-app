@@ -147,8 +147,8 @@ export function DocumentosPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">Documentos</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Informação documentada — controle de documentos, Política da Qualidade, atas e listas
-              de frequência.
+              Publique documentos com controle de revisão e acompanhe o que está aguardando
+              aprovação.
             </p>
           </div>
         </header>

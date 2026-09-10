@@ -182,7 +182,8 @@ export function AuditoriasPage() {
               Auditorias
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Programa anual, execução e apontamentos das auditorias internas e externas.
+              Programe a auditoria, monte o plano com auditores e processos e registre os
+              apontamentos encontrados.
             </p>
           </div>
           <Button asChild className="shrink-0 bg-brand hover:bg-brand/90">

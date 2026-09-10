@@ -194,7 +194,7 @@ export function EscopoSistemaPage() {
               Nenhum Escopo do Sistema ainda
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Redija a primeira declaração de escopo (requisito 4.3 da ISO 9001).
+              Redija a primeira declaração de escopo do sistema de gestão.
             </p>
           </div>
           <Textarea
@@ -224,7 +224,8 @@ export function EscopoSistemaPage() {
               Escopo do Sistema de Gestão
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Requisito 4.3 da ISO 9001:2015 — cada revisão aprovada passa a ser a vigente.
+              Declare o que o sistema de gestão cobre e o que fica de fora. Cada revisão aprovada
+              substitui a anterior.
             </p>
           </div>
           <div className="flex gap-2">

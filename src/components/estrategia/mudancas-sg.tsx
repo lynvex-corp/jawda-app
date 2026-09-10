@@ -199,7 +199,8 @@ export function MudancasSGPage() {
               Mudanças e Melhoria
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Requisito 6.3 da ISO 9001 — controle de mudanças planejadas.
+              Registre as mudanças planejadas no sistema de gestão, com motivo, impacto e
+              responsável pela implementação.
             </p>
           </div>
           <Button

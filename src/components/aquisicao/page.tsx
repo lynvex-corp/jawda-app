@@ -106,7 +106,8 @@ export function AquisicaoPage() {
               Aquisição / Fornecedores
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Qualificação, avaliação e monitoramento — requisito 8.4.
+              Cadastre o fornecedor, qualifique-o pelos critérios definidos e registre as avaliações
+              ao longo do fornecimento.
             </p>
           </div>
           {isAuthorized && (

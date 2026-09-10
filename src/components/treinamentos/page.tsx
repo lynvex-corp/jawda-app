@@ -36,7 +36,7 @@ const trilhas = [
   {
     id: 4,
     mod: "Módulo 4",
-    titulo: "Indicadores e KPIs",
+    titulo: "Indicadores",
     aulas: 7,
     duracao: "1h 10min",
     progresso: 20,
@@ -85,9 +85,10 @@ export function TreinamentosPage() {
     <AppShell>
       <div className="mx-auto max-w-[1400px] space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Jawda Academy</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Treinamentos da Plataforma</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Trilhas de capacitação para dominar a plataforma e o Sistema de Gestão da Qualidade.
+            Percorra as trilhas para aprender a usar a plataforma e os conceitos do sistema de
+            gestão.
           </p>
         </div>
 

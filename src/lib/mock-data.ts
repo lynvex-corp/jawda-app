@@ -321,7 +321,7 @@ export const navGroups: NavGroup[] = [
       { label: "Não Conformidades", to: "/nao-conformidades", icon: "AlertTriangle" },
       { label: "Planos de Ação", to: "/planos-de-acao", icon: "ListChecks" },
       { label: "Auditorias", to: "/auditorias", icon: "ClipboardCheck" },
-      { label: "Indicadores e KPIs", to: "/indicadores", icon: "BarChart3" },
+      { label: "Indicadores", to: "/indicadores", icon: "BarChart3" },
     ],
   },
   {
@@ -354,7 +354,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: "Cargos e Perfis", to: "/cargos", icon: "IdCard", externo: true },
       { label: "Gestão de Aprendizagem", to: "/aprendizagem", icon: "BookOpen" },
-      { label: "Avaliação de Performance", to: "/avaliacao-performance", icon: "Gauge" },
+      { label: "Avaliação de Desempenho", to: "/avaliacao-performance", icon: "Gauge" },
     ],
   },
 ];

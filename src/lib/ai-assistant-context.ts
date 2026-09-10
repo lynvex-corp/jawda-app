@@ -144,12 +144,15 @@ const MODULES: Array<{ match: (p: string) => boolean; ctx: AiModuleContext }> = 
   {
     match: (p) => p.startsWith("/indicadores"),
     ctx: {
-      moduleName: "Indicadores e KPIs",
+      moduleName: "Indicadores",
       greeting:
-        "Estamos em Indicadores. Posso interpretar tendências, sugerir KPIs por processo e apontar indicadores fora de meta.",
+        "Estamos em Indicadores. Posso interpretar tendências, sugerir indicadores por processo e apontar os que estão fora de meta.",
       chips: [
         { label: "Indicadores fora da meta", prompt: "Quais indicadores estão fora da meta?" },
-        { label: "Sugerir novo KPI", prompt: "Sugira um KPI para monitorar retrabalho." },
+        {
+          label: "Sugerir novo indicador",
+          prompt: "Sugira um indicador para monitorar retrabalho.",
+        },
         { label: "Interpretar tendência", prompt: "Interprete a tendência do OEE." },
       ],
     },

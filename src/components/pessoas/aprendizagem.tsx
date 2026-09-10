@@ -76,7 +76,8 @@ export function AprendizagemPage() {
               Gestão de Aprendizagem
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Matriz de treinamentos por cargo — requisito 7.2.
+              Defina os treinamentos exigidos por cargo, registre as turmas realizadas e avalie a
+              eficácia de cada uma.
             </p>
           </div>
           <div className="flex gap-1 rounded-lg border border-border/70 bg-muted/30 p-1">

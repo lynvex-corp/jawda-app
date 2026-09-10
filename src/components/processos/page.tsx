@@ -39,7 +39,7 @@ export function ProcessosPage() {
             Processos e Fluxos
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Índice de navegação dos processos de suporte — requisito 4.4.
+            Navegue pelos processos da organização e veja como cada um se conecta aos demais.
           </p>
         </header>
 

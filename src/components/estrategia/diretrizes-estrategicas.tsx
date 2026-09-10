@@ -161,8 +161,8 @@ export function DiretrizesEstrategicasPage() {
               Missão, Visão, Valores e Propósito
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Diretrizes estratégicas da organização — base do contexto para a Alta Direção e para o
-              sistema de gestão.
+              Escreva as diretrizes que orientam a organização e mantenha-as como referência para
+              todo o sistema de gestão.
             </p>
           </div>
           <div className="flex gap-2">

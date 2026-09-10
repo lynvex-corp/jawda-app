@@ -39,6 +39,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { severityClasses, statusClasses } from "@/lib/mock-data";
 import { Link } from "@tanstack/react-router";
 import { ReconhecimentoPanel } from "@/components/dashboard/reconhecimento";
+import { QuadroPendencias } from "@/components/dashboard/pendencias";
 import {
   DASHBOARD_PERIODO_OPTIONS,
   useDashboardData,
@@ -138,7 +139,7 @@ export function Dashboard() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Gestão à Vista</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Visão consolidada da qualidade — dados reais da sua empresa
+            Acompanhe num só lugar o que está aberto, vencido ou aguardando você
             {isFetching ? ", atualizando…" : "."}
           </p>
         </div>
@@ -217,6 +218,8 @@ export function Dashboard() {
           tone="warning"
         />
       </div>
+
+      <QuadroPendencias />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Link to="/planos-de-acao" className="block">

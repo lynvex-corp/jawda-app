@@ -125,7 +125,7 @@ export function PartesInteressadasPage() {
               Nenhum mapeamento de Partes Interessadas ainda
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Inicie o primeiro rascunho para começar o cadastro (requisito 4.2 da ISO 9001).
+              Inicie o primeiro rascunho para começar o cadastro.
             </p>
           </div>
           <Button
@@ -147,7 +147,10 @@ export function PartesInteressadasPage() {
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Partes Interessadas
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">Requisito 4.2 da ISO 9001.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Liste quem afeta ou é afetado pela organização e registre o que cada parte espera do
+              sistema de gestão.
+            </p>
           </div>
           <div className="flex gap-2">
             {isDraft ? (

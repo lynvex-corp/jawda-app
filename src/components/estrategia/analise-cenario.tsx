@@ -342,8 +342,8 @@ export function AnaliseCenarioPage() {
               Análise de Cenário
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Matriz SWOT do sistema de gestão — arraste os cards entre quadrantes, gere planos de
-              ação a partir de fraquezas e ameaças ou peça uma análise cruzada à IA Jawda.
+              Mapeie forças, fraquezas, oportunidades e ameaças, e gere planos de ação a partir do
+              que precisa de resposta.
             </p>
           </div>
           <div className="flex gap-2">

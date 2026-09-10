@@ -4,12 +4,12 @@ import { ModuleGate } from "@/components/app/module-gate";
 export const Route = createFileRoute("/indicadores")({
   head: () => ({
     meta: [
-      { title: "Indicadores e KPIs — Jawda" },
+      { title: "Indicadores — Jawda" },
       {
         name: "description",
         content: "Painel de indicadores, objetivos da qualidade e análise crítica do SGQ.",
       },
-      { property: "og:title", content: "Indicadores e KPIs — Jawda" },
+      { property: "og:title", content: "Indicadores — Jawda" },
       {
         property: "og:description",
         content: "Painel de indicadores, objetivos da qualidade e análise crítica do SGQ.",

@@ -125,7 +125,8 @@ function EvaluationListPage({ onOpen }: { onOpen: (id: string) => void }) {
               Avaliação de Desempenho
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Ciclos de avaliação, formulário CHA e Matriz de Apoio à Decisão.
+              Abra o ciclo de avaliação, preencha o formulário CHA e use a Matriz de Apoio à Decisão
+              para concluir sobre cada pessoa.
             </p>
           </div>
           {isHrAuthorized && (

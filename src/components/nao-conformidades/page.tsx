@@ -343,7 +343,8 @@ export function NaoConformidadesPage() {
                 Não Conformidades
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Acompanhe registros, tratativas e prazos SLA ao longo de todo o ciclo de vida da NC.
+                Registre o desvio, classifique a gravidade e acompanhe a tratativa até o
+                encerramento dentro do prazo.
               </p>
             </div>
             <Button asChild className="rounded-lg bg-brand text-brand-foreground hover:bg-brand/90">
