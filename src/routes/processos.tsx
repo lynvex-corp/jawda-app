@@ -1,15 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ProcessosPage } from "@/components/processos/page";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { ModuleGate } from "@/components/app/module-gate";
 
-function ProcessosRoute() {
-  return (
-    <ModuleGate module="processes">
-      <ProcessosPage />
-    </ModuleGate>
-  );
-}
-
 export const Route = createFileRoute("/processos")({
-  component: ProcessosRoute,
+  component: () => (
+    <ModuleGate module="processes">
+      <Outlet />
+    </ModuleGate>
+  ),
 });

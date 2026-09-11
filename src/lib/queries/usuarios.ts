@@ -143,6 +143,18 @@ export const PERMISSION_MATRIX: MatrixRow[] = [
     },
   },
   {
+    modulo: "Processos",
+    nota: "Aprovar ainda não tem ação concreta (formalizar fluxo só existe a partir do Bloco B do Mapa de Processos).",
+    matriz: {
+      admin: ["Ver", "Criar", "Editar", "Aprovar", "Excluir"],
+      quality_manager: ["Ver", "Criar", "Editar", "Aprovar"],
+      auditor: V,
+      area_manager: ["Ver", "Criar", "Editar"],
+      collaborator: V,
+      viewer: V,
+    },
+  },
+  {
     modulo: "Estratégia",
     nota: 'Análise Crítica pela Direção é exceção dentro deste módulo: só Administrador cria, mesmo quem tem "Criar" aqui (decisão do Bloco 3).',
     matriz: {
