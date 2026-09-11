@@ -484,16 +484,20 @@ export function useCreateProcessMapDraft() {
     mutationFn: async ({ processMapId }: { processMapId: string }) => {
       const { data: last, error: lastErr } = await supabase
         .from("process_map_versions")
-        .select("version_number, diagram")
+        .select("id, version_number, diagram")
         .eq("process_map_id", processMapId)
         .order("version_number", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (lastErr) throw lastErr;
 
-      const nextNumber = ((last as { version_number: number } | null)?.version_number ?? 0) + 1;
-      const startingDiagram =
-        (last as { diagram: ProcessDiagram } | null)?.diagram ?? EMPTY_DIAGRAM;
+      const lastRow = last as {
+        id: string;
+        version_number: number;
+        diagram: ProcessDiagram;
+      } | null;
+      const nextNumber = (lastRow?.version_number ?? 0) + 1;
+      const startingDiagram = lastRow?.diagram ?? EMPTY_DIAGRAM;
 
       const { data, error } = await supabase
         .from("process_map_versions")
@@ -505,7 +509,37 @@ export function useCreateProcessMapDraft() {
         .select(VERSION_SELECT)
         .single();
       if (error) throw error;
-      return mapVersionRow(data as unknown as VersionRow);
+      const created = mapVersionRow(data as unknown as VersionRow);
+
+      // Copia o RACI da versão anterior — os node_key continuam válidos
+      // porque o diagrama copiado é o mesmo (mesmos ids de nó).
+      if (lastRow) {
+        const { data: previousRaci, error: raciErr } = await supabase
+          .from("process_map_raci")
+          .select("node_key, employee_id, job_position_id, papel")
+          .eq("version_id", lastRow.id);
+        if (raciErr) throw raciErr;
+        const rows = (previousRaci ?? []) as {
+          node_key: string;
+          employee_id: string | null;
+          job_position_id: string | null;
+          papel: string;
+        }[];
+        if (rows.length > 0) {
+          const { error: copyErr } = await supabase.from("process_map_raci").insert(
+            rows.map((r) => ({
+              version_id: created.id,
+              node_key: r.node_key,
+              employee_id: r.employee_id,
+              job_position_id: r.job_position_id,
+              papel: r.papel,
+            })),
+          );
+          if (copyErr) throw copyErr;
+        }
+      }
+
+      return created;
     },
     onSuccess: (version) => {
       queryClient.invalidateQueries({ queryKey: processMapVersionKeys.list(version.processMapId) });
@@ -565,5 +599,127 @@ export function useFormalizeProcessMapVersion() {
       queryClient.invalidateQueries({ queryKey: processMapVersionKeys.list(vars.processMapId) });
       queryClient.invalidateQueries({ queryKey: processMapVersionKeys.draft(vars.processMapId) });
     },
+  });
+}
+
+/* ============================================================
+ * Bloco C — RACI (Responsável/Aprovador/Consultado/Informado) por
+ * elemento do fluxo. Relacional (employee_id/job_position_id via FK),
+ * nunca texto livre — puxa de Cargos e Perfis, igual ao responsável de
+ * tarefa/raia do Bloco B, mas aqui pode ter vários por (nó, papel).
+ * ============================================================ */
+
+export type ProcessRaciPapel = "responsavel" | "aprovador" | "consultado" | "informado";
+
+export const PROCESS_RACI_PAPEL_OPTIONS: { value: ProcessRaciPapel; label: string }[] = [
+  { value: "aprovador", label: "Aprovador" },
+  { value: "consultado", label: "Consultado" },
+  { value: "informado", label: "Informado" },
+  { value: "responsavel", label: "Responsável" },
+];
+
+export interface ProcessRaciAssignment {
+  id: string;
+  nodeKey: string;
+  employeeId: string | null;
+  jobPositionId: string | null;
+  assigneeName: string;
+  papel: ProcessRaciPapel;
+}
+
+const processRaciKeys = {
+  all: ["process-map-raci"] as const,
+  list: (versionId: string) => [...processRaciKeys.all, "list", versionId] as const,
+};
+
+export function useProcessMapRaci(versionId: string | undefined) {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: processRaciKeys.list(versionId ?? ""),
+    enabled: !!versionId,
+    queryFn: async (): Promise<ProcessRaciAssignment[]> => {
+      const { data, error } = await supabase
+        .from("process_map_raci")
+        .select("id, node_key, employee_id, job_position_id, papel")
+        .eq("version_id", versionId as string);
+      if (error) throw error;
+      const rows =
+        (data as unknown as {
+          id: string;
+          node_key: string;
+          employee_id: string | null;
+          job_position_id: string | null;
+          papel: ProcessRaciPapel;
+        }[]) ?? [];
+
+      const employeeIds = rows.map((r) => r.employee_id).filter((v): v is string => !!v);
+      const positionIds = rows.map((r) => r.job_position_id).filter((v): v is string => !!v);
+
+      const resolvePositionNames = async () => {
+        if (positionIds.length === 0) return new Map<string, string>();
+        const { data: pos, error: posErr } = await supabase
+          .from("job_positions")
+          .select("id, nome")
+          .in("id", positionIds);
+        if (posErr) throw posErr;
+        return new Map(
+          ((pos as unknown as { id: string; nome: string }[]) ?? []).map((p) => [p.id, p.nome]),
+        );
+      };
+
+      const [employeeNames, positionNames] = await Promise.all([
+        resolveOwnerNames(supabase, employeeIds),
+        resolvePositionNames(),
+      ]);
+
+      return rows.map((r) => ({
+        id: r.id,
+        nodeKey: r.node_key,
+        employeeId: r.employee_id,
+        jobPositionId: r.job_position_id,
+        assigneeName: r.employee_id
+          ? (employeeNames.get(r.employee_id) ?? "—")
+          : `${positionNames.get(r.job_position_id as string) ?? "—"} (cargo)`,
+        papel: r.papel,
+      }));
+    },
+  });
+}
+
+export function useAddProcessMapRaci() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      versionId: string;
+      nodeKey: string;
+      employeeId: string | null;
+      jobPositionId: string | null;
+      papel: ProcessRaciPapel;
+    }) => {
+      const { error } = await supabase.from("process_map_raci").insert({
+        version_id: input.versionId,
+        node_key: input.nodeKey,
+        employee_id: input.employeeId,
+        job_position_id: input.jobPositionId,
+        papel: input.papel,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) =>
+      queryClient.invalidateQueries({ queryKey: processRaciKeys.list(vars.versionId) }),
+  });
+}
+
+export function useRemoveProcessMapRaci() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; versionId: string }) => {
+      const { error } = await supabase.from("process_map_raci").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) =>
+      queryClient.invalidateQueries({ queryKey: processRaciKeys.list(vars.versionId) }),
   });
 }

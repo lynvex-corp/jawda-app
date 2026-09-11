@@ -40,6 +40,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useEmployees } from "@/lib/queries/pessoas";
 import { PROCESS_MAP_ICONS } from "@/components/processos/icon-map";
 import { ProcessFlowEditor } from "@/components/processos/flow/editor";
+import { ProcessRaciTable } from "@/components/processos/raci-table";
 import {
   useProcessMap,
   useUpdateProcessMap,
@@ -59,7 +60,7 @@ import {
 const TABS = [
   { key: "informacoes", label: "Informações" },
   { key: "fluxo", label: "Fluxo" },
-  { key: "raci", label: "RACI", bloco: "C" },
+  { key: "raci", label: "RACI" },
   { key: "indicadores", label: "Indicadores", bloco: "D" },
   { key: "versoes", label: "Versões" },
 ] as const;
@@ -199,6 +200,9 @@ export function ProcessoDetailPage() {
   };
 
   const viewingVersion = versions.find((v) => v.id === viewingVersionId) ?? null;
+  // RACI segue a mesma versão que a aba Fluxo edita — o rascunho aberto,
+  // ou (sem rascunho) a última formalizada, só leitura.
+  const raciVersion = draft ?? versions[0] ?? null;
 
   return (
     <AppShell>
@@ -428,6 +432,29 @@ export function ProcessoDetailPage() {
                   processMapId={processo.id}
                   version={draft}
                   readOnly={!canManage}
+                />
+              </>
+            )}
+          </div>
+        )}
+
+        {tab === "raci" && (
+          <div className="space-y-3">
+            {!raciVersion && (
+              <div className="rounded-2xl border border-dashed border-border p-14 text-center text-xs text-muted-foreground">
+                Nenhum fluxo ainda — comece na aba Fluxo antes de atribuir RACI.
+              </div>
+            )}
+            {raciVersion && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  {raciVersion.status === "rascunho"
+                    ? `Rascunho — v${raciVersion.versionNumber}.`
+                    : `v${raciVersion.versionNumber}${raciVersion.versionLabel ? ` — ${raciVersion.versionLabel}` : ""} (formalizada, somente leitura).`}
+                </p>
+                <ProcessRaciTable
+                  version={raciVersion}
+                  readOnly={!canManage || raciVersion.status === "formalizada"}
                 />
               </>
             )}
