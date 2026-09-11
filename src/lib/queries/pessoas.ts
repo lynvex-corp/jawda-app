@@ -560,10 +560,19 @@ export interface CompetencyAction {
   status: "aberta" | "concluida";
 }
 
+export interface DossieEffectivenessEvaluation {
+  sessionId: string;
+  trainingNome: string;
+  metodo: string;
+  resultado: string;
+  avaliadoEm: string;
+}
+
 export interface EmployeeDossie {
   employee: Employee;
   attachments: EmployeeAttachment[];
   competencyActions: CompetencyAction[];
+  effectivenessEvaluations: DossieEffectivenessEvaluation[];
 }
 
 /** Dossiê individual — SELECT já é logado pela política de RLS +
@@ -602,6 +611,17 @@ export function useEmployeeDossie(employeeId: string | undefined) {
         .order("created_at", { ascending: false });
       if (actErr) throw actErr;
 
+      // "Fica salvo no dossiê" — sem duplicar linha por empregado: a
+      // avaliação é por TURMA (training_effectiveness_evaluations), e
+      // aparece aqui via join com as turmas em que este empregado participou.
+      const { data: effectiveness, error: effErr } = await supabase
+        .from("training_participants")
+        .select(
+          "training_session_id, training_sessions!inner(training:trainings!training_id(nome), training_effectiveness_evaluations(id, metodo, resultado, avaliado_em))",
+        )
+        .eq("employee_id", employeeId as string);
+      if (effErr) throw effErr;
+
       return {
         employee: mapEmployeeRow({
           ...(employee as unknown as EmployeeListRow),
@@ -637,6 +657,28 @@ export function useEmployeeDossie(employeeId: string | undefined) {
           completionDate: a.completion_date,
           status: a.status,
         })),
+        effectivenessEvaluations: (
+          (effectiveness as unknown as {
+            training_session_id: string;
+            training_sessions: {
+              training: { nome: string } | null;
+              training_effectiveness_evaluations: {
+                id: string;
+                metodo: string;
+                resultado: string;
+                avaliado_em: string;
+              }[];
+            };
+          }[]) ?? []
+        ).flatMap((p) =>
+          (p.training_sessions.training_effectiveness_evaluations ?? []).map((ev) => ({
+            sessionId: p.training_session_id,
+            trainingNome: p.training_sessions.training?.nome ?? "",
+            metodo: ev.metodo,
+            resultado: ev.resultado,
+            avaliadoEm: ev.avaliado_em,
+          })),
+        ),
       };
     },
   });
@@ -1131,6 +1173,300 @@ export function useUpdateTrainingParticipant() {
     },
     onSuccess: (sessionId) =>
       queryClient.invalidateQueries({ queryKey: ["training-session-participants", sessionId] }),
+  });
+}
+
+/* ============================================================
+ * Aditivo ao Bloco 4 — Avaliação de Eficácia do Treinamento.
+ *
+ * Dois formulários complementares (ver migração 20260913090200):
+ *   a) training_session_feedback — o participante avalia a própria
+ *      satisfação, logo após a turma acontecer.
+ *   b) training_effectiveness_evaluations — o Gestor da Qualidade avalia
+ *      se o treinamento realmente formou, só para turmas >4h e só depois
+ *      do prazo configurável (hr_learning_settings).
+ * ============================================================ */
+
+/** "Marcar como realizada" nunca existiu na UI — pré-requisito descoberto
+ * ao investigar este aditivo: sem isso, nenhuma turma teria data de
+ * realização real, e os dois formulários abaixo nunca ficariam elegíveis. */
+export function useMarkTrainingSessionRealizada() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, dataRealizacao }: { id: string; dataRealizacao: string }) => {
+      const { error } = await supabase
+        .from("training_sessions")
+        .update({ status: "realizada", data_realizacao: dataRealizacao })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: trainingKeys.sessions() }),
+  });
+}
+
+export const EFFECTIVENESS_PRAZO_OPTIONS = [15, 30, 60] as const;
+
+/** `hr_learning_settings` só ganha linha quando alguém salva pela primeira
+ * vez — organização nova não tem registro ainda, por isso o default (30)
+ * é aplicado no cliente quando a busca vem vazia, e não só no banco. */
+export function useHrLearningSettings() {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: ["hr-learning-settings"],
+    queryFn: async (): Promise<{ prazoAvaliacaoEficaciaDias: number }> => {
+      const { data, error } = await supabase
+        .from("hr_learning_settings")
+        .select("avaliacao_eficacia_prazo_dias")
+        .maybeSingle();
+      if (error) throw error;
+      const row = data as unknown as { avaliacao_eficacia_prazo_dias: number } | null;
+      return { prazoAvaliacaoEficaciaDias: row?.avaliacao_eficacia_prazo_dias ?? 30 };
+    },
+  });
+}
+
+export function useUpdateHrLearningSettings() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orgId, prazoDias }: { orgId: string; prazoDias: number }) => {
+      const { error } = await supabase
+        .from("hr_learning_settings")
+        .upsert(
+          { org_id: orgId, avaliacao_eficacia_prazo_dias: prazoDias },
+          { onConflict: "org_id" },
+        );
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hr-learning-settings"] }),
+  });
+}
+
+/** Turma vira elegível pra avaliação de eficácia quando: realizada, carga
+ * horária (normalizada pra horas) > 4h, e já passou o prazo configurável
+ * contado da data de realização. Normalização e prazo ficam no cliente —
+ * não há coluna computada no banco pra isso, e o gate é regra de fluxo de
+ * trabalho, não de segurança (a RLS só exige "realizada", ver migração
+ * 20260913090300). */
+function cargaHorariaEmHoras(cargaHoraria: number | null, unidade: CargaHorariaUnidade): number {
+  if (cargaHoraria === null) return 0;
+  return unidade === "minuto" ? cargaHoraria / 60 : cargaHoraria;
+}
+
+export interface EligibleEffectivenessSession {
+  sessionId: string;
+  trainingNome: string;
+  dataRealizacao: string;
+  cargaHorariaHoras: number;
+  jaAvaliada: boolean;
+}
+
+export function useEligibleEffectivenessSessions() {
+  const supabase = getSupabaseBrowserClient();
+  const { data: settings } = useHrLearningSettings();
+  const prazoDias = settings?.prazoAvaliacaoEficaciaDias ?? 30;
+  return useQuery({
+    queryKey: ["training-effectiveness-eligible", prazoDias],
+    queryFn: async (): Promise<EligibleEffectivenessSession[]> => {
+      const { data, error } = await supabase
+        .from("training_sessions")
+        .select(
+          "id, data_realizacao, training:trainings!training_id(nome, carga_horaria, carga_horaria_unidade), training_effectiveness_evaluations(id)",
+        )
+        .eq("status", "realizada")
+        .not("data_realizacao", "is", null)
+        .order("data_realizacao", { ascending: false });
+      if (error) throw error;
+
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+
+      return (
+        (data as unknown as {
+          id: string;
+          data_realizacao: string;
+          training: {
+            nome: string;
+            carga_horaria: number | null;
+            carga_horaria_unidade: CargaHorariaUnidade;
+          } | null;
+          training_effectiveness_evaluations: { id: string }[];
+        }[]) ?? []
+      )
+        .map((s) => ({
+          sessionId: s.id,
+          trainingNome: s.training?.nome ?? "",
+          dataRealizacao: s.data_realizacao,
+          cargaHorariaHoras: cargaHorariaEmHoras(
+            s.training?.carga_horaria ?? null,
+            s.training?.carga_horaria_unidade ?? "hora",
+          ),
+          jaAvaliada: (s.training_effectiveness_evaluations?.length ?? 0) > 0,
+        }))
+        .filter((s) => {
+          if (s.cargaHorariaHoras <= 4) return false;
+          const prazoAtingidoEm = new Date(s.dataRealizacao + "T00:00:00");
+          prazoAtingidoEm.setDate(prazoAtingidoEm.getDate() + prazoDias);
+          return prazoAtingidoEm <= hoje;
+        });
+    },
+  });
+}
+
+export const EFFECTIVENESS_METHOD_OPTIONS: { value: string; label: string }[] = [
+  { value: "aplicacao_teste", label: "Aplicação de teste" },
+  { value: "entrevista_colaborador", label: "Entrevista com o colaborador" },
+  { value: "observacao_atividade", label: "Observação de atividade" },
+];
+
+export interface EffectivenessEvaluation {
+  id: string;
+  metodo: string;
+  resultado: string;
+  avaliadoEm: string;
+}
+
+export function useEffectivenessEvaluation(sessionId: string | undefined) {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: ["training-effectiveness-evaluation", sessionId],
+    enabled: !!sessionId,
+    queryFn: async (): Promise<EffectivenessEvaluation | null> => {
+      const { data, error } = await supabase
+        .from("training_effectiveness_evaluations")
+        .select("id, metodo, resultado, avaliado_em")
+        .eq("training_session_id", sessionId as string)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const row = data as unknown as {
+        id: string;
+        metodo: string;
+        resultado: string;
+        avaliado_em: string;
+      };
+      return {
+        id: row.id,
+        metodo: row.metodo,
+        resultado: row.resultado,
+        avaliadoEm: row.avaliado_em,
+      };
+    },
+  });
+}
+
+export function useSubmitEffectivenessEvaluation() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      sessionId,
+      metodo,
+      resultado,
+    }: {
+      sessionId: string;
+      metodo: string;
+      resultado: string;
+    }) => {
+      const { error } = await supabase
+        .from("training_effectiveness_evaluations")
+        .upsert(
+          { training_session_id: sessionId, metodo, resultado },
+          { onConflict: "training_session_id" },
+        );
+      if (error) throw error;
+      return sessionId;
+    },
+    onSuccess: (sessionId) => {
+      queryClient.invalidateQueries({ queryKey: ["training-effectiveness-eligible"] });
+      queryClient.invalidateQueries({ queryKey: ["training-effectiveness-evaluation", sessionId] });
+    },
+  });
+}
+
+export interface PendingTrainingFeedback {
+  sessionId: string;
+  trainingNome: string;
+  dataRealizacao: string;
+}
+
+/** Turmas que EU (funcionário logado) participei, já realizadas, e ainda
+ * não avaliei minha satisfação. Alimenta o pop-up "avalie o treinamento". */
+export function usePendingTrainingFeedback(employeeId: string | undefined) {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: ["training-feedback-pending", employeeId],
+    enabled: !!employeeId,
+    queryFn: async (): Promise<PendingTrainingFeedback[]> => {
+      const { data: participacoes, error: partErr } = await supabase
+        .from("training_participants")
+        .select(
+          "training_session_id, training_sessions!inner(status, data_realizacao, training:trainings!training_id(nome))",
+        )
+        .eq("employee_id", employeeId as string)
+        .eq("training_sessions.status", "realizada");
+      if (partErr) throw partErr;
+
+      const { data: respondidas, error: fbErr } = await supabase
+        .from("training_session_feedback")
+        .select("training_session_id")
+        .eq("employee_id", employeeId as string);
+      if (fbErr) throw fbErr;
+
+      const respondidasIds = new Set(
+        ((respondidas as unknown as { training_session_id: string }[]) ?? []).map(
+          (r) => r.training_session_id,
+        ),
+      );
+
+      return (
+        (participacoes as unknown as {
+          training_session_id: string;
+          training_sessions: {
+            status: string;
+            data_realizacao: string | null;
+            training: { nome: string } | null;
+          };
+        }[]) ?? []
+      )
+        .filter((p) => !respondidasIds.has(p.training_session_id))
+        .map((p) => ({
+          sessionId: p.training_session_id,
+          trainingNome: p.training_sessions.training?.nome ?? "",
+          dataRealizacao: p.training_sessions.data_realizacao ?? "",
+        }));
+    },
+  });
+}
+
+export function useSubmitTrainingFeedback() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      sessionId,
+      employeeId,
+      nivelSatisfacao,
+      comentarios,
+    }: {
+      sessionId: string;
+      employeeId: string;
+      nivelSatisfacao: number;
+      comentarios: string;
+    }) => {
+      const { error } = await supabase.from("training_session_feedback").insert({
+        training_session_id: sessionId,
+        employee_id: employeeId,
+        nivel_satisfacao: nivelSatisfacao,
+        comentarios: comentarios || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) =>
+      queryClient.invalidateQueries({
+        queryKey: ["training-feedback-pending", vars.employeeId],
+      }),
   });
 }
 
@@ -1821,5 +2157,242 @@ export function useGenerateActionPlanFromEvaluation() {
       queryClient.invalidateQueries({
         queryKey: performanceKeys.evaluationDetail(vars.evaluationId),
       }),
+  });
+}
+
+/* ============================================================
+ * Aditivo ao Bloco 4 — Avaliação de Desempenho Organizacional (pesquisa de
+ * clima, não avaliação individual — "avaliado" é a organização).
+ *
+ * Governança confirmada: quem programa e vê resultado agregado é
+ * Administrador + Gestor da Qualidade (is_hr_authorized) — deliberadamente
+ * diferente da régua de avaliação de pessoas acima (admin+area_manager).
+ * Resposta é identificada por user_id (todo membro do sistema responde,
+ * não só quem tem registro em `employees`). Ver migração 20260913090500.
+ * ============================================================ */
+
+export const ORG_CLIMATE_QUESTIONS = [
+  {
+    key: "notaInfraestrutura",
+    label:
+      "Nível de satisfação em relação à infraestrutura (temperatura, condições ambientais, disponibilização de equipamentos e materiais)",
+  },
+  {
+    key: "notaAmbiente",
+    label:
+      "Nível de satisfação em relação ao ambiente (interativo, inclusivo, não discriminatório, não confrontante)",
+  },
+  {
+    key: "notaPsicologico",
+    label: "Nível de satisfação em relação ao psicológico (estresse, exaustão)",
+  },
+  {
+    key: "notaCarreira",
+    label:
+      "Nível de satisfação em relação à carreira (avaliação de desempenho, disponibilização de capacitação)",
+  },
+  {
+    key: "notaLideranca",
+    label:
+      "Nível de satisfação em relação à liderança (clareza na comunicação, transparência em objetivos e metas)",
+  },
+] as const;
+
+export type OrgClimateQuestionKey = (typeof ORG_CLIMATE_QUESTIONS)[number]["key"];
+
+export interface OrgClimateSurvey {
+  id: string;
+  janelaInicio: string;
+  janelaFim: string;
+  createdAt: string;
+}
+
+const orgClimateKeys = {
+  all: ["org-climate-surveys"] as const,
+  list: () => [...orgClimateKeys.all, "list"] as const,
+  myStatus: () => [...orgClimateKeys.all, "my-status"] as const,
+  results: (surveyId: string) => [...orgClimateKeys.all, "results", surveyId] as const,
+};
+
+export function useOrgClimateSurveys() {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: orgClimateKeys.list(),
+    queryFn: async (): Promise<OrgClimateSurvey[]> => {
+      const { data, error } = await supabase
+        .from("org_climate_surveys")
+        .select("id, janela_inicio, janela_fim, created_at")
+        .order("janela_inicio", { ascending: false });
+      if (error) throw error;
+      return (
+        (data as unknown as {
+          id: string;
+          janela_inicio: string;
+          janela_fim: string;
+          created_at: string;
+        }[]) ?? []
+      ).map((s) => ({
+        id: s.id,
+        janelaInicio: s.janela_inicio,
+        janelaFim: s.janela_fim,
+        createdAt: s.created_at,
+      }));
+    },
+  });
+}
+
+export function useCreateOrgClimateSurvey() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      janelaInicio,
+      janelaFim,
+    }: {
+      janelaInicio: string;
+      janelaFim: string;
+    }) => {
+      const { error } = await supabase
+        .from("org_climate_surveys")
+        .insert({ janela_inicio: janelaInicio, janela_fim: janelaFim });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: orgClimateKeys.list() });
+      queryClient.invalidateQueries({ queryKey: orgClimateKeys.myStatus() });
+    },
+  });
+}
+
+/** A pesquisa aberta agora que EU ainda não respondi — ou null se não há
+ * nenhuma, ou se já respondi a que está aberta. Alimenta o aviso/pop-up de
+ * resposta, análogo ao pop-up de satisfação de treinamento. */
+export function useMyOpenOrgClimateSurvey() {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: orgClimateKeys.myStatus(),
+    queryFn: async (): Promise<OrgClimateSurvey | null> => {
+      const hoje = new Date().toISOString().slice(0, 10);
+      const { data: surveys, error } = await supabase
+        .from("org_climate_surveys")
+        .select("id, janela_inicio, janela_fim, created_at")
+        .lte("janela_inicio", hoje)
+        .gte("janela_fim", hoje)
+        .order("janela_inicio", { ascending: false });
+      if (error) throw error;
+      const abertas =
+        (surveys as unknown as {
+          id: string;
+          janela_inicio: string;
+          janela_fim: string;
+          created_at: string;
+        }[]) ?? [];
+      if (abertas.length === 0) return null;
+
+      const { data: minhas, error: respErr } = await supabase
+        .from("org_climate_survey_responses")
+        .select("survey_id")
+        .in(
+          "survey_id",
+          abertas.map((s) => s.id),
+        );
+      if (respErr) throw respErr;
+      const respondidas = new Set(
+        ((minhas as unknown as { survey_id: string }[]) ?? []).map((r) => r.survey_id),
+      );
+
+      const pendente = abertas.find((s) => !respondidas.has(s.id));
+      if (!pendente) return null;
+      return {
+        id: pendente.id,
+        janelaInicio: pendente.janela_inicio,
+        janelaFim: pendente.janela_fim,
+        createdAt: pendente.created_at,
+      };
+    },
+  });
+}
+
+export function useSubmitOrgClimateSurveyResponse() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      surveyId: string;
+      notaInfraestrutura: number;
+      notaAmbiente: number;
+      notaPsicologico: number;
+      notaCarreira: number;
+      notaLideranca: number;
+      comentarios: string;
+    }) => {
+      const { error } = await supabase.from("org_climate_survey_responses").insert({
+        survey_id: input.surveyId,
+        nota_infraestrutura: input.notaInfraestrutura,
+        nota_ambiente: input.notaAmbiente,
+        nota_psicologico: input.notaPsicologico,
+        nota_carreira: input.notaCarreira,
+        nota_lideranca: input.notaLideranca,
+        comentarios: input.comentarios || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: orgClimateKeys.myStatus() }),
+  });
+}
+
+export interface OrgClimateSurveyResults {
+  totalRespostas: number;
+  mediaPorPergunta: Record<OrgClimateQuestionKey, number | null>;
+  comentarios: { autor: string; texto: string }[];
+}
+
+/** Resultado agregado — só quem tem governança (is_hr_authorized) enxerga
+ * via RLS de org_climate_survey_responses; identificada, então os
+ * comentários vêm com autor. */
+export function useOrgClimateSurveyResults(surveyId: string | undefined) {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: orgClimateKeys.results(surveyId ?? ""),
+    enabled: !!surveyId,
+    queryFn: async (): Promise<OrgClimateSurveyResults> => {
+      const { data, error } = await supabase
+        .from("org_climate_survey_responses")
+        .select(
+          "nota_infraestrutura, nota_ambiente, nota_psicologico, nota_carreira, nota_lideranca, comentarios, user:profiles!user_id(full_name)",
+        )
+        .eq("survey_id", surveyId as string);
+      if (error) throw error;
+      const rows =
+        (data as unknown as {
+          nota_infraestrutura: number;
+          nota_ambiente: number;
+          nota_psicologico: number;
+          nota_carreira: number;
+          nota_lideranca: number;
+          comentarios: string | null;
+          user: { full_name: string } | null;
+        }[]) ?? [];
+
+      const media = (campo: keyof (typeof rows)[number]) => {
+        const valores = rows.map((r) => r[campo] as number);
+        if (valores.length === 0) return null;
+        return valores.reduce((a, b) => a + b, 0) / valores.length;
+      };
+
+      return {
+        totalRespostas: rows.length,
+        mediaPorPergunta: {
+          notaInfraestrutura: media("nota_infraestrutura"),
+          notaAmbiente: media("nota_ambiente"),
+          notaPsicologico: media("nota_psicologico"),
+          notaCarreira: media("nota_carreira"),
+          notaLideranca: media("nota_lideranca"),
+        },
+        comentarios: rows
+          .filter((r) => r.comentarios)
+          .map((r) => ({ autor: r.user?.full_name ?? "—", texto: r.comentarios as string })),
+      };
+    },
   });
 }

@@ -1414,6 +1414,38 @@ function EmployeeDossieView({ employeeId }: { employeeId: string }) {
             )}
           </div>
         </div>
+
+        {/* Aditivo ao Bloco 4 — Avaliação de Eficácia do Treinamento, item
+            1b: "resultado deve ficar salvo no dossiê do empregado". Fica no
+            mesmo lugar visual dos anexos, mas em tabela própria — é texto
+            estruturado (método + resultado), não arquivo, então não força
+            employee_attachments (que exige upload). */}
+        <div>
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Avaliações de eficácia de treinamento
+          </div>
+          <div className="space-y-1">
+            {dossie.effectivenessEvaluations.map((ev) => (
+              <div
+                key={ev.sessionId}
+                className="rounded-md border border-border/60 px-3 py-1.5 text-xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-foreground/85">{ev.trainingNome}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(ev.avaliadoEm).toLocaleDateString("pt-BR")}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">{ev.resultado}</p>
+              </div>
+            ))}
+            {dossie.effectivenessEvaluations.length === 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Nenhuma avaliação de eficácia registrada.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       <Dialog open={acaoOpen} onOpenChange={setAcaoOpen}>

@@ -39,6 +39,9 @@ import {
   Sparkles,
   X,
   Pencil,
+  CalendarCheck,
+  Star,
+  ClipboardCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, getErrorMessage } from "@/lib/utils";
@@ -54,11 +57,21 @@ import {
   useCreateTrainingSession,
   useTrainingSessionParticipants,
   useUpdateTrainingParticipant,
+  useMarkTrainingSessionRealizada,
   useEmployees,
   useMyEmployeeRecord,
   useAwarenessPublications,
   useCreateAwarenessPublication,
   useAcknowledgeAwarenessPublication,
+  useHrLearningSettings,
+  useUpdateHrLearningSettings,
+  useEligibleEffectivenessSessions,
+  useEffectivenessEvaluation,
+  useSubmitEffectivenessEvaluation,
+  usePendingTrainingFeedback,
+  useSubmitTrainingFeedback,
+  EFFECTIVENESS_PRAZO_OPTIONS,
+  EFFECTIVENESS_METHOD_OPTIONS,
   MODALITY_OPTIONS,
   type TrainingModality,
   type CargaHorariaUnidade,
@@ -169,10 +182,18 @@ function TrainingFormFields({
   );
 }
 
+const TAB_LABEL = {
+  matriz: "Matriz",
+  execucao: "Execução",
+  eficacia: "Eficácia",
+  conscientizacao: "Conscientização",
+} as const;
+
 export function AprendizagemPage() {
   const { currentOrg } = useAuth();
   const isHrAuthorized = currentOrg?.role === "admin" || currentOrg?.role === "quality_manager";
-  const [tab, setTab] = useState<"matriz" | "execucao" | "conscientizacao">("matriz");
+  const [tab, setTab] = useState<"matriz" | "execucao" | "eficacia" | "conscientizacao">("matriz");
+  const { data: myRecord } = useMyEmployeeRecord();
 
   return (
     <AppShell>
@@ -188,18 +209,18 @@ export function AprendizagemPage() {
             </p>
           </div>
           <div className="flex gap-1 rounded-lg border border-border/70 bg-muted/30 p-1">
-            {(["matriz", "execucao", "conscientizacao"] as const).map((t) => (
+            {(["matriz", "execucao", "eficacia", "conscientizacao"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium capitalize transition",
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition",
                   tab === t
                     ? "bg-white text-brand shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {t === "matriz" ? "Matriz" : t === "execucao" ? "Execução" : "Conscientização"}
+                {TAB_LABEL[t]}
               </button>
             ))}
           </div>
@@ -207,9 +228,95 @@ export function AprendizagemPage() {
 
         {tab === "matriz" && <MatrizTab isHrAuthorized={isHrAuthorized} />}
         {tab === "execucao" && <ExecucaoTab isHrAuthorized={isHrAuthorized} />}
+        {tab === "eficacia" && <EficaciaTab isHrAuthorized={isHrAuthorized} />}
         {tab === "conscientizacao" && <ConscientizacaoTab isHrAuthorized={isHrAuthorized} />}
       </div>
+
+      {myRecord && <MinhasAvaliacoesPendentes employeeId={myRecord.id} />}
     </AppShell>
+  );
+}
+
+/** Pop-up de satisfação (item 1a) — qualquer usuário com registro de
+ * funcionário, independente de ser HR ou não. Mostra uma turma pendente por
+ * vez; ao enviar, a lista é reconsultada e a próxima (se houver) aparece. */
+function MinhasAvaliacoesPendentes({ employeeId }: { employeeId: string }) {
+  const { data: pendentes = [] } = usePendingTrainingFeedback(employeeId);
+  const submitFeedback = useSubmitTrainingFeedback();
+  const [nivel, setNivel] = useState(5);
+  const [comentarios, setComentarios] = useState("");
+
+  const atual = pendentes[0];
+  if (!atual) return null;
+
+  const enviar = () => {
+    submitFeedback.mutate(
+      { sessionId: atual.sessionId, employeeId, nivelSatisfacao: nivel, comentarios },
+      {
+        onSuccess: () => {
+          toast.success("Avaliação enviada, obrigado!");
+          setNivel(5);
+          setComentarios("");
+        },
+        onError: (e) => toast.error("Erro ao enviar", { description: getErrorMessage(e) }),
+      },
+    );
+  };
+
+  return (
+    <Dialog open>
+      <DialogContent className="max-w-md rounded-2xl" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Star className="h-4 w-4 text-brand" /> Avalie o treinamento
+          </DialogTitle>
+          <DialogDescription>
+            {atual.trainingNome} — realizado em{" "}
+            {atual.dataRealizacao &&
+              new Date(atual.dataRealizacao + "T00:00:00").toLocaleDateString("pt-BR")}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div>
+            <label className="text-xs font-medium">Nível de satisfação</label>
+            <div className="mt-1 flex gap-1.5">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setNivel(n)}
+                  className={cn(
+                    "flex h-9 flex-1 items-center justify-center rounded-lg border text-sm font-medium transition",
+                    nivel === n
+                      ? "border-brand bg-brand-soft text-brand"
+                      : "border-border text-muted-foreground hover:border-brand/40",
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium">Comentários (opcional)</label>
+            <Textarea
+              value={comentarios}
+              onChange={(e) => setComentarios(e.target.value)}
+              className="mt-1 text-sm"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            onClick={enviar}
+            disabled={submitFeedback.isPending}
+            className="w-full bg-brand text-white hover:bg-brand/90"
+          >
+            Enviar avaliação
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -469,9 +576,26 @@ function ExecucaoTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
     employeeIds: [] as string[],
   });
   const [openSessionId, setOpenSessionId] = useState<string | null>(null);
+  const [marcarRealizadaId, setMarcarRealizadaId] = useState<string | null>(null);
+  const [dataRealizacao, setDataRealizacao] = useState(new Date().toISOString().slice(0, 10));
+  const markRealizada = useMarkTrainingSessionRealizada();
 
   const realizadas = sessions.filter((s) => s.status === "realizada").length;
   const taxaRealizacao = sessions.length > 0 ? Math.round((realizadas / sessions.length) * 100) : 0;
+
+  const confirmarRealizada = () => {
+    if (!marcarRealizadaId) return;
+    markRealizada.mutate(
+      { id: marcarRealizadaId, dataRealizacao },
+      {
+        onSuccess: () => {
+          toast.success("Turma marcada como realizada");
+          setMarcarRealizadaId(null);
+        },
+        onError: (e) => toast.error("Erro ao marcar", { description: getErrorMessage(e) }),
+      },
+    );
+  };
 
   const salvar = () => {
     if (!novo.trainingId || !novo.dataPlanejada) {
@@ -511,6 +635,7 @@ function ExecucaoTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
                 <TableHead>Data prevista</TableHead>
                 <TableHead>Participantes</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -530,11 +655,27 @@ function ExecucaoTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
                       {s.status}
                     </Badge>
                   </TableCell>
+                  <TableCell className="text-right">
+                    {isHrAuthorized && s.status === "planejada" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDataRealizacao(new Date().toISOString().slice(0, 10));
+                          setMarcarRealizadaId(s.id);
+                        }}
+                        className="h-7 rounded-md text-[10px] text-brand hover:bg-brand-soft"
+                      >
+                        <CalendarCheck className="mr-1 h-3 w-3" /> Marcar como realizada
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {sessions.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-xs text-muted-foreground">
+                  <TableCell colSpan={5} className="py-8 text-center text-xs text-muted-foreground">
                     Nenhuma turma programada.
                   </TableCell>
                 </TableRow>
@@ -645,6 +786,39 @@ function ExecucaoTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
           {openSessionId && <SessionParticipantsView sessionId={openSessionId} />}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!marcarRealizadaId} onOpenChange={(o) => !o && setMarcarRealizadaId(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Marcar turma como realizada</DialogTitle>
+            <DialogDescription>
+              A data de realização é o marco a partir do qual conta o prazo de avaliação de
+              eficácia.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <label className="text-xs font-medium">Data de realização</label>
+            <Input
+              type="date"
+              value={dataRealizacao}
+              onChange={(e) => setDataRealizacao(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMarcarRealizadaId(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarRealizada}
+              disabled={markRealizada.isPending}
+              className="bg-brand text-white hover:bg-brand/90"
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -665,45 +839,254 @@ function SessionParticipantsView({ sessionId }: { sessionId: string }) {
             className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2 text-xs"
           >
             <span className="font-medium text-foreground">{p.employeeNome}</span>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <Checkbox
-                  checked={p.presente}
-                  onCheckedChange={(c) =>
-                    updateParticipant.mutate({
-                      id: p.id,
-                      sessionId,
-                      patch: { presente: c === true },
-                    })
-                  }
-                />
-                Presente
-              </label>
-              <Select
-                value={p.eficacia ?? undefined}
-                onValueChange={(v) =>
+            <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Checkbox
+                checked={p.presente}
+                onCheckedChange={(c) =>
                   updateParticipant.mutate({
                     id: p.id,
                     sessionId,
-                    patch: { eficacia: v as "eficaz" | "nao_eficaz" },
+                    patch: { presente: c === true },
                   })
                 }
-              >
-                <SelectTrigger className="h-7 w-[110px] text-[10px]">
-                  <SelectValue placeholder="Eficácia" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="eficaz">Eficaz</SelectItem>
-                  <SelectItem value="nao_eficaz">Não eficaz</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              />
+              Presente
+            </label>
           </div>
         ))}
         {participants.length === 0 && (
           <p className="text-xs text-muted-foreground">Nenhum participante.</p>
         )}
       </div>
+      <p className="text-[11px] text-muted-foreground">
+        A avaliação de satisfação é feita pelo próprio participante, e a avaliação de eficácia pela
+        turma inteira na aba Eficácia — não mais aqui.
+      </p>
+    </>
+  );
+}
+
+/** Item 1b: avaliação de eficácia por turma, restrita a quem tem
+ * isHrAuthorized (Gestor da Qualidade/Administrador — mesma régua do resto
+ * do módulo). Elegibilidade (>4h + prazo vencido) é calculada em
+ * useEligibleEffectivenessSessions; aqui só se lista e se avalia. */
+function EficaciaTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
+  const { currentOrg } = useAuth();
+  const { data: settings } = useHrLearningSettings();
+  const updateSettings = useUpdateHrLearningSettings();
+  const { data: sessoes = [], isLoading } = useEligibleEffectivenessSessions();
+  const [avaliarSessionId, setAvaliarSessionId] = useState<string | null>(null);
+
+  if (!isHrAuthorized) {
+    return (
+      <Card className="rounded-2xl border-border/80 shadow-sm">
+        <CardContent className="p-8 text-center text-sm text-muted-foreground">
+          Avaliação de eficácia é restrita ao Gestor da Qualidade e ao Administrador.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="rounded-2xl border-border/80 shadow-sm">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <ClipboardCheck className="h-4 w-4 text-brand" />
+            Avaliar eficácia só é permitido{" "}
+            <span className="font-medium text-foreground">
+              {settings?.prazoAvaliacaoEficaciaDias ?? 30} dias
+            </span>{" "}
+            depois da realização, em turmas com carga horária acima de 4h.
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-muted-foreground">Prazo</label>
+            <Select
+              value={String(settings?.prazoAvaliacaoEficaciaDias ?? 30)}
+              onValueChange={(v) =>
+                currentOrg &&
+                updateSettings.mutate(
+                  { orgId: currentOrg.org_id, prazoDias: Number(v) },
+                  {
+                    onSuccess: () => toast.success("Prazo atualizado"),
+                    onError: (e) =>
+                      toast.error("Erro ao salvar", { description: getErrorMessage(e) }),
+                  },
+                )
+              }
+            >
+              <SelectTrigger className="h-8 w-24 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EFFECTIVENESS_PRAZO_OPTIONS.map((d) => (
+                  <SelectItem key={d} value={String(d)}>
+                    {d} dias
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl border-border/80 shadow-sm">
+        <CardContent className="p-0">
+          <div className="border-b border-border/70 px-4 py-3">
+            <h2 className="text-sm font-semibold text-foreground">
+              Turmas elegíveis ({sessoes.length})
+            </h2>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                <TableHead>Treinamento</TableHead>
+                <TableHead>Realizado em</TableHead>
+                <TableHead>Carga horária</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sessoes.map((s) => (
+                <TableRow key={s.sessionId} className="text-xs">
+                  <TableCell className="font-medium text-foreground">{s.trainingNome}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {new Date(s.dataRealizacao + "T00:00:00").toLocaleDateString("pt-BR")}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {s.cargaHorariaHoras.toFixed(1)}h
+                  </TableCell>
+                  <TableCell>
+                    {s.jaAvaliada ? (
+                      <Badge
+                        variant="outline"
+                        className="rounded-md border-[color:var(--success)]/30 bg-[color:var(--success)]/10 text-[10px] text-[color:var(--success)]"
+                      >
+                        <CheckCircle2 className="mr-1 h-3 w-3" /> Avaliada
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="rounded-md border-[color:var(--warning)]/40 bg-[color:var(--warning)]/10 text-[10px] text-[color:var(--severity-high)]"
+                      >
+                        Pendente
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setAvaliarSessionId(s.sessionId)}
+                      className="h-7 rounded-md text-[10px] text-brand hover:bg-brand-soft"
+                    >
+                      {s.jaAvaliada ? "Ver/editar" : "Avaliar"}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!isLoading && sessoes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-xs text-muted-foreground">
+                    Nenhuma turma elegível no momento.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!avaliarSessionId} onOpenChange={(o) => !o && setAvaliarSessionId(null)}>
+        <DialogContent className="max-w-lg rounded-2xl">
+          {avaliarSessionId && (
+            <EffectivenessEvaluationForm
+              sessionId={avaliarSessionId}
+              onDone={() => setAvaliarSessionId(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function EffectivenessEvaluationForm({
+  sessionId,
+  onDone,
+}: {
+  sessionId: string;
+  onDone: () => void;
+}) {
+  const { data: existing } = useEffectivenessEvaluation(sessionId);
+  const submit = useSubmitEffectivenessEvaluation();
+  const [metodo, setMetodo] = useState(existing?.metodo ?? "aplicacao_teste");
+  const [resultado, setResultado] = useState(existing?.resultado ?? "");
+
+  const salvar = () => {
+    if (!resultado.trim()) {
+      toast.error("Descreva o resultado da avaliação");
+      return;
+    }
+    submit.mutate(
+      { sessionId, metodo, resultado },
+      {
+        onSuccess: () => {
+          toast.success("Avaliação de eficácia registrada");
+          onDone();
+        },
+        onError: (e) => toast.error("Erro ao salvar", { description: getErrorMessage(e) }),
+      },
+    );
+  };
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Avaliação de eficácia</DialogTitle>
+        <DialogDescription>
+          O resultado fica registrado no dossiê de cada participante.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-3 text-sm">
+        <div>
+          <label className="text-xs font-medium">Método de avaliação</label>
+          <Select value={metodo} onValueChange={setMetodo}>
+            <SelectTrigger className="mt-1 h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {EFFECTIVENESS_METHOD_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-xs font-medium">Resultado</label>
+          <Textarea
+            value={resultado}
+            onChange={(e) => setResultado(e.target.value)}
+            className="mt-1 min-h-[100px] text-sm"
+            placeholder="Descreva o que foi observado/concluído…"
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onDone}>
+          Cancelar
+        </Button>
+        <Button
+          onClick={salvar}
+          disabled={submit.isPending}
+          className="bg-brand text-white hover:bg-brand/90"
+        >
+          Salvar
+        </Button>
+      </DialogFooter>
     </>
   );
 }

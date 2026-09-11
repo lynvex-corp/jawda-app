@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, Plus, ArrowLeft, Link2 } from "lucide-react";
+import { Calendar, Plus, ArrowLeft, Link2, Building2, MessageSquareHeart } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useOrgMembers } from "@/lib/queries/action-plans";
@@ -41,6 +42,12 @@ import {
   evaluationPendencies,
   CHA_QUESTIONS,
   PERIODICITY_OPTIONS,
+  useOrgClimateSurveys,
+  useCreateOrgClimateSurvey,
+  useMyOpenOrgClimateSurvey,
+  useSubmitOrgClimateSurveyResponse,
+  useOrgClimateSurveyResults,
+  ORG_CLIMATE_QUESTIONS,
   type PerformancePeriodicity,
 } from "@/lib/queries/pessoas";
 
@@ -70,6 +77,12 @@ function EvaluationListPage({ onOpen }: { onOpen: (id: string) => void }) {
   // de pessoas). A RLS de INSERT em performance_evaluations
   // (20260912090200) já reforça isso no banco — aqui é só a UI acompanhar.
   const canEvaluate = currentOrg?.role === "admin" || currentOrg?.role === "area_manager";
+  // Aditivo ao Bloco 4: Avaliação de Desempenho Organizacional (pesquisa de
+  // clima) tem governança PRÓPRIA, diferente da avaliação de pessoas acima
+  // — Administrador + Gestor da Qualidade, decisão confirmada com o
+  // Matheus (é o mesmo padrão de Cargos e Perfis/Gestão de Aprendizagem,
+  // não o de "liderança de pessoas" usado em canEvaluate).
+  const isHrAuthorized = currentOrg?.role === "admin" || currentOrg?.role === "quality_manager";
   const { data: cycles = [] } = usePerformanceCycles();
   const { data: evaluations = [], isLoading } = usePerformanceEvaluations();
   const { data: employees = [] } = useEmployees();
@@ -79,6 +92,29 @@ function EvaluationListPage({ onOpen }: { onOpen: (id: string) => void }) {
   const avaliadoresElegiveis = members.filter(
     (m) => m.role === "admin" || m.role === "area_manager",
   );
+
+  const { data: climateSurveys = [] } = useOrgClimateSurveys();
+  const createClimateSurvey = useCreateOrgClimateSurvey();
+  const [climateSurveyOpen, setClimateSurveyOpen] = useState(false);
+  const [novaPesquisa, setNovaPesquisa] = useState({ janelaInicio: "", janelaFim: "" });
+  const [resultadosSurveyId, setResultadosSurveyId] = useState<string | null>(null);
+
+  const salvarPesquisaOrganizacional = () => {
+    if (!novaPesquisa.janelaInicio || !novaPesquisa.janelaFim) {
+      toast.error("Preencha a janela de resposta");
+      return;
+    }
+    createClimateSurvey.mutate(novaPesquisa, {
+      onSuccess: () => {
+        toast.success("Pesquisa organizacional programada", {
+          description: "Todos os usuários da organização foram notificados.",
+        });
+        setClimateSurveyOpen(false);
+        setNovaPesquisa({ janelaInicio: "", janelaFim: "" });
+      },
+      onError: (e) => toast.error("Erro ao programar", { description: getErrorMessage(e) }),
+    });
+  };
 
   const [cicloOpen, setCicloOpen] = useState(false);
   const [novoCiclo, setNovoCiclo] = useState({
@@ -141,26 +177,64 @@ function EvaluationListPage({ onOpen }: { onOpen: (id: string) => void }) {
               para concluir sobre cada pessoa.
             </p>
           </div>
-          {canEvaluate && (
-            <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {canEvaluate && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCicloOpen(true)}
+                  className="rounded-lg"
+                >
+                  <Plus className="mr-1.5 h-4 w-4" /> Configurar ciclo
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setAvaliacaoOpen(true)}
+                  className="rounded-lg bg-brand text-white hover:bg-brand/90"
+                >
+                  <Plus className="mr-1.5 h-4 w-4" /> Programar avaliação de pessoas
+                </Button>
+              </>
+            )}
+            {isHrAuthorized && (
               <Button
                 size="sm"
-                variant="outline"
-                onClick={() => setCicloOpen(true)}
-                className="rounded-lg"
-              >
-                <Plus className="mr-1.5 h-4 w-4" /> Configurar ciclo
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setAvaliacaoOpen(true)}
+                onClick={() => setClimateSurveyOpen(true)}
                 className="rounded-lg bg-brand text-white hover:bg-brand/90"
               >
-                <Plus className="mr-1.5 h-4 w-4" /> Programar avaliação
+                <Building2 className="mr-1.5 h-4 w-4" /> Programar avaliação organizacional
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </header>
+
+        <MinhaPesquisaOrganizacionalPendente />
+
+        {isHrAuthorized && climateSurveys.length > 0 && (
+          <Card className="rounded-2xl border-border/80 shadow-sm">
+            <CardContent className="p-4">
+              <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                <Building2 className="h-4 w-4 text-brand" /> Pesquisas de clima organizacional
+              </div>
+              <div className="space-y-2">
+                {climateSurveys.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setResultadosSurveyId(s.id)}
+                    className="flex w-full items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-3 text-left text-xs hover:border-brand/40"
+                  >
+                    <span className="text-foreground/85">
+                      {new Date(s.janelaInicio + "T00:00:00").toLocaleDateString("pt-BR")} —{" "}
+                      {new Date(s.janelaFim + "T00:00:00").toLocaleDateString("pt-BR")}
+                    </span>
+                    <span className="text-brand">Ver resultados</span>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {cycles.length > 0 && (
           <div className="grid gap-3 md:grid-cols-3">
@@ -364,7 +438,189 @@ function EvaluationListPage({ onOpen }: { onOpen: (id: string) => void }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={climateSurveyOpen} onOpenChange={setClimateSurveyOpen}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Programar avaliação organizacional</DialogTitle>
+            <DialogDescription>
+              Pesquisa de clima — todo usuário da organização será notificado e poderá responder
+              dentro da janela.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <label className="text-xs font-medium">Início</label>
+              <Input
+                type="date"
+                value={novaPesquisa.janelaInicio}
+                onChange={(e) => setNovaPesquisa({ ...novaPesquisa, janelaInicio: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Fim</label>
+              <Input
+                type="date"
+                value={novaPesquisa.janelaFim}
+                onChange={(e) => setNovaPesquisa({ ...novaPesquisa, janelaFim: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClimateSurveyOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={salvarPesquisaOrganizacional}
+              disabled={createClimateSurvey.isPending}
+              className="bg-brand text-white hover:bg-brand/90"
+            >
+              Programar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!resultadosSurveyId} onOpenChange={(o) => !o && setResultadosSurveyId(null)}>
+        <DialogContent className="max-w-lg rounded-2xl">
+          {resultadosSurveyId && <ClimateSurveyResults surveyId={resultadosSurveyId} />}
+        </DialogContent>
+      </Dialog>
     </AppShell>
+  );
+}
+
+function ClimateSurveyResults({ surveyId }: { surveyId: string }) {
+  const { data: results, isLoading } = useOrgClimateSurveyResults(surveyId);
+
+  if (isLoading || !results) {
+    return <div className="py-8 text-center text-sm text-muted-foreground">Carregando…</div>;
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Resultado da pesquisa</DialogTitle>
+        <DialogDescription>{results.totalRespostas} resposta(s).</DialogDescription>
+      </DialogHeader>
+      <div className="space-y-2">
+        {ORG_CLIMATE_QUESTIONS.map((q) => {
+          const media = results.mediaPorPergunta[q.key];
+          return (
+            <div key={q.key} className="rounded-lg border border-border/60 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-foreground/85">{q.label}</span>
+                <span className="text-sm font-bold text-brand">
+                  {media !== null ? media.toFixed(1) : "—"}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {results.comentarios.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Comentários
+          </div>
+          {results.comentarios.map((c, i) => (
+            <div key={i} className="rounded-lg border border-border/60 bg-muted/20 p-2.5 text-xs">
+              <span className="font-medium text-foreground/85">{c.autor}:</span> {c.texto}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Pop-up de resposta (item 2) — qualquer usuário, independente de papel;
+ * "avaliado" é a organização, todo mundo responde sobre si mesmo. */
+function MinhaPesquisaOrganizacionalPendente() {
+  const { data: pendente } = useMyOpenOrgClimateSurvey();
+  const submitResponse = useSubmitOrgClimateSurveyResponse();
+  const [notas, setNotas] = useState<Record<string, number>>({});
+  const [comentarios, setComentarios] = useState("");
+
+  if (!pendente) return null;
+
+  const enviar = () => {
+    const faltando = ORG_CLIMATE_QUESTIONS.filter((q) => !notas[q.key]);
+    if (faltando.length > 0) {
+      toast.error("Responda todas as perguntas");
+      return;
+    }
+    submitResponse.mutate(
+      {
+        surveyId: pendente.id,
+        notaInfraestrutura: notas.notaInfraestrutura,
+        notaAmbiente: notas.notaAmbiente,
+        notaPsicologico: notas.notaPsicologico,
+        notaCarreira: notas.notaCarreira,
+        notaLideranca: notas.notaLideranca,
+        comentarios,
+      },
+      {
+        onSuccess: () => toast.success("Resposta enviada, obrigado!"),
+        onError: (e) => toast.error("Erro ao enviar", { description: getErrorMessage(e) }),
+      },
+    );
+  };
+
+  return (
+    <Card className="rounded-2xl border-brand/30 bg-brand-soft/40 shadow-sm">
+      <CardContent className="space-y-3 p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <MessageSquareHeart className="h-4 w-4 text-brand" /> Pesquisa de clima organizacional
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Responda até {new Date(pendente.janelaFim + "T00:00:00").toLocaleDateString("pt-BR")}.
+          Suas respostas são identificadas e vistas apenas pelo Gestor da Qualidade e pela
+          Administração.
+        </p>
+        {ORG_CLIMATE_QUESTIONS.map((q) => (
+          <div key={q.key} className="space-y-1.5">
+            <label className="text-xs text-foreground/85">{q.label}</label>
+            <div className="flex gap-1.5">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setNotas({ ...notas, [q.key]: n })}
+                  className={cn(
+                    "flex h-8 flex-1 items-center justify-center rounded-lg border text-xs font-medium transition",
+                    notas[q.key] === n
+                      ? "border-brand bg-white text-brand"
+                      : "border-border/60 bg-white/50 text-muted-foreground hover:border-brand/40",
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div>
+          <label className="text-xs font-medium text-foreground/85">
+            Comentários/sugestões (opcional)
+          </label>
+          <Textarea
+            value={comentarios}
+            onChange={(e) => setComentarios(e.target.value)}
+            className="mt-1 bg-white text-sm"
+          />
+        </div>
+        <Button
+          onClick={enviar}
+          disabled={submitResponse.isPending}
+          className="bg-brand text-white hover:bg-brand/90"
+        >
+          Enviar resposta
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
