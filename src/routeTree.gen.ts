@@ -35,14 +35,13 @@ import { Route as AvaliacaoPerformanceRouteImport } from './routes/avaliacao-per
 import { Route as AuditoriasRouteImport } from './routes/auditorias'
 import { Route as AquisicaoRouteImport } from './routes/aquisicao'
 import { Route as AprendizagemRouteImport } from './routes/aprendizagem'
-import { Route as AnaliseCriticaRouteImport } from './routes/analise-critica'
 import { Route as AnaliseCenarioRouteImport } from './routes/analise-cenario'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlanosDeAcaoIndexRouteImport } from './routes/planos-de-acao.index'
 import { Route as NaoConformidadesIndexRouteImport } from './routes/nao-conformidades.index'
 import { Route as IndicadoresIndexRouteImport } from './routes/indicadores.index'
+import { Route as DocumentosIndexRouteImport } from './routes/documentos.index'
 import { Route as AuditoriasIndexRouteImport } from './routes/auditorias.index'
-import { Route as AnaliseCriticaIndexRouteImport } from './routes/analise-critica.index'
 import { Route as SuporteIdRouteImport } from './routes/suporte.$id'
 import { Route as PlanosDeAcaoNovoRouteImport } from './routes/planos-de-acao.novo'
 import { Route as PlanosDeAcaoIdRouteImport } from './routes/planos-de-acao.$id'
@@ -51,7 +50,7 @@ import { Route as NaoConformidadesIdRouteImport } from './routes/nao-conformidad
 import { Route as IndicadoresIdRouteImport } from './routes/indicadores.$id'
 import { Route as AuditoriasNovaRouteImport } from './routes/auditorias.nova'
 import { Route as AuditoriasIdRouteImport } from './routes/auditorias.$id'
-import { Route as AnaliseCriticaIdRouteImport } from './routes/analise-critica.$id'
+import { Route as DocumentosAnaliseCriticaIdRouteImport } from './routes/documentos.analise-critica.$id'
 
 const UsuariosRoute = UsuariosRouteImport.update({
   id: '/usuarios',
@@ -184,11 +183,6 @@ const AprendizagemRoute = AprendizagemRouteImport.update({
   path: '/aprendizagem',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AnaliseCriticaRoute = AnaliseCriticaRouteImport.update({
-  id: '/analise-critica',
-  path: '/analise-critica',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AnaliseCenarioRoute = AnaliseCenarioRouteImport.update({
   id: '/analise-cenario',
   path: '/analise-cenario',
@@ -214,15 +208,15 @@ const IndicadoresIndexRoute = IndicadoresIndexRouteImport.update({
   path: '/',
   getParentRoute: () => IndicadoresRoute,
 } as any)
+const DocumentosIndexRoute = DocumentosIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DocumentosRoute,
+} as any)
 const AuditoriasIndexRoute = AuditoriasIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuditoriasRoute,
-} as any)
-const AnaliseCriticaIndexRoute = AnaliseCriticaIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AnaliseCriticaRoute,
 } as any)
 const SuporteIdRoute = SuporteIdRouteImport.update({
   id: '/$id',
@@ -264,16 +258,16 @@ const AuditoriasIdRoute = AuditoriasIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AuditoriasRoute,
 } as any)
-const AnaliseCriticaIdRoute = AnaliseCriticaIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AnaliseCriticaRoute,
-} as any)
+const DocumentosAnaliseCriticaIdRoute =
+  DocumentosAnaliseCriticaIdRouteImport.update({
+    id: '/analise-critica/$id',
+    path: '/analise-critica/$id',
+    getParentRoute: () => DocumentosRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analise-cenario': typeof AnaliseCenarioRoute
-  '/analise-critica': typeof AnaliseCriticaRouteWithChildren
   '/aprendizagem': typeof AprendizagemRoute
   '/aquisicao': typeof AquisicaoRoute
   '/auditorias': typeof AuditoriasRouteWithChildren
@@ -282,7 +276,7 @@ export interface FileRoutesByFullPath {
   '/comunicacoes': typeof ComunicacoesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/diretrizes-estrategicas': typeof DiretrizesEstrategicasRoute
-  '/documentos': typeof DocumentosRoute
+  '/documentos': typeof DocumentosRouteWithChildren
   '/escopo-sistema': typeof EscopoSistemaRoute
   '/identidade-organizacional': typeof IdentidadeOrganizacionalRoute
   '/impersonar': typeof ImpersonarRoute
@@ -300,7 +294,6 @@ export interface FileRoutesByFullPath {
   '/suporte': typeof SuporteRouteWithChildren
   '/treinamentos': typeof TreinamentosRoute
   '/usuarios': typeof UsuariosRoute
-  '/analise-critica/$id': typeof AnaliseCriticaIdRoute
   '/auditorias/$id': typeof AuditoriasIdRoute
   '/auditorias/nova': typeof AuditoriasNovaRoute
   '/indicadores/$id': typeof IndicadoresIdRoute
@@ -309,11 +302,12 @@ export interface FileRoutesByFullPath {
   '/planos-de-acao/$id': typeof PlanosDeAcaoIdRoute
   '/planos-de-acao/novo': typeof PlanosDeAcaoNovoRoute
   '/suporte/$id': typeof SuporteIdRoute
-  '/analise-critica/': typeof AnaliseCriticaIndexRoute
   '/auditorias/': typeof AuditoriasIndexRoute
+  '/documentos/': typeof DocumentosIndexRoute
   '/indicadores/': typeof IndicadoresIndexRoute
   '/nao-conformidades/': typeof NaoConformidadesIndexRoute
   '/planos-de-acao/': typeof PlanosDeAcaoIndexRoute
+  '/documentos/analise-critica/$id': typeof DocumentosAnaliseCriticaIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -325,7 +319,6 @@ export interface FileRoutesByTo {
   '/comunicacoes': typeof ComunicacoesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/diretrizes-estrategicas': typeof DiretrizesEstrategicasRoute
-  '/documentos': typeof DocumentosRoute
   '/escopo-sistema': typeof EscopoSistemaRoute
   '/identidade-organizacional': typeof IdentidadeOrganizacionalRoute
   '/impersonar': typeof ImpersonarRoute
@@ -340,7 +333,6 @@ export interface FileRoutesByTo {
   '/suporte': typeof SuporteRouteWithChildren
   '/treinamentos': typeof TreinamentosRoute
   '/usuarios': typeof UsuariosRoute
-  '/analise-critica/$id': typeof AnaliseCriticaIdRoute
   '/auditorias/$id': typeof AuditoriasIdRoute
   '/auditorias/nova': typeof AuditoriasNovaRoute
   '/indicadores/$id': typeof IndicadoresIdRoute
@@ -349,17 +341,17 @@ export interface FileRoutesByTo {
   '/planos-de-acao/$id': typeof PlanosDeAcaoIdRoute
   '/planos-de-acao/novo': typeof PlanosDeAcaoNovoRoute
   '/suporte/$id': typeof SuporteIdRoute
-  '/analise-critica': typeof AnaliseCriticaIndexRoute
   '/auditorias': typeof AuditoriasIndexRoute
+  '/documentos': typeof DocumentosIndexRoute
   '/indicadores': typeof IndicadoresIndexRoute
   '/nao-conformidades': typeof NaoConformidadesIndexRoute
   '/planos-de-acao': typeof PlanosDeAcaoIndexRoute
+  '/documentos/analise-critica/$id': typeof DocumentosAnaliseCriticaIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analise-cenario': typeof AnaliseCenarioRoute
-  '/analise-critica': typeof AnaliseCriticaRouteWithChildren
   '/aprendizagem': typeof AprendizagemRoute
   '/aquisicao': typeof AquisicaoRoute
   '/auditorias': typeof AuditoriasRouteWithChildren
@@ -368,7 +360,7 @@ export interface FileRoutesById {
   '/comunicacoes': typeof ComunicacoesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/diretrizes-estrategicas': typeof DiretrizesEstrategicasRoute
-  '/documentos': typeof DocumentosRoute
+  '/documentos': typeof DocumentosRouteWithChildren
   '/escopo-sistema': typeof EscopoSistemaRoute
   '/identidade-organizacional': typeof IdentidadeOrganizacionalRoute
   '/impersonar': typeof ImpersonarRoute
@@ -386,7 +378,6 @@ export interface FileRoutesById {
   '/suporte': typeof SuporteRouteWithChildren
   '/treinamentos': typeof TreinamentosRoute
   '/usuarios': typeof UsuariosRoute
-  '/analise-critica/$id': typeof AnaliseCriticaIdRoute
   '/auditorias/$id': typeof AuditoriasIdRoute
   '/auditorias/nova': typeof AuditoriasNovaRoute
   '/indicadores/$id': typeof IndicadoresIdRoute
@@ -395,18 +386,18 @@ export interface FileRoutesById {
   '/planos-de-acao/$id': typeof PlanosDeAcaoIdRoute
   '/planos-de-acao/novo': typeof PlanosDeAcaoNovoRoute
   '/suporte/$id': typeof SuporteIdRoute
-  '/analise-critica/': typeof AnaliseCriticaIndexRoute
   '/auditorias/': typeof AuditoriasIndexRoute
+  '/documentos/': typeof DocumentosIndexRoute
   '/indicadores/': typeof IndicadoresIndexRoute
   '/nao-conformidades/': typeof NaoConformidadesIndexRoute
   '/planos-de-acao/': typeof PlanosDeAcaoIndexRoute
+  '/documentos/analise-critica/$id': typeof DocumentosAnaliseCriticaIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/analise-cenario'
-    | '/analise-critica'
     | '/aprendizagem'
     | '/aquisicao'
     | '/auditorias'
@@ -433,7 +424,6 @@ export interface FileRouteTypes {
     | '/suporte'
     | '/treinamentos'
     | '/usuarios'
-    | '/analise-critica/$id'
     | '/auditorias/$id'
     | '/auditorias/nova'
     | '/indicadores/$id'
@@ -442,11 +432,12 @@ export interface FileRouteTypes {
     | '/planos-de-acao/$id'
     | '/planos-de-acao/novo'
     | '/suporte/$id'
-    | '/analise-critica/'
     | '/auditorias/'
+    | '/documentos/'
     | '/indicadores/'
     | '/nao-conformidades/'
     | '/planos-de-acao/'
+    | '/documentos/analise-critica/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -458,7 +449,6 @@ export interface FileRouteTypes {
     | '/comunicacoes'
     | '/configuracoes'
     | '/diretrizes-estrategicas'
-    | '/documentos'
     | '/escopo-sistema'
     | '/identidade-organizacional'
     | '/impersonar'
@@ -473,7 +463,6 @@ export interface FileRouteTypes {
     | '/suporte'
     | '/treinamentos'
     | '/usuarios'
-    | '/analise-critica/$id'
     | '/auditorias/$id'
     | '/auditorias/nova'
     | '/indicadores/$id'
@@ -482,16 +471,16 @@ export interface FileRouteTypes {
     | '/planos-de-acao/$id'
     | '/planos-de-acao/novo'
     | '/suporte/$id'
-    | '/analise-critica'
     | '/auditorias'
+    | '/documentos'
     | '/indicadores'
     | '/nao-conformidades'
     | '/planos-de-acao'
+    | '/documentos/analise-critica/$id'
   id:
     | '__root__'
     | '/'
     | '/analise-cenario'
-    | '/analise-critica'
     | '/aprendizagem'
     | '/aquisicao'
     | '/auditorias'
@@ -518,7 +507,6 @@ export interface FileRouteTypes {
     | '/suporte'
     | '/treinamentos'
     | '/usuarios'
-    | '/analise-critica/$id'
     | '/auditorias/$id'
     | '/auditorias/nova'
     | '/indicadores/$id'
@@ -527,17 +515,17 @@ export interface FileRouteTypes {
     | '/planos-de-acao/$id'
     | '/planos-de-acao/novo'
     | '/suporte/$id'
-    | '/analise-critica/'
     | '/auditorias/'
+    | '/documentos/'
     | '/indicadores/'
     | '/nao-conformidades/'
     | '/planos-de-acao/'
+    | '/documentos/analise-critica/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnaliseCenarioRoute: typeof AnaliseCenarioRoute
-  AnaliseCriticaRoute: typeof AnaliseCriticaRouteWithChildren
   AprendizagemRoute: typeof AprendizagemRoute
   AquisicaoRoute: typeof AquisicaoRoute
   AuditoriasRoute: typeof AuditoriasRouteWithChildren
@@ -546,7 +534,7 @@ export interface RootRouteChildren {
   ComunicacoesRoute: typeof ComunicacoesRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   DiretrizesEstrategicasRoute: typeof DiretrizesEstrategicasRoute
-  DocumentosRoute: typeof DocumentosRoute
+  DocumentosRoute: typeof DocumentosRouteWithChildren
   EscopoSistemaRoute: typeof EscopoSistemaRoute
   IdentidadeOrganizacionalRoute: typeof IdentidadeOrganizacionalRoute
   ImpersonarRoute: typeof ImpersonarRoute
@@ -750,13 +738,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AprendizagemRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/analise-critica': {
-      id: '/analise-critica'
-      path: '/analise-critica'
-      fullPath: '/analise-critica'
-      preLoaderRoute: typeof AnaliseCriticaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/analise-cenario': {
       id: '/analise-cenario'
       path: '/analise-cenario'
@@ -792,19 +773,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndicadoresIndexRouteImport
       parentRoute: typeof IndicadoresRoute
     }
+    '/documentos/': {
+      id: '/documentos/'
+      path: '/'
+      fullPath: '/documentos/'
+      preLoaderRoute: typeof DocumentosIndexRouteImport
+      parentRoute: typeof DocumentosRoute
+    }
     '/auditorias/': {
       id: '/auditorias/'
       path: '/'
       fullPath: '/auditorias/'
       preLoaderRoute: typeof AuditoriasIndexRouteImport
       parentRoute: typeof AuditoriasRoute
-    }
-    '/analise-critica/': {
-      id: '/analise-critica/'
-      path: '/'
-      fullPath: '/analise-critica/'
-      preLoaderRoute: typeof AnaliseCriticaIndexRouteImport
-      parentRoute: typeof AnaliseCriticaRoute
     }
     '/suporte/$id': {
       id: '/suporte/$id'
@@ -862,29 +843,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuditoriasIdRouteImport
       parentRoute: typeof AuditoriasRoute
     }
-    '/analise-critica/$id': {
-      id: '/analise-critica/$id'
-      path: '/$id'
-      fullPath: '/analise-critica/$id'
-      preLoaderRoute: typeof AnaliseCriticaIdRouteImport
-      parentRoute: typeof AnaliseCriticaRoute
+    '/documentos/analise-critica/$id': {
+      id: '/documentos/analise-critica/$id'
+      path: '/analise-critica/$id'
+      fullPath: '/documentos/analise-critica/$id'
+      preLoaderRoute: typeof DocumentosAnaliseCriticaIdRouteImport
+      parentRoute: typeof DocumentosRoute
     }
   }
 }
-
-interface AnaliseCriticaRouteChildren {
-  AnaliseCriticaIdRoute: typeof AnaliseCriticaIdRoute
-  AnaliseCriticaIndexRoute: typeof AnaliseCriticaIndexRoute
-}
-
-const AnaliseCriticaRouteChildren: AnaliseCriticaRouteChildren = {
-  AnaliseCriticaIdRoute: AnaliseCriticaIdRoute,
-  AnaliseCriticaIndexRoute: AnaliseCriticaIndexRoute,
-}
-
-const AnaliseCriticaRouteWithChildren = AnaliseCriticaRoute._addFileChildren(
-  AnaliseCriticaRouteChildren,
-)
 
 interface AuditoriasRouteChildren {
   AuditoriasIdRoute: typeof AuditoriasIdRoute
@@ -900,6 +867,20 @@ const AuditoriasRouteChildren: AuditoriasRouteChildren = {
 
 const AuditoriasRouteWithChildren = AuditoriasRoute._addFileChildren(
   AuditoriasRouteChildren,
+)
+
+interface DocumentosRouteChildren {
+  DocumentosIndexRoute: typeof DocumentosIndexRoute
+  DocumentosAnaliseCriticaIdRoute: typeof DocumentosAnaliseCriticaIdRoute
+}
+
+const DocumentosRouteChildren: DocumentosRouteChildren = {
+  DocumentosIndexRoute: DocumentosIndexRoute,
+  DocumentosAnaliseCriticaIdRoute: DocumentosAnaliseCriticaIdRoute,
+}
+
+const DocumentosRouteWithChildren = DocumentosRoute._addFileChildren(
+  DocumentosRouteChildren,
 )
 
 interface IndicadoresRouteChildren {
@@ -961,7 +942,6 @@ const SuporteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnaliseCenarioRoute: AnaliseCenarioRoute,
-  AnaliseCriticaRoute: AnaliseCriticaRouteWithChildren,
   AprendizagemRoute: AprendizagemRoute,
   AquisicaoRoute: AquisicaoRoute,
   AuditoriasRoute: AuditoriasRouteWithChildren,
@@ -970,7 +950,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComunicacoesRoute: ComunicacoesRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   DiretrizesEstrategicasRoute: DiretrizesEstrategicasRoute,
-  DocumentosRoute: DocumentosRoute,
+  DocumentosRoute: DocumentosRouteWithChildren,
   EscopoSistemaRoute: EscopoSistemaRoute,
   IdentidadeOrganizacionalRoute: IdentidadeOrganizacionalRoute,
   ImpersonarRoute: ImpersonarRoute,

@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useJawda, formatRelative } from "@/lib/jawda-store";
+import { useNotifications, useMarkNotificationsRead } from "@/lib/queries/notifications";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -24,7 +25,15 @@ const toneClasses = {
 };
 
 export function NotificationsDrawer() {
-  const { notificacoes, logAtividades, unreadCount, markNotificationsRead } = useJawda();
+  // Notificações vêm do banco (Bloco 3, item 4) — antes eram mock semeado
+  // em memória pelo jawda-store, iguais para todo usuário e perdidas no
+  // refresh.
+  const { data: notificacoes = [] } = useNotifications();
+  const markRead = useMarkNotificationsRead();
+  const unreadCount = notificacoes.filter((n) => !n.readAt).length;
+  // A aba "Trilha" ainda lê do store mock — migrá-la para activity_log é
+  // trabalho de outro item, não do item 4.
+  const { logAtividades } = useJawda();
   const [open, setOpen] = useState(false);
 
   return (
@@ -32,7 +41,9 @@ export function NotificationsDrawer() {
       open={open}
       onOpenChange={(v) => {
         setOpen(v);
-        if (v) setTimeout(() => markNotificationsRead(), 600);
+        // Só dispara o update se houver o que marcar — evita escrita à toa
+        // a cada abertura do painel.
+        if (v && unreadCount > 0) setTimeout(() => markRead.mutate(), 600);
       }}
     >
       <SheetTrigger asChild>
@@ -81,7 +92,7 @@ export function NotificationsDrawer() {
                       <div
                         className={cn(
                           "flex gap-3 rounded-lg border border-border p-3 transition-colors hover:border-brand/40",
-                          !n.read && "bg-brand-soft/30",
+                          !n.readAt && "bg-brand-soft/30",
                         )}
                       >
                         <div
@@ -95,13 +106,15 @@ export function NotificationsDrawer() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <div className="text-sm font-medium text-foreground">{n.title}</div>
-                            {!n.read && <Circle className="h-2 w-2 fill-brand text-brand mt-1.5" />}
+                            {!n.readAt && (
+                              <Circle className="mt-1.5 h-2 w-2 fill-brand text-brand" />
+                            )}
                           </div>
                           <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
                             {n.description}
                           </p>
                           <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                            {formatRelative(n.at)}
+                            {formatRelative(n.createdAt)}
                           </div>
                         </div>
                       </div>

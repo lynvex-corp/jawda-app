@@ -33,12 +33,16 @@ import {
   Link2,
   AlertTriangle,
   Lock,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useCriticalAnalysisMeetingDetail,
   useStartCriticalAnalysisExecution,
   useUpdateCriticalAnalysisAgendaItem,
+  useReorderCriticalAnalysisAgenda,
+  rotuloDaPauta,
   useUpdateCriticalAnalysisMeetingFields,
   useUpdateCriticalAnalysisAttendance,
   useSubmitCriticalAnalysisForApproval,
@@ -54,11 +58,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { getErrorMessage } from "@/lib/utils";
 
 export function AnaliseCriticaDetailPage() {
-  const { id } = useParams({ from: "/analise-critica/$id" });
+  const { id } = useParams({ from: "/documentos/analise-critica/$id" });
   const navigate = useNavigate();
   const { data: meeting, isLoading } = useCriticalAnalysisMeetingDetail(id);
   const startExecution = useStartCriticalAnalysisExecution();
   const updateAgendaItem = useUpdateCriticalAnalysisAgendaItem();
+  const reorder = useReorderCriticalAnalysisAgenda();
   const updateFields = useUpdateCriticalAnalysisMeetingFields();
   const updateAttendance = useUpdateCriticalAnalysisAttendance();
   const submitForApproval = useSubmitCriticalAnalysisForApproval();
@@ -198,7 +203,7 @@ export function AnaliseCriticaDetailPage() {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => navigate({ to: "/analise-critica" })}
+              onClick={() => navigate({ to: "/documentos", search: { aba: "analise-critica" } })}
               className="h-8 w-8 rounded-lg p-0"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -313,60 +318,122 @@ export function AnaliseCriticaDetailPage() {
 
         <Card className="rounded-2xl border-border/80 shadow-sm">
           <CardContent className="space-y-3 p-6">
-            <h2 className="text-sm font-semibold text-foreground">Pautas</h2>
-            {meeting.agendaItems.map((item) => (
-              <div key={item.id} className="rounded-lg border border-border/60 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">{item.topic}</span>
-                  {!item.analyzedContent.trim() && isExecuting && (
-                    <Badge
-                      variant="outline"
-                      className="rounded-md border-[color:var(--warning)]/40 text-[10px] text-[color:var(--severity-high)]"
-                    >
-                      Pendente
-                    </Badge>
-                  )}
-                </div>
-                <div className="grid gap-2 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                      Conteúdo analisado
-                    </label>
-                    <Textarea
-                      defaultValue={item.analyzedContent}
-                      disabled={!isExecuting}
-                      onBlur={(e) =>
-                        updateAgendaItem.mutate({
-                          id: item.id,
-                          meetingId: meeting.id,
-                          analyzedContent: e.target.value,
-                          comments: item.comments,
-                        })
-                      }
-                      className="min-h-[70px] rounded-md text-xs"
-                    />
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground">Pautas</h2>
+              {isExecuting && meeting.agendaItems.length > 1 && (
+                <span className="text-[10px] text-muted-foreground">
+                  Use as setas para acompanhar a ordem da reunião
+                </span>
+              )}
+            </div>
+            {meeting.agendaItems.map((item, idx) => {
+              // A alínea vem do texto da pauta, não da posição — por isso
+              // continua correta depois de reordenar. Pauta personalizada
+              // (ou de reunião anterior à padronização) não tem alínea.
+              const rotulo = rotuloDaPauta(item.topic);
+              const anterior = meeting.agendaItems[idx - 1];
+              const proximo = meeting.agendaItems[idx + 1];
+              return (
+                <div key={item.id} className="rounded-lg border border-border/60 p-3">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {rotulo && (
+                        <span className="mr-1.5 font-mono text-[11px] text-muted-foreground">
+                          {rotulo})
+                        </span>
+                      )}
+                      {item.topic}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {!item.analyzedContent.trim() && isExecuting && (
+                        <Badge
+                          variant="outline"
+                          className="rounded-md border-[color:var(--warning)]/40 text-[10px] text-[color:var(--severity-high)]"
+                        >
+                          Pendente
+                        </Badge>
+                      )}
+                      {isExecuting && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={!anterior || reorder.isPending}
+                            aria-label="Mover pauta para cima"
+                            onClick={() =>
+                              anterior &&
+                              reorder.mutate({
+                                meetingId: meeting.id,
+                                a: { id: item.id, order: item.itemOrder },
+                                b: { id: anterior.id, order: anterior.itemOrder },
+                              })
+                            }
+                            className="h-6 w-6 rounded p-0"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={!proximo || reorder.isPending}
+                            aria-label="Mover pauta para baixo"
+                            onClick={() =>
+                              proximo &&
+                              reorder.mutate({
+                                meetingId: meeting.id,
+                                a: { id: item.id, order: item.itemOrder },
+                                b: { id: proximo.id, order: proximo.itemOrder },
+                              })
+                            }
+                            className="h-6 w-6 rounded p-0"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                      Comentários
-                    </label>
-                    <Textarea
-                      defaultValue={item.comments}
-                      disabled={!isExecuting}
-                      onBlur={(e) =>
-                        updateAgendaItem.mutate({
-                          id: item.id,
-                          meetingId: meeting.id,
-                          analyzedContent: item.analyzedContent,
-                          comments: e.target.value,
-                        })
-                      }
-                      className="min-h-[70px] rounded-md text-xs"
-                    />
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Conteúdo analisado
+                      </label>
+                      <Textarea
+                        defaultValue={item.analyzedContent}
+                        disabled={!isExecuting}
+                        onBlur={(e) =>
+                          updateAgendaItem.mutate({
+                            id: item.id,
+                            meetingId: meeting.id,
+                            analyzedContent: e.target.value,
+                            comments: item.comments,
+                          })
+                        }
+                        className="min-h-[70px] rounded-md text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Comentários
+                      </label>
+                      <Textarea
+                        defaultValue={item.comments}
+                        disabled={!isExecuting}
+                        onBlur={(e) =>
+                          updateAgendaItem.mutate({
+                            id: item.id,
+                            meetingId: meeting.id,
+                            analyzedContent: item.analyzedContent,
+                            comments: e.target.value,
+                          })
+                        }
+                        className="min-h-[70px] rounded-md text-xs"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
 

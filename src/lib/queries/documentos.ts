@@ -261,13 +261,44 @@ export function useCreateDocument() {
       responsibleId: string | null;
       elaboradorId: string | null;
     }) => {
-      const { error } = await supabase.from("documents").insert({
-        code: input.code,
-        title: input.title,
-        type: input.type,
-        responsible_id: input.responsibleId,
-        elaborador_id: input.elaboradorId,
-      });
+      const { data, error } = await supabase
+        .from("documents")
+        .insert({
+          code: input.code,
+          title: input.title,
+          type: input.type,
+          responsible_id: input.responsibleId,
+          elaborador_id: input.elaboradorId,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return (data as { id: string }).id;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: documentKeys.list() }),
+  });
+}
+
+/** Grava no documento a referência do arquivo da revisão 01 (Bloco 3, item
+ * 2). Fica separado do insert porque o path do Storage precisa do id, que
+ * só existe depois que a linha nasce. Se o upload falhar, o documento
+ * continua válido e o arquivo pode entrar depois, por uma revisão. */
+export function useSetDocumentFile() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      documentId,
+      storedValue,
+    }: {
+      documentId: string;
+      storedValue: string;
+    }) => {
+      assertNotReadOnly();
+      const { error } = await supabase
+        .from("documents")
+        .update({ file_url: storedValue })
+        .eq("id", documentId);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: documentKeys.list() }),
@@ -355,11 +386,32 @@ export interface MeetingParticipant {
   nome: string;
 }
 
+/** Participante vindo de Cargos e Perfis (Bloco 3, item 1). Substitui o
+ * jsonb de texto livre, que não tinha como identificar a pessoa nem
+ * receber confirmação individual. */
+export interface EventParticipant {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  jobPositionName: string | null;
+  /** null = colaborador sem conta no sistema; não recebe notificação e não
+   * tem como confirmar pela plataforma. */
+  linkedUserId: string | null;
+  confirmed: boolean;
+  confirmedAt: string | null;
+}
+
 export interface MeetingMinute {
   id: string;
   title: string;
   meetingDate: string;
+  meetingTime: string | null;
+  speakerName: string | null;
+  folder: string | null;
+  /** Registros anteriores ao Bloco 3, em texto livre. Mantido só para
+   * histórico — o que nasce agora usa `participantRows`. */
   participants: MeetingParticipant[];
+  participantRows: EventParticipant[];
   agenda: string;
   deliberations: string;
   attachmentUrl: string | null;
@@ -371,11 +423,47 @@ const meetingMinutesKeys = {
   list: () => [...meetingMinutesKeys.all, "list"] as const,
 };
 
+/** Embed dos participantes normalizados, igual nos dois módulos. */
+const PARTICIPANT_EMBED =
+  "id, confirmed, confirmed_at, employee:employees!employee_id(id, nome, linked_user_id, job_position:job_positions!job_position_id(nome))";
+
+interface ParticipantRow {
+  id: string;
+  confirmed: boolean;
+  confirmed_at: string | null;
+  employee: {
+    id: string;
+    nome: string;
+    linked_user_id: string | null;
+    job_position: { nome: string } | null;
+  } | null;
+}
+
+function mapParticipant(r: ParticipantRow): EventParticipant {
+  return {
+    id: r.id,
+    employeeId: r.employee?.id ?? "",
+    employeeName: r.employee?.nome ?? "Colaborador",
+    jobPositionName: r.employee?.job_position?.nome ?? null,
+    linkedUserId: r.employee?.linked_user_id ?? null,
+    confirmed: r.confirmed,
+    confirmedAt: r.confirmed_at,
+  };
+}
+
+const MEETING_MINUTE_SELECT =
+  "id, title, meeting_date, meeting_time, speaker_name, folder, participants, agenda, deliberations, attachment_url, created_at, " +
+  `participant_rows:meeting_minute_participants(${PARTICIPANT_EMBED})`;
+
 interface MeetingMinuteRow {
   id: string;
   title: string;
   meeting_date: string;
+  meeting_time: string | null;
+  speaker_name: string | null;
+  folder: string | null;
   participants: MeetingParticipant[];
+  participant_rows: ParticipantRow[] | null;
   agenda: string | null;
   deliberations: string | null;
   attachment_url: string | null;
@@ -387,7 +475,11 @@ function mapMeetingMinute(row: MeetingMinuteRow): MeetingMinute {
     id: row.id,
     title: row.title,
     meetingDate: row.meeting_date,
+    meetingTime: row.meeting_time,
+    speakerName: row.speaker_name,
+    folder: row.folder,
     participants: row.participants ?? [],
+    participantRows: (row.participant_rows ?? []).map(mapParticipant),
     agenda: row.agenda ?? "",
     deliberations: row.deliberations ?? "",
     attachmentUrl: row.attachment_url,
@@ -402,9 +494,7 @@ export function useMeetingMinutes() {
     queryFn: async (): Promise<MeetingMinute[]> => {
       const { data, error } = await supabase
         .from("meeting_minutes")
-        .select(
-          "id, title, meeting_date, participants, agenda, deliberations, attachment_url, created_at",
-        )
+        .select(MEETING_MINUTE_SELECT)
         .order("meeting_date", { ascending: false });
       if (error) throw error;
       return (data as unknown as MeetingMinuteRow[]).map(mapMeetingMinute);
@@ -419,16 +509,27 @@ export function useCreateMeetingMinute() {
     mutationFn: async (input: {
       title: string;
       meetingDate: string;
-      participants: MeetingParticipant[];
+      meetingTime: string | null;
+      speakerName: string | null;
+      folder: string | null;
+      employeeIds: string[];
       agenda: string;
       deliberations: string;
     }) => {
-      const { error } = await supabase.from("meeting_minutes").insert({
-        title: input.title,
-        meeting_date: input.meetingDate,
-        participants: input.participants,
-        agenda: input.agenda,
-        deliberations: input.deliberations,
+      assertNotReadOnly();
+      // RPC em vez de dois inserts: ata e participantes têm que nascer na
+      // mesma transação. Se o insert dos participantes falhasse depois do
+      // da ata, sobraria uma ata vazia — e meeting_minutes tem policy
+      // no_update, então não daria para consertar o registro.
+      const { error } = await supabase.rpc("create_meeting_minute_with_participants", {
+        p_title: input.title,
+        p_meeting_date: input.meetingDate,
+        p_agenda: input.agenda,
+        p_deliberations: input.deliberations,
+        p_employee_ids: input.employeeIds,
+        p_meeting_time: input.meetingTime,
+        p_speaker_name: input.speakerName,
+        p_folder: input.folder,
       });
       if (error) throw error;
     },
@@ -449,7 +550,12 @@ export interface AttendanceList {
   id: string;
   eventTitle: string;
   eventDate: string;
+  eventTime: string | null;
+  speakerName: string | null;
+  folder: string | null;
+  /** Texto livre, anterior ao Bloco 3. Só histórico. */
   participants: AttendanceParticipant[];
+  participantRows: EventParticipant[];
   createdAt: string;
 }
 
@@ -458,11 +564,19 @@ const attendanceListKeys = {
   list: () => [...attendanceListKeys.all, "list"] as const,
 };
 
+const ATTENDANCE_LIST_SELECT =
+  "id, event_title, event_date, event_time, speaker_name, folder, participants, created_at, " +
+  `participant_rows:attendance_list_participants(${PARTICIPANT_EMBED})`;
+
 interface AttendanceListRow {
   id: string;
   event_title: string;
   event_date: string;
+  event_time: string | null;
+  speaker_name: string | null;
+  folder: string | null;
   participants: AttendanceParticipant[];
+  participant_rows: ParticipantRow[] | null;
   created_at: string;
 }
 
@@ -473,14 +587,18 @@ export function useAttendanceLists() {
     queryFn: async (): Promise<AttendanceList[]> => {
       const { data, error } = await supabase
         .from("attendance_lists")
-        .select("id, event_title, event_date, participants, created_at")
+        .select(ATTENDANCE_LIST_SELECT)
         .order("event_date", { ascending: false });
       if (error) throw error;
       return (data as unknown as AttendanceListRow[]).map((r) => ({
         id: r.id,
         eventTitle: r.event_title,
         eventDate: r.event_date,
+        eventTime: r.event_time,
+        speakerName: r.speaker_name,
+        folder: r.folder,
         participants: r.participants ?? [],
+        participantRows: (r.participant_rows ?? []).map(mapParticipant),
         createdAt: r.created_at,
       }));
     },
@@ -494,15 +612,201 @@ export function useCreateAttendanceList() {
     mutationFn: async (input: {
       eventTitle: string;
       eventDate: string;
-      participants: AttendanceParticipant[];
+      eventTime: string | null;
+      speakerName: string | null;
+      folder: string | null;
+      employeeIds: string[];
     }) => {
-      const { error } = await supabase.from("attendance_lists").insert({
-        event_title: input.eventTitle,
-        event_date: input.eventDate,
-        participants: input.participants,
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("create_attendance_list_with_participants", {
+        p_event_title: input.eventTitle,
+        p_event_date: input.eventDate,
+        p_employee_ids: input.employeeIds,
+        p_event_time: input.eventTime,
+        p_speaker_name: input.speakerName,
+        p_folder: input.folder,
       });
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: attendanceListKeys.list() }),
+  });
+}
+
+/* ============================================================
+ * Confirmação individual de presença (Bloco 3, item 4)
+ *
+ * Só o próprio participante confirma a si mesmo — a policy
+ * *_confirm_self (linked_user_id = auth.uid()) é quem garante isso. As RPCs
+ * são security invoker justamente para não contornar essa checagem.
+ * ============================================================ */
+
+export function useConfirmMeetingAttendance() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (participantId: string) => {
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("confirm_meeting_attendance", {
+        p_participant_id: participantId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: meetingMinutesKeys.list() });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+export function useConfirmAttendanceListPresence() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (participantId: string) => {
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("confirm_attendance_list_presence", {
+        p_participant_id: participantId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: attendanceListKeys.list() });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+/* ============================================================
+ * Arquivo de documento (Bloco 3, item 2)
+ *
+ * Antes NADA em Documentos subia arquivo de verdade — nem interno nem
+ * externo. O campo era um textarea onde se colava um link ou o texto da
+ * revisão. Agora sobe para o Storage.
+ *
+ * Bucket `evidencias`, o mesmo já usado por auditorias: o comentário da
+ * migração que o criou (20260729160400) diz explicitamente que é bucket
+ * compartilhado entre módulos, com o módulo indo no path. Bucket dedicado
+ * só se justifica quando o conteúdo é mais sensível que o padrão — foi o
+ * caso de `pessoas-dossie` (ASO, documento pessoal), não é o caso aqui.
+ *
+ * Convenção de path (regra 5 da skill jawda-multitenant):
+ * {org_id}/documentos/{document_id}/{revisao}/{timestamp}-{arquivo}
+ *
+ * O valor gravado leva o prefixo `storage:` para distinguir de um link
+ * colado ou de texto puro — os três convivem no mesmo campo, inclusive nos
+ * registros que já existiam antes desta mudança.
+ * ============================================================ */
+
+const STORAGE_PREFIX = "storage:";
+
+export function isStoredFile(value: string | null): boolean {
+  return !!value && value.startsWith(STORAGE_PREFIX);
+}
+
+/** Nome legível a partir do path — o path carrega `{timestamp}-{arquivo}`,
+ * então basta remover o carimbo. */
+export function storedFileName(value: string): string {
+  const path = value.slice(STORAGE_PREFIX.length);
+  const base = path.split("/").pop() ?? path;
+  return base.replace(/^\d+-/, "");
+}
+
+export function useUploadDocumentFile() {
+  const supabase = getSupabaseBrowserClient();
+  return useMutation({
+    mutationFn: async ({
+      orgId,
+      documentId,
+      revision,
+      file,
+    }: {
+      orgId: string;
+      documentId: string;
+      revision: number;
+      file: File;
+    }): Promise<string> => {
+      assertNotReadOnly();
+      const path = `${orgId}/documentos/${documentId}/${revision}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from("evidencias").upload(path, file);
+      if (error) throw error;
+      return `${STORAGE_PREFIX}${path}`;
+    },
+  });
+}
+
+/** URL assinada de curta duração para abrir o arquivo. Igual ao padrão do
+ * dossiê de Pessoas — o bucket é privado, então não existe URL pública. */
+export function useDocumentFileUrl() {
+  const supabase = getSupabaseBrowserClient();
+  return useMutation({
+    mutationFn: async (storedValue: string): Promise<string> => {
+      const path = storedValue.slice(STORAGE_PREFIX.length);
+      const { data, error } = await supabase.storage.from("evidencias").createSignedUrl(path, 60);
+      if (error) throw error;
+      return data.signedUrl;
+    },
+  });
+}
+
+/* ============================================================
+ * Reverter revogação (Bloco 3, item 3)
+ * ============================================================ */
+
+export interface RevocationReversal {
+  id: string;
+  justification: string;
+  reversedByName: string | null;
+  reversedAt: string;
+}
+
+export function useDocumentRevocationReversals(documentId: string | null) {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: [...documentKeys.all, "reversals", documentId ?? null],
+    enabled: !!documentId,
+    queryFn: async (): Promise<RevocationReversal[]> => {
+      if (!documentId) return [];
+      const { data, error } = await supabase
+        .from("document_revocation_reversals")
+        .select("id, justification, reversed_at, author:profiles!reversed_by(full_name)")
+        .eq("document_id", documentId)
+        .order("reversed_at", { ascending: false });
+      if (error) throw error;
+      return (
+        data as unknown as {
+          id: string;
+          justification: string;
+          reversed_at: string;
+          author: { full_name: string } | null;
+        }[]
+      ).map((r) => ({
+        id: r.id,
+        justification: r.justification,
+        reversedByName: r.author?.full_name ?? null,
+        reversedAt: r.reversed_at,
+      }));
+    },
+  });
+}
+
+export function useReverseDocumentRevocation() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      documentId,
+      justification,
+    }: {
+      documentId: string;
+      justification: string;
+    }) => {
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("reverse_document_revocation", {
+        p_document_id: documentId,
+        p_justification: justification,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: documentKeys.all }),
   });
 }

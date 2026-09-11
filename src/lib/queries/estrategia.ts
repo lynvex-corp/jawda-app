@@ -1331,22 +1331,72 @@ export type CriticalAnalysisActionItemType =
 /** Ordem de pauta é sequencial (segue a lógica da reunião, não alfabética
  * — exceção prevista na seção 21.7 do Guia para ordem com significado
  * semântico). */
-export const DEFAULT_AGENDA_TOPICS = [
-  "Análise de cenário interno e externo",
-  "Desempenho geral do sistema de gestão da qualidade",
-  "Satisfação do cliente e outras partes interessadas",
-  "Objetivos e indicadores",
-  "Desempenho dos processos",
-  "Desempenho e capacitação de pessoas",
-  "Conformidade dos produtos e serviços",
-  "Não conformidades e ações corretivas",
-  "Planos de ação",
-  "Resultados de auditoria interna e externa",
-  "Desempenho de fornecedores",
-  "Disponibilização de recursos",
-  "Riscos e oportunidades",
-  "Melhoria contínua",
+/* ============================================================
+ * Pauta da Análise Crítica pela Direção — entradas do item 9.3.2 da
+ * ISO 9001:2015.
+ *
+ * Substitui a lista anterior de 14 tópicos parafraseados. Redação validada
+ * com o especialista de qualidade em set/2026, junto com três decisões:
+ *
+ * 1. As 7 sub-entradas da alínea (c) são linhas próprias e preenchíveis —
+ *    numa análise crítica real, satisfação do cliente e resultado de
+ *    auditoria são analisados separadamente. O texto de (c) vira cabeçalho
+ *    de agrupamento na tela, não uma linha de conteúdo.
+ * 2. A alínea (d) é campo de comentário livre, sem subcampos.
+ * 3. `rotulo` é a referência à norma, NÃO a posição na tela: a ordem de
+ *    exibição é livre e reordenável, porque reunião não segue a sequência
+ *    da norma. Por isso a alínea acompanha o item mesmo se ele for movido.
+ *
+ * O que vai para o banco é só `topico` — sem a alínea. A alínea é anexada
+ * na exibição, casando pelo texto. Pauta que não casar (tópico
+ * personalizado, ou reunião anterior a esta mudança) aparece sem alínea,
+ * em vez de quebrar.
+ * ============================================================ */
+
+export interface AgendaTopicoPadrao {
+  rotulo: string;
+  topico: string;
+  /** Cabeçalho exibido antes deste item. Só o primeiro do grupo carrega. */
+  grupo?: string;
+}
+
+const GRUPO_C =
+  "Informação sobre o desempenho e a eficácia do sistema de gestão da qualidade, incluindo tendências relativas a:";
+
+export const AGENDA_9_3_2: AgendaTopicoPadrao[] = [
+  {
+    rotulo: "a",
+    topico: "Situação de ações provenientes de análises críticas anteriores pela direção",
+  },
+  {
+    rotulo: "b",
+    topico:
+      "Mudanças em questões externas e internas pertinentes ao sistema de gestão da qualidade",
+  },
+  {
+    rotulo: "c.1",
+    grupo: GRUPO_C,
+    topico: "Satisfação do cliente e retroalimentação de partes interessadas pertinentes",
+  },
+  { rotulo: "c.2", topico: "Extensão na qual os objetivos da qualidade foram alcançados" },
+  { rotulo: "c.3", topico: "Desempenho de processo e conformidade de produtos e serviços" },
+  { rotulo: "c.4", topico: "Não conformidades e ações corretivas" },
+  { rotulo: "c.5", topico: "Resultados de monitoramento e medição" },
+  { rotulo: "c.6", topico: "Resultados de auditoria" },
+  { rotulo: "c.7", topico: "Desempenho de provedores externos" },
+  { rotulo: "d", topico: "Suficiência de recursos" },
+  { rotulo: "e", topico: "Eficácia das ações tomadas para abordar riscos e oportunidades" },
+  { rotulo: "f", topico: "Oportunidades para melhoria" },
 ];
+
+/** Alínea da norma correspondente ao texto da pauta, ou null se for um
+ * tópico personalizado / de reunião anterior à padronização. */
+export function rotuloDaPauta(topico: string): string | null {
+  return AGENDA_9_3_2.find((t) => t.topico === topico)?.rotulo ?? null;
+}
+
+/** Só os textos, na ordem da norma — usado como estado inicial do seletor. */
+export const DEFAULT_AGENDA_TOPICS = AGENDA_9_3_2.map((t) => t.topico);
 
 export const PERIODICITY_OPTIONS: { value: CriticalAnalysisPeriodicity; label: string }[] = [
   { value: "anual", label: "Anual" },
@@ -1619,6 +1669,48 @@ export function useStartCriticalAnalysisExecution() {
       queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.list() });
       queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(vars.meetingId) });
     },
+  });
+}
+
+/** Troca a posição de duas pautas (Bloco 3, item 7).
+ *
+ * A ordem de exibição não segue a sequência da norma de propósito —
+ * validação do especialista: reunião real não percorre 9.3.2 na ordem
+ * literal. A alínea continua colada ao texto da pauta, então reordenar não
+ * perde a referência normativa.
+ *
+ * Duas escritas em vez de uma RPC: são updates independentes de item_order,
+ * e uma falha no meio deixa no máximo duas pautas com a mesma posição — o
+ * que a ordenação secundária por texto já resolve na exibição. Não vale uma
+ * migração só por isso. */
+export function useReorderCriticalAnalysisAgenda() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      meetingId,
+      a,
+      b,
+    }: {
+      meetingId: string;
+      a: { id: string; order: number };
+      b: { id: string; order: number };
+    }) => {
+      assertNotReadOnly();
+      const { error: e1 } = await supabase
+        .from("critical_analysis_agenda_items")
+        .update({ item_order: b.order })
+        .eq("id", a.id);
+      if (e1) throw e1;
+      const { error: e2 } = await supabase
+        .from("critical_analysis_agenda_items")
+        .update({ item_order: a.order })
+        .eq("id", b.id);
+      if (e2) throw e2;
+      return meetingId;
+    },
+    onSuccess: (meetingId) =>
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(meetingId) }),
   });
 }
 

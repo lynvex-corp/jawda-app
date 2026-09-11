@@ -1,19 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { DocumentosPage } from "@/components/documentos/page";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { ModuleGate } from "@/components/app/module-gate";
-
-function DocumentosRoute() {
-  return (
-    <ModuleGate module="documents">
-      <DocumentosPage />
-    </ModuleGate>
-  );
-}
 
 const title = "Documentos — Jawda SGQ";
 const description =
   "Controle de documentos internos, externos e repositório: permissões de alteração e redação, histórico de revisões, obsolescência e política de backup.";
 
+// Vira rota de layout no Bloco 3: a Análise Crítica pela Direção passou a
+// viver dentro de Documentos, com detalhe em rota própria
+// (/documentos/analise-critica/$id). O ModuleGate sobe para cá para valer
+// em toda a árvore — a análise crítica exigia o módulo `strategy` antes, e
+// agora exige `documents`, junto com o resto da seção.
 export const Route = createFileRoute("/documentos")({
   head: () => ({
     meta: [
@@ -25,5 +21,9 @@ export const Route = createFileRoute("/documentos")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: DocumentosRoute,
+  component: () => (
+    <ModuleGate module="documents">
+      <Outlet />
+    </ModuleGate>
+  ),
 });

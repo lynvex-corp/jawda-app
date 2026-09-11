@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { Fragment } from "react";
 import { AppShell } from "@/components/app/app-shell";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +31,7 @@ import {
   useCriticalAnalysisMeetings,
   useScheduleCriticalAnalysis,
   DEFAULT_AGENDA_TOPICS,
+  AGENDA_9_3_2,
   PERIODICITY_OPTIONS,
   type CriticalAnalysisMeetingStatus,
   type CriticalAnalysisPeriodicity,
@@ -53,7 +56,17 @@ const statusColor: Record<CriticalAnalysisMeetingStatus, string> = {
     "bg-[color:var(--severity-critical)]/10 text-[color:var(--severity-critical)] border-[color:var(--severity-critical)]/30",
 };
 
-export function AnaliseCriticaPage() {
+/** `embedded` renderiza só o conteúdo, sem AppShell e sem o cabeçalho —
+ * é assim que a tela aparece dentro da aba de Documentos (Bloco 3, item 5),
+ * que já tem shell e cabeçalho próprios. Mesmo recurso usado nas
+ * Diretrizes Estratégicas quando viraram aba no Bloco 2. */
+export function AnaliseCriticaPage({ embedded = false }: { embedded?: boolean } = {}) {
+  const Shell = embedded ? Fragment : AppShell;
+  const { currentOrg } = useAuth();
+  // Bloco 3, item 6: só o Administrador cria. Esconder o botão é
+  // conveniência — quem barra de fato é a policy de INSERT
+  // (20260911090300). Os demais perfis seguem vendo e executando.
+  const podeCriar = currentOrg?.role === "admin";
   const navigate = useNavigate();
   const { data: meetings = [], isLoading } = useCriticalAnalysisMeetings();
   const { data: members = [] } = useOrgMembers();
@@ -104,7 +117,7 @@ export function AnaliseCriticaPage() {
           setPreviousMeetingReference("");
           setTopics([...DEFAULT_AGENDA_TOPICS]);
           setParticipantIds([]);
-          navigate({ to: "/analise-critica/$id", params: { id: meeting.id } });
+          navigate({ to: "/documentos/analise-critica/$id", params: { id: meeting.id } });
         },
         onError: (e) => toast.error("Erro ao programar", { description: getErrorMessage(e) }),
       },
@@ -112,24 +125,31 @@ export function AnaliseCriticaPage() {
   };
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-[1100px] space-y-6">
+    <Shell>
+      <div className={embedded ? "space-y-6" : "mx-auto max-w-[1100px] space-y-6"}>
         <header className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              Análise Crítica pela Direção
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Agende a reunião da direção, registre a pauta e as decisões e gere a ata ao concluir.
-            </p>
-          </div>
-          <Button
-            size="sm"
-            onClick={() => setOpen(true)}
-            className="rounded-lg bg-brand text-white hover:bg-brand/90"
-          >
-            <Plus className="mr-1.5 h-4 w-4" /> Programar Análise Crítica
-          </Button>
+          {embedded ? (
+            <div />
+          ) : (
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                Análise Crítica pela Direção
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Agende a reunião da direção, registre a pauta e as decisões e gere a ata ao
+                concluir.
+              </p>
+            </div>
+          )}
+          {podeCriar && (
+            <Button
+              size="sm"
+              onClick={() => setOpen(true)}
+              className="rounded-lg bg-brand text-white hover:bg-brand/90"
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Programar Análise Crítica
+            </Button>
+          )}
         </header>
 
         {!isLoading && meetings.length === 0 && (
@@ -143,7 +163,9 @@ export function AnaliseCriticaPage() {
             <Card
               key={m.id}
               className="cursor-pointer rounded-2xl border-border/80 shadow-sm transition hover:border-brand/40"
-              onClick={() => navigate({ to: "/analise-critica/$id", params: { id: m.id } })}
+              onClick={() =>
+                navigate({ to: "/documentos/analise-critica/$id", params: { id: m.id } })
+              }
             >
               <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
                 <div className="flex items-center gap-3">
@@ -227,23 +249,57 @@ export function AnaliseCriticaPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium">Pautas</label>
-              <div className="max-h-[220px] space-y-1 overflow-y-auto rounded-lg border border-border/60 p-2">
-                {[
-                  ...DEFAULT_AGENDA_TOPICS,
-                  ...topics.filter((t) => !DEFAULT_AGENDA_TOPICS.includes(t)),
-                ].map((topic) => (
-                  <label
-                    key={topic}
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/40"
-                  >
-                    <Checkbox
-                      checked={topics.includes(topic)}
-                      onCheckedChange={() => toggleTopic(topic)}
-                    />
-                    {topic}
-                  </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium">
+                  Pautas — entradas do item 9.3.2 da ISO 9001
+                </label>
+                <span className="text-[10px] text-muted-foreground">
+                  {topics.length} selecionada(s)
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Marque só as pautas que serão discutidas nesta reunião. Toda pauta marcada é
+                obrigatória de preencher antes de enviar para aprovação.
+              </p>
+              <div className="max-h-[240px] space-y-1 overflow-y-auto rounded-lg border border-border/60 p-2">
+                {AGENDA_9_3_2.map((t) => (
+                  <div key={t.rotulo}>
+                    {/* Cabeçalho da alínea (c): é contexto normativo, não uma
+                        pauta preenchível — por isso não tem checkbox. */}
+                    {t.grupo && (
+                      <p className="px-2 pb-1 pt-2 text-[10px] leading-snug text-muted-foreground">
+                        {t.grupo}
+                      </p>
+                    )}
+                    <label className="flex items-start gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/40">
+                      <Checkbox
+                        checked={topics.includes(t.topico)}
+                        onCheckedChange={() => toggleTopic(t.topico)}
+                        className="mt-0.5"
+                      />
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {t.rotulo})
+                      </span>
+                      <span className="flex-1">{t.topico}</span>
+                    </label>
+                  </div>
                 ))}
+                {topics
+                  .filter((t) => !DEFAULT_AGENDA_TOPICS.includes(t))
+                  .map((topic) => (
+                    <label
+                      key={topic}
+                      className="flex items-start gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/40"
+                    >
+                      <Checkbox
+                        checked
+                        onCheckedChange={() => toggleTopic(topic)}
+                        className="mt-0.5"
+                      />
+                      <span className="font-mono text-[10px] text-muted-foreground">+</span>
+                      <span className="flex-1">{topic}</span>
+                    </label>
+                  ))}
               </div>
               <div className="flex gap-2">
                 <Input
@@ -292,6 +348,6 @@ export function AnaliseCriticaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AppShell>
+    </Shell>
   );
 }
