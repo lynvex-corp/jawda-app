@@ -21,12 +21,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Pencil, Archive, ArchiveRestore, UserPlus, X, Lock, Cog } from "lucide-react";
+import {
+  ArrowLeft,
+  Pencil,
+  Archive,
+  ArchiveRestore,
+  UserPlus,
+  X,
+  Lock,
+  Cog,
+  CheckCircle2,
+  History,
+  Plus,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useEmployees } from "@/lib/queries/pessoas";
 import { PROCESS_MAP_ICONS } from "@/components/processos/icon-map";
+import { ProcessFlowEditor } from "@/components/processos/flow/editor";
 import {
   useProcessMap,
   useUpdateProcessMap,
@@ -34,6 +47,10 @@ import {
   useProcessMapCollaborators,
   useAddProcessMapCollaborator,
   useRemoveProcessMapCollaborator,
+  useProcessMapDraft,
+  useCreateProcessMapDraft,
+  useFormalizeProcessMapVersion,
+  useProcessMapVersions,
   PROCESS_MAP_ICON_OPTIONS,
   type ProcessMapIcon,
   type ProcessMapInput,
@@ -41,10 +58,10 @@ import {
 
 const TABS = [
   { key: "informacoes", label: "Informações" },
-  { key: "fluxo", label: "Fluxo", bloco: "B" },
+  { key: "fluxo", label: "Fluxo" },
   { key: "raci", label: "RACI", bloco: "C" },
   { key: "indicadores", label: "Indicadores", bloco: "D" },
-  { key: "versoes", label: "Versões", bloco: "B" },
+  { key: "versoes", label: "Versões" },
 ] as const;
 
 export function ProcessoDetailPage() {
@@ -56,6 +73,9 @@ export function ProcessoDetailPage() {
     currentOrg?.role === "quality_manager" ||
     currentOrg?.role === "area_manager";
   const canArchive = currentOrg?.role === "admin";
+  // "Aprovar" (formalizar o fluxo) é mais restrito que "Editar" —
+  // area_manager edita rascunho, mas não formaliza (matriz do Bloco A).
+  const canFormalize = currentOrg?.role === "admin" || currentOrg?.role === "quality_manager";
 
   const { data: processo, isLoading } = useProcessMap(id);
   const { data: colaboradores = [] } = useProcessMapCollaborators(id);
@@ -65,10 +85,18 @@ export function ProcessoDetailPage() {
   const addCollaborator = useAddProcessMapCollaborator();
   const removeCollaborator = useRemoveProcessMapCollaborator();
 
+  const { data: draft, isLoading: draftLoading } = useProcessMapDraft(id);
+  const createDraft = useCreateProcessMapDraft();
+  const formalizeVersion = useFormalizeProcessMapVersion();
+  const { data: versions = [] } = useProcessMapVersions(id);
+
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("informacoes");
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState<ProcessMapInput | null>(null);
   const [arquivarOpen, setArquivarOpen] = useState(false);
+  const [formalizarOpen, setFormalizarOpen] = useState(false);
+  const [versionLabel, setVersionLabel] = useState("");
+  const [viewingVersionId, setViewingVersionId] = useState<string | null>(null);
   const [novoColaboradorId, setNovoColaboradorId] = useState("");
 
   if (isLoading || !processo) {
@@ -142,6 +170,36 @@ export function ProcessoDetailPage() {
     );
   };
 
+  const criarRascunho = () => {
+    createDraft.mutate(
+      { processMapId: processo.id },
+      {
+        onError: (e) => toast.error("Erro ao criar rascunho", { description: getErrorMessage(e) }),
+      },
+    );
+  };
+
+  const confirmarFormalizar = () => {
+    if (!draft) return;
+    if (!versionLabel.trim()) {
+      toast.error("Dê um rótulo pra esta versão (ex.: v1, Revisão 2026-09)");
+      return;
+    }
+    formalizeVersion.mutate(
+      { versionId: draft.id, processMapId: processo.id, versionLabel: versionLabel.trim() },
+      {
+        onSuccess: () => {
+          toast.success("Fluxo formalizado");
+          setFormalizarOpen(false);
+          setVersionLabel("");
+        },
+        onError: (e) => toast.error("Erro ao formalizar", { description: getErrorMessage(e) }),
+      },
+    );
+  };
+
+  const viewingVersion = versions.find((v) => v.id === viewingVersionId) ?? null;
+
   return (
     <AppShell>
       <div className="mx-auto max-w-[1100px] space-y-5">
@@ -206,7 +264,7 @@ export function ProcessoDetailPage() {
 
         <div className="flex gap-1 overflow-x-auto rounded-lg border border-border/70 bg-muted/30 p-1">
           {TABS.map((t) => {
-            const disabled = t.key !== "informacoes";
+            const disabled = "bloco" in t;
             return (
               <button
                 key={t.key}
@@ -323,7 +381,156 @@ export function ProcessoDetailPage() {
             </Card>
           </div>
         )}
+
+        {tab === "fluxo" && (
+          <div className="space-y-3">
+            {draftLoading && (
+              <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+                Carregando…
+              </div>
+            )}
+            {!draftLoading && !draft && (
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-14 text-center">
+                <p className="max-w-sm text-xs text-muted-foreground">
+                  {versions.length === 0
+                    ? "Nenhum rascunho de fluxo ainda. Monte o diagrama do zero — raias, tarefas, decisões — e formalize quando estiver pronto."
+                    : "A última versão já foi formalizada (somente leitura). Continue a partir dela numa revisão nova."}
+                </p>
+                {canManage && (
+                  <Button
+                    onClick={criarRascunho}
+                    disabled={createDraft.isPending}
+                    className="rounded-lg bg-brand text-white hover:bg-brand/90"
+                  >
+                    <Plus className="mr-1.5 h-4 w-4" />{" "}
+                    {versions.length === 0 ? "Começar o fluxo" : "Criar nova revisão"}
+                  </Button>
+                )}
+              </div>
+            )}
+            {draft && (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Rascunho — v{draft.versionNumber}. Salvo automaticamente enquanto você edita.
+                  </p>
+                  {canFormalize && (
+                    <Button
+                      size="sm"
+                      onClick={() => setFormalizarOpen(true)}
+                      className="rounded-lg bg-brand text-white hover:bg-brand/90"
+                    >
+                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Formalizar versão
+                    </Button>
+                  )}
+                </div>
+                <ProcessFlowEditor
+                  processMapId={processo.id}
+                  version={draft}
+                  readOnly={!canManage}
+                />
+              </>
+            )}
+          </div>
+        )}
+
+        {tab === "versoes" && (
+          <Card className="rounded-2xl border-border/80 shadow-sm">
+            <CardContent className="p-4">
+              <div className="space-y-1.5">
+                {versions.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => setViewingVersionId(v.id)}
+                    className="flex w-full items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-3 text-left text-xs hover:border-brand/40"
+                  >
+                    <div className="flex items-center gap-2">
+                      <History className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-medium text-foreground/85">
+                        v{v.versionNumber}
+                        {v.versionLabel ? ` — ${v.versionLabel}` : ""}
+                      </span>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "rounded-md text-[10px]",
+                        v.status === "formalizada"
+                          ? "border-[color:var(--success)]/30 bg-[color:var(--success)]/10 text-[color:var(--success)]"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {v.status === "formalizada" ? "Formalizada" : "Rascunho"}
+                    </Badge>
+                  </button>
+                ))}
+                {versions.length === 0 && (
+                  <p className="py-8 text-center text-xs text-muted-foreground">
+                    Nenhuma versão ainda — comece o fluxo na aba Fluxo.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      <Dialog open={!!viewingVersionId} onOpenChange={(o) => !o && setViewingVersionId(null)}>
+        <DialogContent className="max-w-[95vw] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {viewingVersion
+                ? `v${viewingVersion.versionNumber}${viewingVersion.versionLabel ? ` — ${viewingVersion.versionLabel}` : ""}`
+                : ""}
+            </DialogTitle>
+            <DialogDescription>
+              {viewingVersion?.status === "rascunho"
+                ? "Rascunho atual — edite na aba Fluxo."
+                : "Versão formalizada — somente leitura."}
+            </DialogDescription>
+          </DialogHeader>
+          {viewingVersion && (
+            <ProcessFlowEditor
+              processMapId={processo.id}
+              version={viewingVersion}
+              readOnly={viewingVersion.status === "formalizada"}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={formalizarOpen} onOpenChange={setFormalizarOpen}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Formalizar versão do fluxo</DialogTitle>
+            <DialogDescription>
+              A versão atual vira somente leitura permanentemente. Continue editando depois de
+              formalizar cria uma nova versão.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <label className="text-xs font-medium">Rótulo da versão</label>
+            <Input
+              value={versionLabel}
+              onChange={(e) => setVersionLabel(e.target.value)}
+              placeholder="v1, Revisão 2026-09…"
+              className="mt-1"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormalizarOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarFormalizar}
+              disabled={formalizeVersion.isPending}
+              className="bg-brand text-white hover:bg-brand/90"
+            >
+              Formalizar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-lg rounded-2xl">

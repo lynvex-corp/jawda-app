@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Node, Edge } from "@xyflow/react";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 /* ============================================================
@@ -341,6 +342,228 @@ export function useRemoveProcessMapCollaborator() {
       queryClient.invalidateQueries({ queryKey: processMapKeys.collaborators(processMapId) });
       queryClient.invalidateQueries({ queryKey: processMapKeys.detail(processMapId) });
       queryClient.invalidateQueries({ queryKey: processMapKeys.list() });
+    },
+  });
+}
+
+/* ============================================================
+ * Bloco B — editor visual (React Flow) e versionamento.
+ *
+ * `data` de cada nó carrega, quando aplicável, responsibleEmployeeId OU
+ * responsibleJobPositionId — validado a cada escrita pela RLS
+ * (process_map_diagram_refs_valid, 20260915090100) contra vazamento
+ * entre organizações. O cliente nunca precisa validar isso de novo; se
+ * mandar um id de outra org, o banco recusa a escrita inteira.
+ * ============================================================ */
+
+export type ProcessNodeType = "startNode" | "endNode" | "taskNode" | "decisionNode" | "laneNode";
+
+export interface ProcessNodeData extends Record<string, unknown> {
+  label: string;
+  responsibleEmployeeId?: string | null;
+  responsibleJobPositionId?: string | null;
+}
+
+export type ProcessFlowNode = Node<ProcessNodeData, ProcessNodeType>;
+export type ProcessFlowEdge = Edge;
+
+export interface ProcessDiagram {
+  nodes: ProcessFlowNode[];
+  edges: ProcessFlowEdge[];
+}
+
+const EMPTY_DIAGRAM: ProcessDiagram = { nodes: [], edges: [] };
+
+export interface ProcessMapVersion {
+  id: string;
+  processMapId: string;
+  versionNumber: number;
+  versionLabel: string | null;
+  status: "rascunho" | "formalizada";
+  diagram: ProcessDiagram;
+  formalizedAt: string | null;
+  createdAt: string;
+}
+
+const processMapVersionKeys = {
+  all: ["process-map-versions"] as const,
+  list: (processMapId: string) => [...processMapVersionKeys.all, "list", processMapId] as const,
+  detail: (id: string) => [...processMapVersionKeys.all, "detail", id] as const,
+  draft: (processMapId: string) => [...processMapVersionKeys.all, "draft", processMapId] as const,
+};
+
+interface VersionRow {
+  id: string;
+  process_map_id: string;
+  version_number: number;
+  version_label: string | null;
+  status: "rascunho" | "formalizada";
+  diagram: ProcessDiagram;
+  formalized_at: string | null;
+  created_at: string;
+}
+
+function mapVersionRow(r: VersionRow): ProcessMapVersion {
+  return {
+    id: r.id,
+    processMapId: r.process_map_id,
+    versionNumber: r.version_number,
+    versionLabel: r.version_label,
+    status: r.status,
+    diagram: r.diagram ?? EMPTY_DIAGRAM,
+    formalizedAt: r.formalized_at,
+    createdAt: r.created_at,
+  };
+}
+
+const VERSION_SELECT =
+  "id, process_map_id, version_number, version_label, status, diagram, formalized_at, created_at";
+
+export function useProcessMapVersions(processMapId: string | undefined) {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: processMapVersionKeys.list(processMapId ?? ""),
+    enabled: !!processMapId,
+    queryFn: async (): Promise<ProcessMapVersion[]> => {
+      const { data, error } = await supabase
+        .from("process_map_versions")
+        .select(VERSION_SELECT)
+        .eq("process_map_id", processMapId as string)
+        .order("version_number", { ascending: false });
+      if (error) throw error;
+      return ((data as unknown as VersionRow[]) ?? []).map(mapVersionRow);
+    },
+  });
+}
+
+export function useProcessMapVersion(id: string | undefined) {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: processMapVersionKeys.detail(id ?? ""),
+    enabled: !!id,
+    queryFn: async (): Promise<ProcessMapVersion> => {
+      const { data, error } = await supabase
+        .from("process_map_versions")
+        .select(VERSION_SELECT)
+        .eq("id", id as string)
+        .single();
+      if (error) throw error;
+      return mapVersionRow(data as unknown as VersionRow);
+    },
+  });
+}
+
+/** Rascunho aberto do processo — null quando ainda não existe (primeira
+ * vez que alguém abre a aba Fluxo). A tela chama useCreateProcessMapDraft
+ * pra nascer o primeiro, vazio. */
+export function useProcessMapDraft(processMapId: string | undefined) {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: processMapVersionKeys.draft(processMapId ?? ""),
+    enabled: !!processMapId,
+    queryFn: async (): Promise<ProcessMapVersion | null> => {
+      const { data, error } = await supabase
+        .from("process_map_versions")
+        .select(VERSION_SELECT)
+        .eq("process_map_id", processMapId as string)
+        .eq("status", "rascunho")
+        .maybeSingle();
+      if (error) throw error;
+      return data ? mapVersionRow(data as unknown as VersionRow) : null;
+    },
+  });
+}
+
+/** Cria o primeiro rascunho (vazio) ou o próximo (copiando o diagrama da
+ * última versão) — mesmo botão nos dois casos: "quando não há rascunho
+ * aberto, crie um". */
+export function useCreateProcessMapDraft() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ processMapId }: { processMapId: string }) => {
+      const { data: last, error: lastErr } = await supabase
+        .from("process_map_versions")
+        .select("version_number, diagram")
+        .eq("process_map_id", processMapId)
+        .order("version_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastErr) throw lastErr;
+
+      const nextNumber = ((last as { version_number: number } | null)?.version_number ?? 0) + 1;
+      const startingDiagram =
+        (last as { diagram: ProcessDiagram } | null)?.diagram ?? EMPTY_DIAGRAM;
+
+      const { data, error } = await supabase
+        .from("process_map_versions")
+        .insert({
+          process_map_id: processMapId,
+          version_number: nextNumber,
+          diagram: startingDiagram,
+        })
+        .select(VERSION_SELECT)
+        .single();
+      if (error) throw error;
+      return mapVersionRow(data as unknown as VersionRow);
+    },
+    onSuccess: (version) => {
+      queryClient.invalidateQueries({ queryKey: processMapVersionKeys.list(version.processMapId) });
+      queryClient.setQueryData(processMapVersionKeys.draft(version.processMapId), version);
+    },
+  });
+}
+
+/** Autosave — grava o {nodes, edges} inteiro a cada mudança relevante
+ * (debounce fica no componente). RLS recusa se a linha já foi formalizada
+ * ou se algum responsável referenciado não for da mesma organização. */
+export function useSaveProcessMapDiagram() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      versionId,
+      diagram,
+    }: {
+      versionId: string;
+      processMapId: string;
+      diagram: ProcessDiagram;
+    }) => {
+      const { error } = await supabase
+        .from("process_map_versions")
+        .update({ diagram })
+        .eq("id", versionId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: processMapVersionKeys.draft(vars.processMapId) });
+    },
+  });
+}
+
+export function useFormalizeProcessMapVersion() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      versionId,
+      versionLabel,
+    }: {
+      versionId: string;
+      processMapId: string;
+      versionLabel: string;
+    }) => {
+      // formalized_by/formalized_at são carimbados pelo trigger
+      // (enforce_process_map_version_formalize_role), não pelo cliente.
+      const { error } = await supabase
+        .from("process_map_versions")
+        .update({ status: "formalizada", version_label: versionLabel })
+        .eq("id", versionId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: processMapVersionKeys.list(vars.processMapId) });
+      queryClient.invalidateQueries({ queryKey: processMapVersionKeys.draft(vars.processMapId) });
     },
   });
 }
