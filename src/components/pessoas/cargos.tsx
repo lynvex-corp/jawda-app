@@ -36,11 +36,14 @@ import {
   ShieldCheck,
   Plus,
   Pencil,
+  Trash2,
+  UserPlus,
   AlertTriangle,
   FileText,
   Upload,
   ShieldAlert,
   Lock,
+  Users2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, getErrorMessage } from "@/lib/utils";
@@ -48,9 +51,13 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   useJobPositions,
   useCreateJobPosition,
+  useUpdateJobPosition,
+  useDeactivateJobPosition,
   useEmployees,
   useCreateEmployee,
   useUpdateEmployee,
+  useDeactivateEmployee,
+  useInviteEmployeeLogin,
   useEmployeeDossie,
   useUploadEmployeeAttachment,
   useEmployeeAttachmentSignedUrl,
@@ -65,6 +72,7 @@ import {
   SITUATION_OPTIONS,
   type AttachmentCategory,
   type Employee,
+  type JobPosition,
 } from "@/lib/queries/pessoas";
 
 const situationColor: Record<string, string> = {
@@ -141,11 +149,20 @@ export function CargosPage() {
 
 function CargosContent() {
   const { currentOrg } = useAuth();
-  const isHrAuthorized = currentOrg?.role === "admin" || currentOrg?.role === "quality_manager";
-  const isAdmin = currentOrg?.role === "admin";
+  // Bloco 4, item 4: Gestor de Área entra na mesma visão de gestão que
+  // Administrador e Gestor da Qualidade (espelha can_manage_hr_structure no
+  // banco — RLS e UI têm que dizer a mesma coisa, senão a tela mostra um
+  // botão que a escrita real recusa).
+  const canManage =
+    currentOrg?.role === "admin" ||
+    currentOrg?.role === "quality_manager" ||
+    currentOrg?.role === "area_manager";
+  // Item 3: criar login é mais restrito que gerenciar cargo/pessoa — só
+  // quem o item nomeia explicitamente, não o Gestor de Área.
+  const canCreateLogin = currentOrg?.role === "admin" || currentOrg?.role === "quality_manager";
   const { data: myRecord, isLoading: myRecordLoading } = useMyEmployeeRecord();
 
-  if (!isHrAuthorized) {
+  if (!canManage) {
     if (myRecordLoading) {
       return (
         <AppShell>
@@ -164,23 +181,30 @@ function CargosContent() {
           <Lock className="h-8 w-8 text-muted-foreground" />
           <h1 className="text-lg font-semibold text-foreground">Acesso restrito</h1>
           <p className="text-sm text-muted-foreground">
-            Cargos e Perfis é visível apenas para Administrador do Cliente, Gestor da Qualidade, ou
-            o próprio colaborador (vendo o próprio registro).
+            Cargos e Perfis é visível apenas para Administrador do Cliente, Gestor da Qualidade,
+            Gestor de Área, ou o próprio colaborador (vendo o próprio registro).
           </p>
         </div>
       </AppShell>
     );
   }
 
-  return <HrView isAdmin={isAdmin} />;
+  return <HrView canManage={canManage} canCreateLogin={canCreateLogin} />;
 }
 
-function HrView({ isAdmin }: { isAdmin: boolean }) {
+function HrView({ canManage, canCreateLogin }: { canManage: boolean; canCreateLogin: boolean }) {
+  const { currentOrg } = useAuth();
   const { data: positions = [] } = useJobPositions();
   const { data: employees = [], isLoading } = useEmployees();
   const createPosition = useCreateJobPosition();
+  const updatePosition = useUpdateJobPosition();
+  const deactivatePosition = useDeactivateJobPosition();
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
+  const deactivateEmployee = useDeactivateEmployee();
+
+  // Bloco 4, item 1: abas em vez de duas tabelas empilhadas.
+  const [tab, setTab] = useState<"pessoas" | "cargos">("pessoas");
 
   const [novoCargoOpen, setNovoCargoOpen] = useState(false);
   const [novoCargo, setNovoCargo] = useState({
@@ -194,6 +218,18 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
   >([]);
   const [novoTreinamentoNome, setNovoTreinamentoNome] = useState("");
 
+  const [editingPosition, setEditingPosition] = useState<JobPosition | null>(null);
+  const [editPosition, setEditPosition] = useState({
+    nome: "",
+    requisitosTecnicos: "",
+    requisitosDesejaveis: "",
+    responsabilidadesAutoridades: "",
+  });
+  const [editPositionTrainings, setEditPositionTrainings] = useState<
+    { trainingName: string; isRequired: boolean }[]
+  >([]);
+  const [editPositionTrainingNome, setEditPositionTrainingNome] = useState("");
+
   const [novaPessoaOpen, setNovaPessoaOpen] = useState(false);
   const [novaPessoa, setNovaPessoa] = useState({
     nome: "",
@@ -206,6 +242,9 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
 
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [deactivatingEmployee, setDeactivatingEmployee] = useState<Employee | null>(null);
+  const [deactivatingPosition, setDeactivatingPosition] = useState<JobPosition | null>(null);
+  const [inviteFor, setInviteFor] = useState<Employee | null>(null);
 
   const salvarCargo = () => {
     if (!novoCargo.nome.trim()) {
@@ -227,6 +266,37 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
           setNovosTreinamentos([]);
         },
         onError: (e) => toast.error("Erro ao cadastrar cargo", { description: getErrorMessage(e) }),
+      },
+    );
+  };
+
+  const abrirEdicaoCargo = (p: JobPosition) => {
+    setEditingPosition(p);
+    setEditPosition({
+      nome: p.nome,
+      requisitosTecnicos: p.requisitosTecnicos,
+      requisitosDesejaveis: p.requisitosDesejaveis,
+      responsabilidadesAutoridades: p.responsabilidadesAutoridades,
+    });
+    setEditPositionTrainings(
+      p.trainings.map((t) => ({ trainingName: t.trainingName, isRequired: t.isRequired })),
+    );
+  };
+
+  const salvarEdicaoCargo = () => {
+    if (!editingPosition) return;
+    if (!editPosition.nome.trim()) {
+      toast.error("Informe o nome do cargo");
+      return;
+    }
+    updatePosition.mutate(
+      { id: editingPosition.id, ...editPosition, trainings: editPositionTrainings },
+      {
+        onSuccess: () => {
+          toast.success("Cargo atualizado");
+          setEditingPosition(null);
+        },
+        onError: (e) => toast.error("Erro ao atualizar cargo", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -266,6 +336,33 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
     );
   };
 
+  // Item 1: "Excluir" é inativação (employees/job_positions têm DELETE
+  // bloqueado no banco — nada apaga, seção 20 do Guia).
+  const confirmarInativarPessoa = () => {
+    if (!deactivatingEmployee) return;
+    deactivateEmployee.mutate(deactivatingEmployee.id, {
+      onSuccess: () => {
+        toast.success(`${deactivatingEmployee.nome} inativado(a)`);
+        setDeactivatingEmployee(null);
+      },
+      onError: (e) => toast.error("Erro ao inativar", { description: getErrorMessage(e) }),
+    });
+  };
+
+  const confirmarInativarCargo = () => {
+    if (!deactivatingPosition) return;
+    deactivatePosition.mutate(deactivatingPosition.id, {
+      onSuccess: () => {
+        toast.success(`Cargo "${deactivatingPosition.nome}" inativado`);
+        setDeactivatingPosition(null);
+      },
+      onError: (e) => toast.error("Erro ao inativar cargo", { description: getErrorMessage(e) }),
+    });
+  };
+
+  const peopleForPosition = (positionId: string) =>
+    employees.filter((e) => e.jobPositionId === positionId);
+
   return (
     <AppShell>
       <div className="mx-auto max-w-[1400px] space-y-5">
@@ -298,150 +395,257 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
           </div>
         </header>
 
-        <Card className="rounded-2xl border-border/80 shadow-sm">
-          <CardContent className="p-0">
-            <div className="border-b border-border/70 px-5 py-3 text-sm font-semibold text-foreground">
-              Cargos
-            </div>
-            <Table>
-              <TableHeader className="bg-muted/40">
-                <TableRow className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Requisitos técnicos</TableHead>
-                  <TableHead>Requisitos desejáveis</TableHead>
-                  <TableHead>Treinamentos</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {positions.map((p) => (
-                  <TableRow key={p.id} className="align-top text-xs">
-                    <TableCell className="font-semibold text-foreground">{p.nome}</TableCell>
-                    <TableCell className="max-w-[220px] text-foreground/80">
-                      {p.requisitosTecnicos}
-                    </TableCell>
-                    <TableCell className="max-w-[220px] text-foreground/80">
-                      {p.requisitosDesejaveis}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {p.trainings.map((t) => (
-                          <Badge key={t.id} variant="outline" className="rounded-md text-[10px]">
-                            {t.trainingName}
-                            {!t.isRequired && " (opcional)"}
+        <div className="flex gap-1 rounded-lg border border-border/70 bg-muted/30 p-1">
+          <button
+            onClick={() => setTab("pessoas")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition",
+              tab === "pessoas"
+                ? "bg-white text-brand shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Pessoas ({employees.length})
+          </button>
+          <button
+            onClick={() => setTab("cargos")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition",
+              tab === "cargos"
+                ? "bg-white text-brand shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Cargos ({positions.length})
+          </button>
+        </div>
+
+        {tab === "pessoas" && (
+          <Card className="rounded-2xl border-border/80 shadow-sm">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-muted/40">
+                  <TableRow className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <TableHead>Pessoa</TableHead>
+                    <TableHead>Cargo</TableHead>
+                    <TableHead>Setor</TableHead>
+                    <TableHead>Situação da Competência</TableHead>
+                    <TableHead>Pendência</TableHead>
+                    <TableHead>Ação de Competência</TableHead>
+                    {canCreateLogin && <TableHead className="w-10">Login</TableHead>}
+                    {canManage && <TableHead className="w-10">Editar</TableHead>}
+                    {canManage && <TableHead className="w-10">Excluir</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {!isLoading && employees.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={9}
+                        className="py-8 text-center text-xs text-muted-foreground"
+                      >
+                        Nenhuma pessoa cadastrada.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {employees.map((e) => (
+                    <TableRow
+                      key={e.id}
+                      className="cursor-pointer text-xs"
+                      onClick={() => setSelectedEmployeeId(e.id)}
+                    >
+                      <TableCell className="font-medium text-foreground">{e.nome}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {e.jobPositionNome ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{e.setor || "—"}</TableCell>
+                      <TableCell onClick={(ev) => ev.stopPropagation()}>
+                        <Select
+                          value={e.situacaoCompetencia}
+                          onValueChange={(v) => salvarSituacao(e, v)}
+                        >
+                          <SelectTrigger
+                            className={cn(
+                              "h-7 w-[190px] rounded-md border text-[11px]",
+                              situationColor[e.situacaoCompetencia],
+                            )}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SITUATION_OPTIONS.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        {e.pendingRequiredTrainings > 0 ? (
+                          <Badge
+                            variant="outline"
+                            className="rounded-md border-[color:var(--severity-high)]/40 bg-[color:var(--severity-high)]/10 text-[10px] text-[color:var(--severity-high)]"
+                          >
+                            {e.pendingRequiredTrainings}{" "}
+                            {e.pendingRequiredTrainings === 1 ? "pendência" : "pendências"}
                           </Badge>
-                        ))}
-                        {p.trainings.length === 0 && (
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="rounded-md border-[color:var(--success)]/30 bg-[color:var(--success)]/10 text-[10px] text-[color:var(--success)]"
+                          >
+                            <CheckCircle2 className="mr-1 h-3 w-3" /> Completo
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {e.openCompetencyActionCount > 0 ? (
+                          <Badge
+                            variant="outline"
+                            className="rounded-md border-[color:var(--severity-high)]/40 bg-[color:var(--severity-high)]/10 text-[10px] text-[color:var(--severity-high)]"
+                          >
+                            <AlertTriangle className="mr-1 h-3 w-3" />
+                            {e.openCompetencyActionCount} ação(ões) · em andamento
+                          </Badge>
+                        ) : (
                           <span className="text-[10px] text-muted-foreground">—</span>
                         )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {positions.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={4}
-                      className="py-8 text-center text-xs text-muted-foreground"
-                    >
-                      Nenhum cargo cadastrado.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl border-border/80 shadow-sm">
-          <CardContent className="p-0">
-            <div className="border-b border-border/70 px-5 py-3 text-sm font-semibold text-foreground">
-              Pessoas
-            </div>
-            <Table>
-              <TableHeader className="bg-muted/40">
-                <TableRow className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Setor</TableHead>
-                  <TableHead>Situação de competência</TableHead>
-                  <TableHead>Pendência</TableHead>
-                  {isAdmin && <TableHead className="w-10" />}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!isLoading && employees.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={isAdmin ? 6 : 5}
-                      className="py-8 text-center text-xs text-muted-foreground"
-                    >
-                      Nenhuma pessoa cadastrada.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {employees.map((e) => (
-                  <TableRow
-                    key={e.id}
-                    className="cursor-pointer text-xs"
-                    onClick={() => setSelectedEmployeeId(e.id)}
-                  >
-                    <TableCell className="font-medium text-foreground">{e.nome}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {e.jobPositionNome ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{e.setor || "—"}</TableCell>
-                    <TableCell onClick={(ev) => ev.stopPropagation()}>
-                      <Select
-                        value={e.situacaoCompetencia}
-                        onValueChange={(v) => salvarSituacao(e, v)}
-                      >
-                        <SelectTrigger
-                          className={cn(
-                            "h-7 w-[190px] rounded-md border text-[11px]",
-                            situationColor[e.situacaoCompetencia],
-                          )}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SITUATION_OPTIONS.map((o) => (
-                            <SelectItem key={o.value} value={o.value}>
-                              {o.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      {e.hasOpenCompetencyAction ? (
-                        <Badge
-                          variant="outline"
-                          className="rounded-md border-[color:var(--severity-high)]/40 bg-[color:var(--severity-high)]/10 text-[10px] text-[color:var(--severity-high)]"
-                        >
-                          <AlertTriangle className="mr-1 h-3 w-3" /> Ação de competência aberta
-                        </Badge>
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell onClick={(ev) => ev.stopPropagation()}>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setEditingEmployee(e)}
-                          className="h-7 w-7 p-0"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
                       </TableCell>
-                    )}
+                      {canCreateLogin && (
+                        <TableCell onClick={(ev) => ev.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={!!e.linkedUserId || !e.email}
+                            onClick={() => setInviteFor(e)}
+                            title={
+                              e.linkedUserId
+                                ? "Já tem login"
+                                : !e.email
+                                  ? "Cadastre um e-mail para criar login"
+                                  : "Criar login"
+                            }
+                            className="h-7 w-7 p-0"
+                          >
+                            <UserPlus className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      )}
+                      {canManage && (
+                        <TableCell onClick={(ev) => ev.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingEmployee(e)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      )}
+                      {canManage && (
+                        <TableCell onClick={(ev) => ev.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDeactivatingEmployee(e)}
+                            className="h-7 w-7 p-0 text-[color:var(--severity-critical)] hover:text-[color:var(--severity-critical)]"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
+        {tab === "cargos" && (
+          <Card className="rounded-2xl border-border/80 shadow-sm">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-muted/40">
+                  <TableRow className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <TableHead>Cargo</TableHead>
+                    <TableHead>Requisitos técnicos</TableHead>
+                    <TableHead>Treinamentos necessários</TableHead>
+                    <TableHead>Pessoas no cargo</TableHead>
+                    {canManage && <TableHead className="w-10">Editar</TableHead>}
+                    {canManage && <TableHead className="w-10">Excluir</TableHead>}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {positions.map((p) => {
+                    // Contagem de linhas não vazias — requisitos_tecnicos é
+                    // texto livre no banco (parágrafo), sem estrutura de
+                    // lista. Convenção adotada: uma exigência por linha.
+                    const reqCount = p.requisitosTecnicos
+                      .split("\n")
+                      .filter((l) => l.trim()).length;
+                    return (
+                      <TableRow key={p.id} className="text-xs">
+                        <TableCell className="font-semibold text-foreground">{p.nome}</TableCell>
+                        <TableCell className="text-muted-foreground">{reqCount}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {p.trainings.length}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="gap-1 rounded-md text-[10px]">
+                            <Users2 className="h-3 w-3" /> {p.peopleCount ?? 0}
+                          </Badge>
+                        </TableCell>
+                        {canManage && (
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => abrirEdicaoCargo(p)}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
+                        {canManage && (
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={(p.peopleCount ?? 0) > 0}
+                              title={
+                                (p.peopleCount ?? 0) > 0
+                                  ? "Ainda há pessoas neste cargo — mova-as antes de inativar"
+                                  : "Inativar cargo"
+                              }
+                              onClick={() => setDeactivatingPosition(p)}
+                              className="h-7 w-7 p-0 text-[color:var(--severity-critical)] hover:text-[color:var(--severity-critical)]"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                  {positions.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="py-8 text-center text-xs text-muted-foreground"
+                      >
+                        Nenhum cargo cadastrado.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Novo cargo */}
@@ -464,6 +668,7 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
               <Textarea
                 value={novoCargo.requisitosTecnicos}
                 onChange={(e) => setNovoCargo({ ...novoCargo, requisitosTecnicos: e.target.value })}
+                placeholder={"Uma exigência por linha"}
                 className="mt-1"
               />
             </div>
@@ -538,6 +743,111 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
             </Button>
             <Button onClick={salvarCargo} className="bg-brand text-white hover:bg-brand/90">
               Registrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Editar cargo (item 1) */}
+      <Dialog open={!!editingPosition} onOpenChange={(o) => !o && setEditingPosition(null)}>
+        <DialogContent className="max-w-lg rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar Cargo</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[65vh] space-y-3 overflow-y-auto text-sm">
+            <div>
+              <label className="text-xs font-medium">Cargo</label>
+              <Input
+                value={editPosition.nome}
+                onChange={(e) => setEditPosition({ ...editPosition, nome: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Requisitos técnicos</label>
+              <Textarea
+                value={editPosition.requisitosTecnicos}
+                onChange={(e) =>
+                  setEditPosition({ ...editPosition, requisitosTecnicos: e.target.value })
+                }
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Requisitos desejáveis</label>
+              <Textarea
+                value={editPosition.requisitosDesejaveis}
+                onChange={(e) =>
+                  setEditPosition({ ...editPosition, requisitosDesejaveis: e.target.value })
+                }
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Responsabilidades e autoridades</label>
+              <Textarea
+                value={editPosition.responsabilidadesAutoridades}
+                onChange={(e) =>
+                  setEditPosition({ ...editPosition, responsabilidadesAutoridades: e.target.value })
+                }
+                className="mt-1"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Treinamentos necessários</label>
+              <div className="space-y-1">
+                {editPositionTrainings.map((t, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between rounded-md border border-border/60 px-2 py-1 text-xs"
+                  >
+                    <span>{t.trainingName}</span>
+                    <button
+                      onClick={() =>
+                        setEditPositionTrainings((prev) => prev.filter((_, i) => i !== idx))
+                      }
+                      className="text-[10px] text-muted-foreground hover:text-[color:var(--severity-critical)]"
+                    >
+                      remover
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={editPositionTrainingNome}
+                  onChange={(e) => setEditPositionTrainingNome(e.target.value)}
+                  placeholder="Nome do treinamento"
+                  className="h-8 text-xs"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  onClick={() => {
+                    if (!editPositionTrainingNome.trim()) return;
+                    setEditPositionTrainings((prev) => [
+                      ...prev,
+                      { trainingName: editPositionTrainingNome.trim(), isRequired: true },
+                    ]);
+                    setEditPositionTrainingNome("");
+                  }}
+                >
+                  Adicionar
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingPosition(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={salvarEdicaoCargo}
+              disabled={updatePosition.isPending}
+              className="bg-brand text-white hover:bg-brand/90"
+            >
+              {updatePosition.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -625,7 +935,7 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
         </DialogContent>
       </Dialog>
 
-      {/* Editar pessoa (admin) */}
+      {/* Editar pessoa */}
       <Dialog open={!!editingEmployee} onOpenChange={(o) => !o && setEditingEmployee(null)}>
         <DialogContent className="max-w-lg rounded-2xl">
           <DialogHeader>
@@ -647,7 +957,155 @@ function HrView({ isAdmin }: { isAdmin: boolean }) {
           {selectedEmployeeId && <EmployeeDossieView employeeId={selectedEmployeeId} />}
         </DialogContent>
       </Dialog>
+
+      {/* Inativar pessoa (item 1 — "excluir" é soft delete) */}
+      <Dialog
+        open={!!deactivatingEmployee}
+        onOpenChange={(o) => !o && setDeactivatingEmployee(null)}
+      >
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Inativar {deactivatingEmployee?.nome}?</DialogTitle>
+            <DialogDescription>
+              O registro sai das listagens de trabalho, mas o histórico (ações de competência,
+              anexos, avaliações) continua preservado. Não é possível apagar de verdade — só
+              inativar.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeactivatingEmployee(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarInativarPessoa}
+              disabled={deactivateEmployee.isPending}
+              className="bg-[color:var(--severity-critical)] text-white hover:bg-[color:var(--severity-critical)]/90"
+            >
+              {deactivateEmployee.isPending ? "Inativando…" : "Inativar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Inativar cargo */}
+      <Dialog
+        open={!!deactivatingPosition}
+        onOpenChange={(o) => !o && setDeactivatingPosition(null)}
+      >
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Inativar cargo "{deactivatingPosition?.nome}"?</DialogTitle>
+            <DialogDescription>
+              O cargo sai da listagem e da matriz de treinamentos, mas o histórico de quem já o
+              ocupou é preservado.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeactivatingPosition(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarInativarCargo}
+              disabled={deactivatePosition.isPending}
+              className="bg-[color:var(--severity-critical)] text-white hover:bg-[color:var(--severity-critical)]/90"
+            >
+              {deactivatePosition.isPending ? "Inativando…" : "Inativar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Criar login (item 3) */}
+      <Dialog open={!!inviteFor} onOpenChange={(o) => !o && setInviteFor(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          {inviteFor && currentOrg && (
+            <InviteLoginForm
+              employee={inviteFor}
+              orgId={currentOrg.org_id}
+              onDone={() => setInviteFor(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </AppShell>
+  );
+}
+
+/** Item 3 do Bloco 4: Gestor da Qualidade e Administrador criam o login a
+ * partir do próprio registro da pessoa em Cargos e Perfis. Usa
+ * inviteOrgUser (server function nova, service_role) e depois linka o
+ * usuário criado ao employee (linked_user_id) — sem esse segundo passo, a
+ * conta existiria mas ficaria desconectada da pessoa cadastrada, e nenhuma
+ * política de self-service (linked_user_id = auth.uid()) reconheceria essa
+ * pessoa como dona da própria conta. */
+function InviteLoginForm({
+  employee,
+  orgId,
+  onDone,
+}: {
+  employee: Employee;
+  orgId: string;
+  onDone: () => void;
+}) {
+  const inviteLogin = useInviteEmployeeLogin();
+  const [role, setRole] = useState<
+    "admin" | "quality_manager" | "auditor" | "area_manager" | "collaborator" | "viewer"
+  >("collaborator");
+
+  const enviar = () => {
+    inviteLogin.mutate(
+      { employeeId: employee.id, orgId, email: employee.email, fullName: employee.nome, role },
+      {
+        onSuccess: () => {
+          toast.success("Login criado", {
+            description: `${employee.nome} recebeu um e-mail para definir a senha.`,
+          });
+          onDone();
+        },
+        onError: (e) => toast.error("Erro ao criar login", { description: getErrorMessage(e) }),
+      },
+    );
+  };
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Criar login para {employee.nome}</DialogTitle>
+        <DialogDescription>
+          Um e-mail é enviado para {employee.email} com o link de definição de senha. O papel
+          escolhido decide o que a pessoa poderá ver e fazer no sistema.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-1.5 text-sm">
+        <label className="text-xs font-medium">Perfil de acesso</label>
+        <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
+          <SelectTrigger className="mt-1 h-9 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {/* Ordem alfabética pelo rótulo — regra 21.7 do Guia. */}
+            <SelectItem value="admin">Administrador do Cliente</SelectItem>
+            <SelectItem value="auditor">Auditor</SelectItem>
+            <SelectItem value="collaborator">Colaborador</SelectItem>
+            <SelectItem value="quality_manager">Gestor da Qualidade</SelectItem>
+            <SelectItem value="area_manager">Gestor de Área</SelectItem>
+            <SelectItem value="viewer">Somente Leitura</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onDone}>
+          Cancelar
+        </Button>
+        <Button
+          onClick={enviar}
+          disabled={inviteLogin.isPending}
+          className="bg-brand text-white hover:bg-brand/90"
+        >
+          {inviteLogin.isPending ? "Enviando…" : "Enviar convite"}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 
@@ -873,8 +1331,14 @@ function EmployeeDossieView({ employeeId }: { employeeId: string }) {
                 className="flex items-center justify-between rounded-md border border-border/60 px-3 py-1.5 text-xs"
               >
                 <span className="text-foreground/85">
-                  {a.methodology} · prev.{" "}
-                  {new Date(a.expectedDate + "T00:00:00").toLocaleDateString("pt-BR")}
+                  {/* Item 2 do Bloco 4: concluída mostra a data REALIZADA
+                      (completionDate), não a prevista congelada para
+                      sempre — antes ficava mostrando "prev." mesmo depois
+                      de a ação já ter acontecido. */}
+                  {a.methodology} ·{" "}
+                  {a.status === "concluida" && a.completionDate
+                    ? `real. ${new Date(a.completionDate + "T00:00:00").toLocaleDateString("pt-BR")}`
+                    : `prev. ${new Date(a.expectedDate + "T00:00:00").toLocaleDateString("pt-BR")}`}
                 </span>
                 {a.status === "concluida" ? (
                   <Badge

@@ -38,6 +38,7 @@ import {
   HelpCircle,
   Sparkles,
   X,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, getErrorMessage } from "@/lib/utils";
@@ -46,6 +47,7 @@ import { useJobPositions } from "@/lib/queries/pessoas";
 import {
   useTrainings,
   useCreateTraining,
+  useUpdateTraining,
   useTrainingApplicability,
   useSetTrainingApplicability,
   useTrainingSessions,
@@ -59,8 +61,113 @@ import {
   useAcknowledgeAwarenessPublication,
   MODALITY_OPTIONS,
   type TrainingModality,
+  type CargaHorariaUnidade,
+  type Training,
   type AwarenessPublicationType,
 } from "@/lib/queries/pessoas";
+
+const UNIDADE_OPTIONS: { value: CargaHorariaUnidade; label: string }[] = [
+  { value: "hora", label: "Hora(s)" },
+  { value: "minuto", label: "Minuto(s)" },
+];
+
+interface TrainingFormState {
+  nome: string;
+  cargaHoraria: string;
+  cargaHorariaUnidade: CargaHorariaUnidade;
+  instrutorFornecedor: string;
+  modalidade: TrainingModality;
+}
+
+const TRAINING_FORM_VAZIO: TrainingFormState = {
+  nome: "",
+  cargaHoraria: "",
+  cargaHorariaUnidade: "hora",
+  instrutorFornecedor: "",
+  modalidade: "interno",
+};
+
+/** Campos do treinamento — compartilhado entre "Novo" e "Editar" (item 6:
+ * editar nunca existiu, só cadastrar). Unidade de carga horária ao lado do
+ * número (item 5): sem isso, "15" é ambíguo entre 15h e 15min. */
+function TrainingFormFields({
+  value,
+  onChange,
+}: {
+  value: TrainingFormState;
+  onChange: (v: TrainingFormState) => void;
+}) {
+  return (
+    <div className="space-y-3 text-sm">
+      <div>
+        <label className="text-xs font-medium">Nome</label>
+        <Input
+          value={value.nome}
+          onChange={(e) => onChange({ ...value, nome: e.target.value })}
+          className="mt-1"
+        />
+      </div>
+      <div className="grid grid-cols-[1fr_1fr_1fr] gap-3">
+        <div>
+          <label className="text-xs font-medium">Carga horária</label>
+          <Input
+            type="number"
+            min={0}
+            value={value.cargaHoraria}
+            onChange={(e) => onChange({ ...value, cargaHoraria: e.target.value })}
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium">Unidade</label>
+          <Select
+            value={value.cargaHorariaUnidade}
+            onValueChange={(v) =>
+              onChange({ ...value, cargaHorariaUnidade: v as CargaHorariaUnidade })
+            }
+          >
+            <SelectTrigger className="mt-1 h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {UNIDADE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-xs font-medium">Modalidade</label>
+          <Select
+            value={value.modalidade}
+            onValueChange={(v) => onChange({ ...value, modalidade: v as TrainingModality })}
+          >
+            <SelectTrigger className="mt-1 h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MODALITY_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div>
+        <label className="text-xs font-medium">Instrutor/fornecedor</label>
+        <Input
+          value={value.instrutorFornecedor}
+          onChange={(e) => onChange({ ...value, instrutorFornecedor: e.target.value })}
+          className="mt-1"
+        />
+      </div>
+    </div>
+  );
+}
 
 export function AprendizagemPage() {
   const { currentOrg } = useAuth();
@@ -113,14 +220,12 @@ function MatrizTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
   const { data: employees = [] } = useEmployees();
   const setApplicability = useSetTrainingApplicability();
   const createTraining = useCreateTraining();
+  const updateTraining = useUpdateTraining();
 
   const [novoOpen, setNovoOpen] = useState(false);
-  const [novo, setNovo] = useState({
-    nome: "",
-    cargaHoraria: "",
-    instrutorFornecedor: "",
-    modalidade: "interno" as TrainingModality,
-  });
+  const [novo, setNovo] = useState<TrainingFormState>(TRAINING_FORM_VAZIO);
+  const [editingTraining, setEditingTraining] = useState<Training | null>(null);
+  const [editForm, setEditForm] = useState<TrainingFormState>(TRAINING_FORM_VAZIO);
   const [peopleFor, setPeopleFor] = useState<string | null>(null);
 
   const applicableSet = useMemo(
@@ -143,6 +248,7 @@ function MatrizTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
       {
         nome: novo.nome,
         cargaHoraria: novo.cargaHoraria ? Number(novo.cargaHoraria) : null,
+        cargaHorariaUnidade: novo.cargaHorariaUnidade,
         instrutorFornecedor: novo.instrutorFornecedor,
         modalidade: novo.modalidade,
       },
@@ -150,9 +256,45 @@ function MatrizTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
         onSuccess: () => {
           toast.success("Treinamento cadastrado");
           setNovoOpen(false);
-          setNovo({ nome: "", cargaHoraria: "", instrutorFornecedor: "", modalidade: "interno" });
+          setNovo(TRAINING_FORM_VAZIO);
         },
         onError: (e) => toast.error("Erro ao cadastrar", { description: getErrorMessage(e) }),
+      },
+    );
+  };
+
+  const abrirEdicao = (t: Training) => {
+    setEditingTraining(t);
+    setEditForm({
+      nome: t.nome,
+      cargaHoraria: t.cargaHoraria != null ? String(t.cargaHoraria) : "",
+      cargaHorariaUnidade: t.cargaHorariaUnidade,
+      instrutorFornecedor: t.instrutorFornecedor,
+      modalidade: t.modalidade,
+    });
+  };
+
+  const salvarEdicao = () => {
+    if (!editingTraining) return;
+    if (!editForm.nome.trim()) {
+      toast.error("Informe o nome do treinamento");
+      return;
+    }
+    updateTraining.mutate(
+      {
+        id: editingTraining.id,
+        nome: editForm.nome,
+        cargaHoraria: editForm.cargaHoraria ? Number(editForm.cargaHoraria) : null,
+        cargaHorariaUnidade: editForm.cargaHorariaUnidade,
+        instrutorFornecedor: editForm.instrutorFornecedor,
+        modalidade: editForm.modalidade,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Treinamento atualizado");
+          setEditingTraining(null);
+        },
+        onError: (e) => toast.error("Erro ao atualizar", { description: getErrorMessage(e) }),
       },
     );
   };
@@ -186,7 +328,18 @@ function MatrizTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
                       key={t.id}
                       className="px-2 py-2 text-center text-[10px] font-semibold text-muted-foreground"
                     >
-                      <div className="mx-auto max-w-[90px] leading-tight">{t.nome}</div>
+                      <div className="mx-auto flex max-w-[100px] items-start justify-center gap-1 leading-tight">
+                        <span>{t.nome}</span>
+                        {isHrAuthorized && (
+                          <button
+                            onClick={() => abrirEdicao(t)}
+                            title="Editar treinamento"
+                            className="shrink-0 text-muted-foreground hover:text-brand"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
                     </th>
                   ))}
                 </tr>
@@ -244,59 +397,38 @@ function MatrizTab({ isHrAuthorized }: { isHrAuthorized: boolean }) {
           <DialogHeader>
             <DialogTitle>Novo treinamento</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <div>
-              <label className="text-xs font-medium">Nome</label>
-              <Input
-                value={novo.nome}
-                onChange={(e) => setNovo({ ...novo, nome: e.target.value })}
-                className="mt-1"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium">Carga horária</label>
-                <Input
-                  type="number"
-                  value={novo.cargaHoraria}
-                  onChange={(e) => setNovo({ ...novo, cargaHoraria: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium">Modalidade</label>
-                <Select
-                  value={novo.modalidade}
-                  onValueChange={(v) => setNovo({ ...novo, modalidade: v as TrainingModality })}
-                >
-                  <SelectTrigger className="mt-1 h-9 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MODALITY_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-medium">Instrutor/fornecedor</label>
-              <Input
-                value={novo.instrutorFornecedor}
-                onChange={(e) => setNovo({ ...novo, instrutorFornecedor: e.target.value })}
-                className="mt-1"
-              />
-            </div>
-          </div>
+          <TrainingFormFields value={novo} onChange={setNovo} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setNovoOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={salvarTreinamento} className="bg-brand text-white hover:bg-brand/90">
-              Registrar
+            <Button
+              onClick={salvarTreinamento}
+              disabled={createTraining.isPending}
+              className="bg-brand text-white hover:bg-brand/90"
+            >
+              {createTraining.isPending ? "Registrando…" : "Registrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingTraining} onOpenChange={(o) => !o && setEditingTraining(null)}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar treinamento</DialogTitle>
+          </DialogHeader>
+          <TrainingFormFields value={editForm} onChange={setEditForm} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingTraining(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={salvarEdicao}
+              disabled={updateTraining.isPending}
+              className="bg-brand text-white hover:bg-brand/90"
+            >
+              {updateTraining.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { assertNotReadOnly } from "@/lib/org-access-guard";
+import { inviteOrgUser } from "@/lib/invite-user-server";
 
 /* ============================================================
  * Cargos e Perfis — módulo mais sensível migrado até agora (dado de
@@ -47,6 +48,10 @@ export interface JobPosition {
   requisitosTecnicos: string;
   requisitosDesejaveis: string;
   responsabilidadesAutoridades: string;
+  isActive: boolean;
+  /** Preenchido só por useJobPositions (soma de employees.job_position_id).
+   * Ausente no retorno de outros hooks que também usam JobPosition. */
+  peopleCount?: number;
   trainings: JobPositionTraining[];
 }
 
@@ -55,33 +60,58 @@ const jobPositionKeys = {
   list: () => [...jobPositionKeys.all, "list"] as const,
 };
 
-export function useJobPositions() {
+export function useJobPositions(includeInactive = false) {
   const supabase = getSupabaseBrowserClient();
   return useQuery({
-    queryKey: jobPositionKeys.list(),
+    queryKey: [...jobPositionKeys.list(), includeInactive],
     queryFn: async (): Promise<JobPosition[]> => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("job_positions")
         .select(
-          "id, nome, requisitos_tecnicos, requisitos_desejaveis, responsabilidades_autoridades, job_position_trainings(id, training_name, is_required)",
+          "id, nome, requisitos_tecnicos, requisitos_desejaveis, responsabilidades_autoridades, is_active, job_position_trainings(id, training_name, is_required)",
         )
         .order("nome");
+      if (!includeInactive) query = query.eq("is_active", true);
+      const { data, error } = await query;
       if (error) throw error;
-      return (
+      const rows =
         (data as unknown as {
           id: string;
           nome: string;
           requisitos_tecnicos: string | null;
           requisitos_desejaveis: string | null;
           responsabilidades_autoridades: string | null;
+          is_active: boolean;
           job_position_trainings: { id: string; training_name: string; is_required: boolean }[];
-        }[]) ?? []
-      ).map((p) => ({
+        }[]) ?? [];
+      if (rows.length === 0) return [];
+
+      // "Pessoas no Cargo" (print do Bloco 4): contagem separada — RLS de
+      // job_positions não exige can_manage_hr_structure, mas employees exige
+      // (ou self); quem não gerencia RH recebe 0 aqui em vez de erro, o que
+      // é o comportamento correto (não vê a contagem de terceiros).
+      const { data: emp } = await supabase
+        .from("employees")
+        .select("job_position_id")
+        .eq("is_active", true)
+        .in(
+          "job_position_id",
+          rows.map((r) => r.id),
+        );
+      const countByPosition = new Map<string, number>();
+      for (const e of (emp as unknown as { job_position_id: string | null }[]) ?? []) {
+        if (!e.job_position_id) continue;
+        countByPosition.set(e.job_position_id, (countByPosition.get(e.job_position_id) ?? 0) + 1);
+      }
+
+      return rows.map((p) => ({
         id: p.id,
         nome: p.nome,
         requisitosTecnicos: p.requisitos_tecnicos ?? "",
         requisitosDesejaveis: p.requisitos_desejaveis ?? "",
         responsabilidadesAutoridades: p.responsabilidades_autoridades ?? "",
+        isActive: p.is_active,
+        peopleCount: countByPosition.get(p.id) ?? 0,
         trainings: (p.job_position_trainings ?? []).map((t) => ({
           id: t.id,
           trainingName: t.training_name,
@@ -128,7 +158,76 @@ export function useCreateJobPosition() {
 
       return position as { id: string };
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: jobPositionKeys.list() }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: jobPositionKeys.all }),
+  });
+}
+
+/** Edita cargo e substitui a lista de treinamentos. Substituição inteira
+ * (delete + insert) em vez de diff campo a campo: job_position_trainings
+ * é a lista VIGENTE de requisitos do cargo, não um registro de auditoria
+ * — mais parecido com uma lista de tags que se reescreve a cada edição do
+ * que com uma NC ou plano de ação. Por isso a migração do Bloco 4 abriu
+ * DELETE nesta tabela especificamente (restrito a quem gerencia RH),
+ * diferente de employees/job_positions, cuja própria linha nunca é
+ * apagada — só inativada. */
+export function useUpdateJobPosition() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      nome: string;
+      requisitosTecnicos: string;
+      requisitosDesejaveis: string;
+      responsabilidadesAutoridades: string;
+      trainings: { trainingName: string; isRequired: boolean }[];
+    }) => {
+      const { error: posErr } = await supabase
+        .from("job_positions")
+        .update({
+          nome: input.nome,
+          requisitos_tecnicos: input.requisitosTecnicos || null,
+          requisitos_desejaveis: input.requisitosDesejaveis || null,
+          responsabilidades_autoridades: input.responsabilidadesAutoridades || null,
+        })
+        .eq("id", input.id);
+      if (posErr) throw posErr;
+
+      const { error: delErr } = await supabase
+        .from("job_position_trainings")
+        .delete()
+        .eq("job_position_id", input.id);
+      if (delErr) throw delErr;
+
+      if (input.trainings.length > 0) {
+        const { error: trainErr } = await supabase.from("job_position_trainings").insert(
+          input.trainings.map((t) => ({
+            job_position_id: input.id,
+            training_name: t.trainingName,
+            is_required: t.isRequired,
+          })),
+        );
+        if (trainErr) throw trainErr;
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: jobPositionKeys.all }),
+  });
+}
+
+/** "Excluir" cargo (item 1) — mesma lógica de useDeactivateEmployee:
+ * job_positions também tem DELETE bloqueado, então é inativação. */
+export function useDeactivateJobPosition() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("job_positions")
+        .update({ is_active: false })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: jobPositionKeys.all }),
   });
 }
 
@@ -143,7 +242,16 @@ export interface Employee {
   setor: string;
   situacaoCompetencia: CompetencySituation;
   linkedUserId: string | null;
+  isActive: boolean;
   hasOpenCompetencyAction: boolean;
+  /** Quantas ações de competência abertas — o print do Bloco 4 mostra
+   * contagem e status ("1 ação(ões) · em andamento"), não só um booleano. */
+  openCompetencyActionCount: number;
+  /** Quantos treinamentos OBRIGATÓRIOS do cargo desta pessoa ela ainda não
+   * concluiu (nenhuma sessão 'realizada' com presença registrada). Coluna
+   * "Pendência" do print — distinta de Situação da Competência (que é
+   * autodeclarada) e de Ação de Competência (que é o PDI formal aberto). */
+  pendingRequiredTrainings: number;
 }
 
 const employeeKeys = {
@@ -163,11 +271,15 @@ interface EmployeeListRow {
   setor: string | null;
   situacao_competencia: CompetencySituation;
   linked_user_id: string | null;
+  is_active?: boolean;
   job_position: { nome: string } | null;
-  competency_actions: { id: string }[];
+  competency_actions?: { id: string }[];
 }
 
-function mapEmployeeRow(e: EmployeeListRow): Employee {
+function mapEmployeeRow(
+  e: EmployeeListRow,
+  extra?: { openCompetencyActionCount?: number; pendingRequiredTrainings?: number },
+): Employee {
   return {
     id: e.id,
     nome: e.nome,
@@ -179,46 +291,144 @@ function mapEmployeeRow(e: EmployeeListRow): Employee {
     setor: e.setor ?? "",
     situacaoCompetencia: e.situacao_competencia,
     linkedUserId: e.linked_user_id,
+    isActive: e.is_active ?? true,
     hasOpenCompetencyAction: (e.competency_actions ?? []).length > 0,
+    openCompetencyActionCount:
+      extra?.openCompetencyActionCount ?? (e.competency_actions ?? []).length,
+    pendingRequiredTrainings: extra?.pendingRequiredTrainings ?? 0,
   };
 }
 
-/** Lista de funcionários — RLS já filtra: admin/quality_manager vê todos
+/** Lista de funcionários — RLS já filtra: quem pode gerenciar RH vê todos
  * da org, qualquer outro perfil vê no máximo o próprio registro (ou
- * nenhum, se não tiver employees.linked_user_id apontando pra ele). */
-export function useEmployees() {
+ * nenhum, se não tiver employees.linked_user_id apontando pra ele).
+ *
+ * `includeInactive`: as listagens de Cargos e Perfis mostram só quem está
+ * ativo por padrão (item 1 do Bloco 4 — "excluir" é inativação, e quem foi
+ * inativado sai da lista de trabalho do dia a dia, mas o registro continua
+ * existindo para histórico). */
+export function useEmployees(includeInactive = false) {
   const supabase = getSupabaseBrowserClient();
   return useQuery({
-    queryKey: employeeKeys.list(),
+    queryKey: [...employeeKeys.list(), includeInactive],
     queryFn: async (): Promise<Employee[]> => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("employees")
         .select(
-          "id, nome, matricula, email, admissao, job_position_id, setor, situacao_competencia, linked_user_id, job_position:job_positions!job_position_id(nome), competency_actions!inner(id)",
-        )
-        .eq("competency_actions.status", "aberta")
-        .order("nome");
-      if (error) throw error;
-      // Query acima só traz quem TEM ação aberta (inner join) — busca de
-      // novo sem o inner pra pegar todo mundo, e cruza localmente. Evita
-      // duas idas ao banco só pra marcar Pendência seria melhor com uma
-      // view, mas o volume de linhas aqui (funcionários de uma empresa)
-      // não justifica a complexidade extra agora.
-      const { data: all, error: allErr } = await supabase
-        .from("employees")
-        .select(
-          "id, nome, matricula, email, admissao, job_position_id, setor, situacao_competencia, linked_user_id, job_position:job_positions!job_position_id(nome)",
+          "id, nome, matricula, email, admissao, job_position_id, setor, situacao_competencia, linked_user_id, is_active, job_position:job_positions!job_position_id(nome)",
         )
         .order("nome");
+      if (!includeInactive) query = query.eq("is_active", true);
+      const { data: all, error: allErr } = await query;
       if (allErr) throw allErr;
-      const withOpenAction = new Set(
-        ((data as unknown as { id: string }[]) ?? []).map((r) => r.id),
-      );
-      return ((all as unknown as Omit<EmployeeListRow, "competency_actions">[]) ?? []).map((e) =>
-        mapEmployeeRow({ ...e, competency_actions: withOpenAction.has(e.id) ? [{ id: "x" }] : [] }),
+      const rows = (all as unknown as Omit<EmployeeListRow, "competency_actions">[]) ?? [];
+      if (rows.length === 0) return [];
+
+      // Contagem de ações de competência abertas, por funcionário. Consulta
+      // separada (não embutida no select acima) porque contagem por grupo
+      // via PostgREST embed não dá pra combinar com `is_active` filtrado no
+      // pai — mais simples cruzar em memória, e o volume aqui (funcionários
+      // de uma empresa) não justifica RPC dedicada.
+      const { data: openActions, error: actErr } = await supabase
+        .from("competency_actions")
+        .select("employee_id")
+        .eq("status", "aberta")
+        .in(
+          "employee_id",
+          rows.map((r) => r.id),
+        );
+      if (actErr) throw actErr;
+      const actionCountByEmployee = new Map<string, number>();
+      for (const a of (openActions as unknown as { employee_id: string }[]) ?? []) {
+        actionCountByEmployee.set(
+          a.employee_id,
+          (actionCountByEmployee.get(a.employee_id) ?? 0) + 1,
+        );
+      }
+
+      const pendingByEmployee = await computePendingRequiredTrainings(supabase, rows);
+
+      return rows.map((e) =>
+        mapEmployeeRow(e, {
+          openCompetencyActionCount: actionCountByEmployee.get(e.id) ?? 0,
+          pendingRequiredTrainings: pendingByEmployee.get(e.id) ?? 0,
+        }),
       );
     },
   });
+}
+
+/** Treinamento obrigatório do cargo (job_position_trainings.training_name,
+ * texto livre) versus treinamento que a pessoa já concluiu (presença
+ * confirmada numa sessão 'realizada' do treinamento com esse mesmo nome no
+ * catálogo). Casamento por NOME, não por FK — job_position_trainings nunca
+ * referenciou trainings.id, é texto digitado na hora de montar o perfil do
+ * cargo. Cargo apontando para um nome que não existe (mais) no catálogo
+ * conta como pendente — não tem sessão nenhuma para satisfazer aquele
+ * requisito. */
+async function computePendingRequiredTrainings(
+  supabase: ReturnType<typeof getSupabaseBrowserClient>,
+  employees: { id: string; job_position_id: string | null }[],
+): Promise<Map<string, number>> {
+  const positionIds = [
+    ...new Set(employees.map((e) => e.job_position_id).filter(Boolean)),
+  ] as string[];
+  if (positionIds.length === 0) return new Map();
+
+  const { data: required, error: reqErr } = await supabase
+    .from("job_position_trainings")
+    .select("job_position_id, training_name")
+    .eq("is_required", true)
+    .in("job_position_id", positionIds);
+  if (reqErr) throw reqErr;
+  const requiredRows =
+    (required as unknown as { job_position_id: string; training_name: string }[]) ?? [];
+  if (requiredRows.length === 0) return new Map();
+
+  const requiredByPosition = new Map<string, Set<string>>();
+  for (const r of requiredRows) {
+    if (!requiredByPosition.has(r.job_position_id))
+      requiredByPosition.set(r.job_position_id, new Set());
+    requiredByPosition.get(r.job_position_id)!.add(r.training_name);
+  }
+
+  // Quem concluiu o quê: presença confirmada numa sessão já realizada.
+  const { data: done, error: doneErr } = await supabase
+    .from("training_participants")
+    .select(
+      "employee_id, presente, training_sessions!inner(status, training:trainings!training_id(nome))",
+    )
+    .eq("presente", true)
+    .eq("training_sessions.status", "realizada")
+    .in(
+      "employee_id",
+      employees.map((e) => e.id),
+    );
+  if (doneErr) throw doneErr;
+  const doneRows =
+    (done as unknown as {
+      employee_id: string;
+      training_sessions: { training: { nome: string } | null } | null;
+    }[]) ?? [];
+  const completedByEmployee = new Map<string, Set<string>>();
+  for (const d of doneRows) {
+    const nome = d.training_sessions?.training?.nome;
+    if (!nome) continue;
+    if (!completedByEmployee.has(d.employee_id)) completedByEmployee.set(d.employee_id, new Set());
+    completedByEmployee.get(d.employee_id)!.add(nome);
+  }
+
+  const result = new Map<string, number>();
+  for (const e of employees) {
+    if (!e.job_position_id) continue;
+    const required = requiredByPosition.get(e.job_position_id);
+    if (!required || required.size === 0) continue;
+    const completed = completedByEmployee.get(e.id) ?? new Set<string>();
+    let pendentes = 0;
+    for (const nome of required) if (!completed.has(nome)) pendentes++;
+    if (pendentes > 0) result.set(e.id, pendentes);
+  }
+  return result;
 }
 
 export function useCreateEmployee() {
@@ -264,15 +474,73 @@ export function useUpdateEmployee() {
         job_position_id: string;
         setor: string;
         situacao_competencia: CompetencySituation;
+        is_active: boolean;
+        linked_user_id: string;
       }>;
     }) => {
       const { error } = await supabase.from("employees").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_d, vars) => {
-      queryClient.invalidateQueries({ queryKey: employeeKeys.list() });
+      queryClient.invalidateQueries({ queryKey: employeeKeys.all });
       queryClient.invalidateQueries({ queryKey: employeeKeys.dossie(vars.id) });
     },
+  });
+}
+
+/** "Excluir" em Cargos e Perfis (item 1) — employees tem DELETE bloqueado
+ * no banco (nada apaga, seção 20 do Guia), então isto é UPDATE de
+ * is_active, não um DELETE de verdade. Sem motivo obrigatório: decisão
+ * explícita, corrigir um cadastro errado não pede justificativa formal. */
+/** Item 3 do Bloco 4: cria o login e já linka ao registro de employee, num
+ * único passo do ponto de vista do chamador.
+ *
+ * O import de inviteOrgUser (lib/server/invite-user, um createServerFn)
+ * fica AQUI, não em cargos.tsx: o bundler do TanStack Start bloqueia
+ * import direto de qualquer caminho `**\/server/**` a partir de um
+ * componente de rota (import-protection plugin) — só passa se houver uma
+ * camada de queries no meio, mesmo padrão que o jawda-admin já usa
+ * (lib/queries/user-management.ts envolvendo lib/server/invite-owner.ts).
+ * Sem essa indireção, o build falha, não só um lint. */
+export function useInviteEmployeeLogin() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      employeeId: string;
+      orgId: string;
+      email: string;
+      fullName: string;
+      role: "admin" | "quality_manager" | "auditor" | "area_manager" | "collaborator" | "viewer";
+    }) => {
+      const { userId } = await inviteOrgUser({
+        data: {
+          orgId: input.orgId,
+          email: input.email,
+          fullName: input.fullName,
+          role: input.role,
+        },
+      });
+      const { error } = await supabase
+        .from("employees")
+        .update({ linked_user_id: userId })
+        .eq("id", input.employeeId);
+      if (error) throw error;
+      return { userId };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: employeeKeys.all }),
+  });
+}
+
+export function useDeactivateEmployee() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("employees").update({ is_active: false }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: employeeKeys.all }),
   });
 }
 
@@ -575,10 +843,13 @@ export const MODALITY_OPTIONS: { value: TrainingModality; label: string }[] = [
   { value: "misto", label: "Misto" },
 ];
 
+export type CargaHorariaUnidade = "hora" | "minuto";
+
 export interface Training {
   id: string;
   nome: string;
   cargaHoraria: number | null;
+  cargaHorariaUnidade: CargaHorariaUnidade;
   instrutorFornecedor: string;
   modalidade: TrainingModality;
 }
@@ -597,7 +868,7 @@ export function useTrainings() {
     queryFn: async (): Promise<Training[]> => {
       const { data, error } = await supabase
         .from("trainings")
-        .select("id, nome, carga_horaria, instrutor_fornecedor, modalidade")
+        .select("id, nome, carga_horaria, carga_horaria_unidade, instrutor_fornecedor, modalidade")
         .order("nome");
       if (error) throw error;
       return (
@@ -605,6 +876,7 @@ export function useTrainings() {
           id: string;
           nome: string;
           carga_horaria: number | null;
+          carga_horaria_unidade: CargaHorariaUnidade;
           instrutor_fornecedor: string | null;
           modalidade: TrainingModality;
         }[]) ?? []
@@ -612,6 +884,7 @@ export function useTrainings() {
         id: t.id,
         nome: t.nome,
         cargaHoraria: t.carga_horaria,
+        cargaHorariaUnidade: t.carga_horaria_unidade,
         instrutorFornecedor: t.instrutor_fornecedor ?? "",
         modalidade: t.modalidade,
       }));
@@ -619,22 +892,49 @@ export function useTrainings() {
   });
 }
 
+interface TrainingInput {
+  nome: string;
+  cargaHoraria: number | null;
+  cargaHorariaUnidade: CargaHorariaUnidade;
+  instrutorFornecedor: string;
+  modalidade: TrainingModality;
+}
+
 export function useCreateTraining() {
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: {
-      nome: string;
-      cargaHoraria: number | null;
-      instrutorFornecedor: string;
-      modalidade: TrainingModality;
-    }) => {
+    mutationFn: async (input: TrainingInput) => {
       const { error } = await supabase.from("trainings").insert({
         nome: input.nome,
         carga_horaria: input.cargaHoraria,
+        carga_horaria_unidade: input.cargaHorariaUnidade,
         instrutor_fornecedor: input.instrutorFornecedor || null,
         modalidade: input.modalidade,
       });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: trainingKeys.list() }),
+  });
+}
+
+/** Item 6 do Bloco 4: editar treinamento nunca existiu — só create. RLS já
+ * permitia UPDATE, faltava a mutation e o botão. */
+export function useUpdateTraining() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...input }: TrainingInput & { id: string }) => {
+      const { error } = await supabase
+        .from("trainings")
+        .update({
+          nome: input.nome,
+          carga_horaria: input.cargaHoraria,
+          carga_horaria_unidade: input.cargaHorariaUnidade,
+          instrutor_fornecedor: input.instrutorFornecedor || null,
+          modalidade: input.modalidade,
+        })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: trainingKeys.list() }),
@@ -1121,6 +1421,7 @@ export interface PerformanceEvaluationDetail {
   employeeId: string;
   employeeNome: string;
   status: "programada" | "em_andamento" | "concluida";
+  metaMinima: number;
   chaAnswers: { bloco: string; perguntaIndex: number; nota: number; detalhamento: string }[];
   decisionMatrix: {
     altoPotencial: number;
@@ -1131,6 +1432,7 @@ export interface PerformanceEvaluationDetail {
   feedback: {
     devolutivaRegistro: string;
     devolutivaData: string;
+    compartilhadoComAvaliado: boolean;
     generatedActionPlanId: string | null;
     generatedActionPlanCode: string | null;
   } | null;
@@ -1144,7 +1446,9 @@ export function usePerformanceEvaluationDetail(evaluationId: string | undefined)
     queryFn: async (): Promise<PerformanceEvaluationDetail> => {
       const { data: evaluation, error: evalErr } = await supabase
         .from("performance_evaluations")
-        .select("id, employee_id, status, employee:employees!employee_id(nome)")
+        .select(
+          "id, employee_id, status, employee:employees!employee_id(nome), cycle:performance_cycles!cycle_id(meta_minima)",
+        )
         .eq("id", evaluationId as string)
         .single();
       if (evalErr) throw evalErr;
@@ -1165,7 +1469,7 @@ export function usePerformanceEvaluationDetail(evaluationId: string | undefined)
       const { data: feedback, error: fbErr } = await supabase
         .from("performance_feedback")
         .select(
-          "devolutiva_registro, devolutiva_data, generated_action_plan_id, generated_action_plan:action_plans!generated_action_plan_id(code)",
+          "devolutiva_registro, devolutiva_data, compartilhado_com_avaliado, generated_action_plan_id, generated_action_plan:action_plans!generated_action_plan_id(code)",
         )
         .eq("evaluation_id", evaluationId as string)
         .maybeSingle();
@@ -1176,6 +1480,7 @@ export function usePerformanceEvaluationDetail(evaluationId: string | undefined)
         employee_id: string;
         status: "programada" | "em_andamento" | "concluida";
         employee: { nome: string } | null;
+        cycle: { meta_minima: number } | null;
       };
       const m = matrix as unknown as {
         alto_potencial: number;
@@ -1186,6 +1491,7 @@ export function usePerformanceEvaluationDetail(evaluationId: string | undefined)
       const f = feedback as unknown as {
         devolutiva_registro: string;
         devolutiva_data: string;
+        compartilhado_com_avaliado: boolean;
         generated_action_plan_id: string | null;
         generated_action_plan: { code: string } | null;
       } | null;
@@ -1195,6 +1501,7 @@ export function usePerformanceEvaluationDetail(evaluationId: string | undefined)
         employeeId: e.employee_id,
         employeeNome: e.employee?.nome ?? "",
         status: e.status,
+        metaMinima: e.cycle?.meta_minima ?? 7,
         chaAnswers: (
           (answers as unknown as {
             bloco: string;
@@ -1220,6 +1527,7 @@ export function usePerformanceEvaluationDetail(evaluationId: string | undefined)
           ? {
               devolutivaRegistro: f.devolutiva_registro,
               devolutivaData: f.devolutiva_data,
+              compartilhadoComAvaliado: f.compartilhado_com_avaliado,
               generatedActionPlanId: f.generated_action_plan_id,
               generatedActionPlanCode: f.generated_action_plan?.code ?? null,
             }
@@ -1308,16 +1616,25 @@ export function useSaveFeedback() {
     mutationFn: async ({
       evaluationId,
       devolutivaRegistro,
+      devolutivaData,
+      compartilhadoComAvaliado,
     }: {
       evaluationId: string;
       devolutivaRegistro: string;
+      devolutivaData?: string;
+      compartilhadoComAvaliado?: boolean;
     }) => {
-      const { error } = await supabase
-        .from("performance_feedback")
-        .upsert(
-          { evaluation_id: evaluationId, devolutiva_registro: devolutivaRegistro },
-          { onConflict: "evaluation_id" },
-        );
+      const { error } = await supabase.from("performance_feedback").upsert(
+        {
+          evaluation_id: evaluationId,
+          devolutiva_registro: devolutivaRegistro,
+          ...(devolutivaData ? { devolutiva_data: devolutivaData } : {}),
+          ...(compartilhadoComAvaliado !== undefined
+            ? { compartilhado_com_avaliado: compartilhadoComAvaliado }
+            : {}),
+        },
+        { onConflict: "evaluation_id" },
+      );
       if (error) throw error;
     },
     onSuccess: (_d, vars) =>
@@ -1325,6 +1642,31 @@ export function useSaveFeedback() {
         queryKey: performanceKeys.evaluationDetail(vars.evaluationId),
       }),
   });
+}
+
+/** Item 8 do Bloco 4: concluir exige as 15 notas do CHA (3 blocos × 5
+ * perguntas) e a devolutiva preenchida — antes não havia validação
+ * nenhuma. Mesmo padrão já usado em Análise Crítica pela Direção (botão
+ * desabilitado + pendingTopics), não uma trava nova de banco: seguindo o
+ * precedente já estabelecido no código, não inventando um segundo
+ * mecanismo de "trava antes de concluir".
+ * Exportada para a UI poder desabilitar o botão E mostrar o que falta,
+ * em vez de só recusar no clique. */
+export function evaluationPendencies(detail: {
+  chaAnswers: { bloco: string; perguntaIndex: number }[];
+  feedback: { devolutivaRegistro: string } | null;
+}): string[] {
+  const pendencias: string[] = [];
+  const answered = new Set(detail.chaAnswers.map((a) => `${a.bloco}:${a.perguntaIndex}`));
+  let faltamCha = 0;
+  for (const bloco of ["conhecimento", "habilidades", "atitudes"] as const) {
+    for (let idx = 0; idx < CHA_QUESTIONS[bloco].length; idx++) {
+      if (!answered.has(`${bloco}:${idx}`)) faltamCha++;
+    }
+  }
+  if (faltamCha > 0) pendencias.push(`${faltamCha} pergunta(s) do CHA sem nota`);
+  if (!detail.feedback?.devolutivaRegistro.trim()) pendencias.push("devolutiva não registrada");
+  return pendencias;
 }
 
 export function useCompleteEvaluation() {
@@ -1343,6 +1685,106 @@ export function useCompleteEvaluation() {
       queryClient.invalidateQueries({ queryKey: performanceKeys.evaluationDetail(vars.id) });
     },
   });
+}
+
+/* ============================================================
+ * Item 7 do Bloco 4: média geral e nomeação de quadrante — nenhum dos dois
+ * existia. A matriz de apoio à decisão era 3 selects soltos com
+ * recomendação DIGITADA à mão; o print de referência já vem com o nome do
+ * quadrante e a recomendação geradas a partir da posição.
+ *
+ * Modelo adotado (banco tem 3 eixos independentes 1-3: alto_potencial,
+ * cultura, tecnico — nenhum "desempenho" separado): a LINHA da grade é o
+ * eixo de maior valor entre os três (empate resolvido por
+ * alto_potencial > cultura > tecnico, refletindo a ordem em que aparecem
+ * empilhados no print, de cima para baixo); a COLUNA é o desempenho,
+ * derivado da média geral do CHA contra a meta mínima do ciclo. Sem essa
+ * leitura os 3 campos do banco ficariam redundantes com um "escolha 1 de
+ * 3" — a médoa abaixo é a única forma de usar os três de verdade.
+ * ============================================================ */
+
+export function calcularMediaCha(chaAnswers: { bloco: string; nota: number }[]): {
+  geral: number | null;
+  porBloco: Record<"conhecimento" | "habilidades" | "atitudes", number | null>;
+} {
+  const porBloco = { conhecimento: null, habilidades: null, atitudes: null } as Record<
+    "conhecimento" | "habilidades" | "atitudes",
+    number | null
+  >;
+  for (const bloco of ["conhecimento", "habilidades", "atitudes"] as const) {
+    const notas = chaAnswers.filter((a) => a.bloco === bloco).map((a) => a.nota);
+    porBloco[bloco] = notas.length > 0 ? notas.reduce((s, n) => s + n, 0) / notas.length : null;
+  }
+  const todas = Object.values(porBloco).filter((v): v is number => v !== null);
+  return {
+    geral: todas.length > 0 ? todas.reduce((s, n) => s + n, 0) / todas.length : null,
+    porBloco,
+  };
+}
+
+type EixoPredominante = "alto_potencial" | "cultura" | "tecnico";
+type DesempenhoNivel = "baixo" | "medio" | "alto";
+
+export function eixoPredominante(matrix: {
+  altoPotencial: number;
+  cultura: number;
+  tecnico: number;
+}): EixoPredominante {
+  if (matrix.altoPotencial >= matrix.cultura && matrix.altoPotencial >= matrix.tecnico)
+    return "alto_potencial";
+  if (matrix.cultura >= matrix.tecnico) return "cultura";
+  return "tecnico";
+}
+
+/** Abaixo da meta = baixo; até 1,5 ponto acima = médio; mais que isso =
+ * alto. Sem meta cadastrada, usa 7 (o mesmo default da tabela de ciclos). */
+export function desempenhoNivel(mediaGeral: number | null, metaMinima: number): DesempenhoNivel {
+  if (mediaGeral === null) return "baixo";
+  if (mediaGeral < metaMinima) return "baixo";
+  if (mediaGeral < metaMinima + 1.5) return "medio";
+  return "alto";
+}
+
+const QUADRANTE_NOME: Record<EixoPredominante, Record<DesempenhoNivel, string>> = {
+  tecnico: { baixo: "Insuficiente", medio: "Eficaz", alto: "Especialista" },
+  cultura: { baixo: "Questionável", medio: "Mantenedor", alto: "Alto Desempenho" },
+  alto_potencial: { baixo: "Enigma", medio: "Forte Contribuidor", alto: "Estrela" },
+};
+
+const QUADRANTE_RECOMENDACAO: Record<EixoPredominante, Record<DesempenhoNivel, string>> = {
+  tecnico: {
+    baixo:
+      "Plano de capacitação técnica urgente — desempenho e adequação técnica abaixo do esperado.",
+    medio: "Reforçar capacitação técnica específica para elevar o desempenho.",
+    alto: "Especialista técnico — considerar como referência/multiplicador na área.",
+  },
+  cultura: {
+    baixo: "Alinhar expectativas de cultura e conduta — desempenho não compensa o desalinhamento.",
+    medio: "Manter acompanhamento — aderente à cultura, com espaço para evoluir desempenho.",
+    alto: "Alto desempenho com forte aderência cultural — reconhecer e reter.",
+  },
+  alto_potencial: {
+    baixo:
+      "Potencial identificado, mas desempenho atual não sustenta — investigar causas antes de investir.",
+    medio:
+      "Desenvolver para assumir novos desafios. Apoio à decisão da liderança — não substitui a análise do gestor.",
+    alto: "Alto potencial com alto desempenho — candidato natural a sucessão.",
+  },
+};
+
+export function quadranteDaAvaliacao(
+  matrix: { altoPotencial: number; cultura: number; tecnico: number },
+  mediaGeral: number | null,
+  metaMinima: number,
+): { eixo: EixoPredominante; nivel: DesempenhoNivel; nome: string; recomendacaoSugerida: string } {
+  const eixo = eixoPredominante(matrix);
+  const nivel = desempenhoNivel(mediaGeral, metaMinima);
+  return {
+    eixo,
+    nivel,
+    nome: QUADRANTE_NOME[eixo][nivel],
+    recomendacaoSugerida: QUADRANTE_RECOMENDACAO[eixo][nivel],
+  };
 }
 
 /** Gancho Devolutiva → Plano de Ação, mesmo padrão de 2 passos usado em
