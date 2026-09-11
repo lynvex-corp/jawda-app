@@ -27,6 +27,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { getErrorMessage } from "@/lib/utils";
 import { useEmployees } from "@/lib/queries/pessoas";
 import { PROCESS_MAP_ICONS } from "@/components/processos/icon-map";
+import { ProcessKpiBadge, useProcessKpiLookup } from "@/components/processos/kpi-badge";
 import {
   useProcessMaps,
   useCreateProcessMap,
@@ -55,6 +56,7 @@ export function ProcessosPage() {
   const { data: processos = [], isLoading } = useProcessMaps();
   const { data: employees = [] } = useEmployees();
   const createProcessMap = useCreateProcessMap();
+  const kpiLookup = useProcessKpiLookup();
 
   const [novoOpen, setNovoOpen] = useState(false);
   const [novo, setNovo] = useState<ProcessMapInput>(FORM_VAZIO);
@@ -176,6 +178,9 @@ export function ProcessosPage() {
                         </div>
                       )}
                     </div>
+                  )}
+                  {p.indicatorId && (
+                    <ProcessKpiBadge indicatorId={p.indicatorId} lookup={kpiLookup} />
                   )}
                   <Button
                     variant="outline"

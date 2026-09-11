@@ -41,6 +41,9 @@ import { useEmployees } from "@/lib/queries/pessoas";
 import { PROCESS_MAP_ICONS } from "@/components/processos/icon-map";
 import { ProcessFlowEditor } from "@/components/processos/flow/editor";
 import { ProcessRaciTable } from "@/components/processos/raci-table";
+import { ProcessKpiBadge, useProcessKpiLookup } from "@/components/processos/kpi-badge";
+import { useIndicators } from "@/lib/queries/indicators";
+import { Link } from "@tanstack/react-router";
 import {
   useProcessMap,
   useUpdateProcessMap,
@@ -50,6 +53,7 @@ import {
   useRemoveProcessMapCollaborator,
   useProcessMapDraft,
   useCreateProcessMapDraft,
+  useLinkProcessMapIndicator,
   useFormalizeProcessMapVersion,
   useProcessMapVersions,
   PROCESS_MAP_ICON_OPTIONS,
@@ -61,7 +65,7 @@ const TABS = [
   { key: "informacoes", label: "Informações" },
   { key: "fluxo", label: "Fluxo" },
   { key: "raci", label: "RACI" },
-  { key: "indicadores", label: "Indicadores", bloco: "D" },
+  { key: "indicadores", label: "Indicadores" },
   { key: "versoes", label: "Versões" },
 ] as const;
 
@@ -90,6 +94,9 @@ export function ProcessoDetailPage() {
   const createDraft = useCreateProcessMapDraft();
   const formalizeVersion = useFormalizeProcessMapVersion();
   const { data: versions = [] } = useProcessMapVersions(id);
+  const linkIndicator = useLinkProcessMapIndicator();
+  const { data: indicators = [] } = useIndicators();
+  const kpiLookup = useProcessKpiLookup();
 
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("informacoes");
   const [editOpen, setEditOpen] = useState(false);
@@ -458,6 +465,59 @@ export function ProcessoDetailPage() {
                 />
               </>
             )}
+          </div>
+        )}
+
+        {tab === "indicadores" && (
+          <div className="max-w-lg space-y-4">
+            <Card className="rounded-2xl border-border/80 shadow-sm">
+              <CardContent className="space-y-3 p-5">
+                <div>
+                  <label className="text-xs font-medium">Indicador vinculado</label>
+                  <Select
+                    value={processo.indicatorId ?? "none"}
+                    disabled={!canManage}
+                    onValueChange={(v) =>
+                      linkIndicator.mutate(
+                        { id: processo.id, indicatorId: v === "none" ? null : v },
+                        {
+                          onError: (e) =>
+                            toast.error("Erro ao vincular", { description: getErrorMessage(e) }),
+                        },
+                      )
+                    }
+                  >
+                    <SelectTrigger className="mt-1 h-9 text-sm">
+                      <SelectValue placeholder="Nenhum indicador vinculado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {indicators.map((i) => (
+                        <SelectItem key={i.id} value={i.id}>
+                          {i.codigo} — {i.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    O cartão do processo mostra o último valor medido contra a meta.
+                  </p>
+                </div>
+
+                {processo.indicatorId && (
+                  <>
+                    <ProcessKpiBadge indicatorId={processo.indicatorId} lookup={kpiLookup} />
+                    <Link
+                      to="/indicadores/$id"
+                      params={{ id: processo.indicatorId }}
+                      className="inline-block text-[11px] text-brand hover:underline"
+                    >
+                      Ver histórico de medições no módulo Indicadores →
+                    </Link>
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 

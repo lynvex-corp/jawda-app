@@ -66,6 +66,10 @@ export interface ProcessMap {
   collaboratorCount: number;
   isActive: boolean;
   createdAt: string;
+  /** Bloco D — vínculo com um indicador já existente (não é uma
+   * tabela/KPI novo, reaproveita o módulo Indicadores). Um por processo,
+   * já que é isso que o cartão de referência mostra. */
+  indicatorId: string | null;
 }
 
 const processMapKeys = {
@@ -98,7 +102,7 @@ export function useProcessMaps(includeInactive = false) {
       let query = supabase
         .from("process_maps")
         .select(
-          "id, code, name, description, entradas, saidas, icon, owner_employee_id, is_active, created_at, process_map_collaborators(count)",
+          "id, code, name, description, entradas, saidas, icon, owner_employee_id, indicator_id, is_active, created_at, process_map_collaborators(count)",
         )
         .order("code");
       if (!includeInactive) query = query.eq("is_active", true);
@@ -115,6 +119,7 @@ export function useProcessMaps(includeInactive = false) {
           saidas: string | null;
           icon: ProcessMapIcon;
           owner_employee_id: string | null;
+          indicator_id: string | null;
           is_active: boolean;
           created_at: string;
           process_map_collaborators: { count: number }[];
@@ -136,6 +141,7 @@ export function useProcessMaps(includeInactive = false) {
         collaboratorCount: r.process_map_collaborators?.[0]?.count ?? 0,
         isActive: r.is_active,
         createdAt: r.created_at,
+        indicatorId: r.indicator_id,
       }));
     },
   });
@@ -156,7 +162,7 @@ export function useProcessMap(id: string | undefined) {
       const { data, error } = await supabase
         .from("process_maps")
         .select(
-          "id, code, name, description, entradas, saidas, icon, owner_employee_id, is_active, created_at, process_map_collaborators(count)",
+          "id, code, name, description, entradas, saidas, icon, owner_employee_id, indicator_id, is_active, created_at, process_map_collaborators(count)",
         )
         .eq("id", id as string)
         .single();
@@ -170,6 +176,7 @@ export function useProcessMap(id: string | undefined) {
         saidas: string | null;
         icon: ProcessMapIcon;
         owner_employee_id: string | null;
+        indicator_id: string | null;
         is_active: boolean;
         created_at: string;
         process_map_collaborators: { count: number }[];
@@ -191,6 +198,7 @@ export function useProcessMap(id: string | undefined) {
         collaboratorCount: r.process_map_collaborators?.[0]?.count ?? 0,
         isActive: r.is_active,
         createdAt: r.created_at,
+        indicatorId: r.indicator_id,
       };
     },
   });
@@ -294,6 +302,28 @@ export function useSetProcessMapActive() {
       const { error } = await supabase
         .from("process_maps")
         .update({ is_active: isActive })
+        .eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: (id) => {
+      queryClient.invalidateQueries({ queryKey: processMapKeys.list() });
+      queryClient.invalidateQueries({ queryKey: processMapKeys.detail(id) });
+    },
+  });
+}
+
+/** Bloco D — separado de useUpdateProcessMap de propósito: o vínculo com
+ * indicador é editado na aba Indicadores do detalhe, não no formulário de
+ * Novo/Editar processo (que já tem campo demais). */
+export function useLinkProcessMapIndicator() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, indicatorId }: { id: string; indicatorId: string | null }) => {
+      const { error } = await supabase
+        .from("process_maps")
+        .update({ indicator_id: indicatorId })
         .eq("id", id);
       if (error) throw error;
       return id;
