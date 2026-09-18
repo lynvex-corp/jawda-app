@@ -1,4 +1,4 @@
-import { Bell, Circle } from "lucide-react";
+import { Bell, Circle, History } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -11,10 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useJawda, formatRelative } from "@/lib/jawda-store";
+import { formatRelative } from "@/lib/jawda-store";
 import { useNotifications, useMarkNotificationsRead } from "@/lib/queries/notifications";
+import { useAtividadesRecentes } from "@/lib/queries/activity-log";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const toneClasses = {
@@ -31,27 +32,44 @@ export function NotificationsDrawer() {
   const { data: notificacoes = [] } = useNotifications();
   const markRead = useMarkNotificationsRead();
   const unreadCount = notificacoes.filter((n) => !n.readAt).length;
-  // A aba "Trilha" ainda lê do store mock — migrá-la para activity_log é
-  // trabalho de outro item, não do item 4.
-  const { logAtividades } = useJawda();
+  // "Últimas atualizações" (ex-"Trilha", item 8 do Bloco 6) agora lê
+  // activity_log de verdade — antes era a única aba ainda no mock em
+  // memória do jawda-store, enquanto Notificações (aba irmã) já tinha
+  // migrado. Mesma tabela que já alimenta a trilha de NC/Plano/Auditoria/
+  // Indicador, só sem filtro de entidade (visão geral da organização).
+  const { data: atividades = [] } = useAtividadesRecentes();
   const [open, setOpen] = useState(false);
+  // Controlado (não defaultValue) porque há DOIS gatilhos abrindo o mesmo
+  // painel — o sino abre em "Notificações", o ícone de histórico abre
+  // direto em "Últimas atualizações" — e só um Tabs controlado permite dois
+  // pontos de entrada decidirem a aba inicial.
+  const [aba, setAba] = useState<"notifs" | "log">("notifs");
+
+  // Marca como lida sempre que a aba Notificações fica visível com o painel
+  // aberto — cobre tanto abrir direto pelo sino quanto abrir pelo ícone de
+  // histórico e trocar de aba manualmente. unreadCount cai pra 0 depois do
+  // mutate (refetch), então isso não re-dispara em loop.
+  useEffect(() => {
+    if (open && aba === "notifs" && unreadCount > 0) {
+      const t = setTimeout(() => markRead.mutate(), 600);
+      return () => clearTimeout(t);
+    }
+  }, [open, aba, unreadCount, markRead]);
+
+  function abrir(abaInicial: "notifs" | "log") {
+    setAba(abaInicial);
+    setOpen(true);
+  }
 
   return (
-    <Sheet
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v);
-        // Só dispara o update se houver o que marcar — evita escrita à toa
-        // a cada abertura do painel.
-        if (v && unreadCount > 0) setTimeout(() => markRead.mutate(), 600);
-      }}
-    >
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
           aria-label={`Notificações (${unreadCount} não lidas)`}
           className="relative h-9 w-9 rounded-lg"
+          onClick={() => abrir("notifs")}
         >
           <Bell className="h-[18px] w-[18px]" />
           {unreadCount > 0 && (
@@ -61,14 +79,30 @@ export function NotificationsDrawer() {
           )}
         </Button>
       </SheetTrigger>
+      <SheetTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Últimas atualizações"
+          title="Últimas atualizações"
+          className="h-9 w-9 rounded-lg"
+          onClick={() => abrir("log")}
+        >
+          <History className="h-[18px] w-[18px]" />
+        </Button>
+      </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
         <SheetHeader className="px-5 py-4 border-b border-border">
           <SheetTitle className="text-base">Atividades recentes</SheetTitle>
           <SheetDescription className="text-xs">
-            Notificações do sistema e trilha de auditoria da sessão.
+            Notificações do sistema e últimas atualizações da organização.
           </SheetDescription>
         </SheetHeader>
-        <Tabs defaultValue="notifs" className="flex-1 flex flex-col overflow-hidden">
+        <Tabs
+          value={aba}
+          onValueChange={(v) => setAba(v as "notifs" | "log")}
+          className="flex-1 flex flex-col overflow-hidden"
+        >
           <TabsList className="mx-5 mt-3 grid w-auto grid-cols-2">
             <TabsTrigger value="notifs">
               Notificações
@@ -78,7 +112,7 @@ export function NotificationsDrawer() {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="log">Trilha</TabsTrigger>
+            <TabsTrigger value="log">Últimas atualizações</TabsTrigger>
           </TabsList>
 
           <TabsContent value="notifs" className="flex-1 overflow-hidden mt-3">
@@ -138,20 +172,32 @@ export function NotificationsDrawer() {
 
           <TabsContent value="log" className="flex-1 overflow-hidden mt-3">
             <ScrollArea className="h-full px-5 pb-6">
-              {logAtividades.length === 0 ? (
-                <EmptyState label="Nenhuma atividade registrada nesta sessão." />
+              {atividades.length === 0 ? (
+                <EmptyState label="Nenhuma atualização registrada ainda." />
               ) : (
                 <ol className="relative space-y-4 border-l border-border pl-4">
-                  {logAtividades.slice(0, 40).map((a) => (
+                  {atividades.map((a) => (
                     <li key={a.id} className="relative">
                       <span className="absolute -left-[21px] top-1 flex h-3 w-3 items-center justify-center rounded-full border-2 border-background bg-brand" />
                       <div className="text-sm text-foreground">
-                        <span className="font-medium">{a.actor.nome}</span>{" "}
-                        <span className="text-muted-foreground">{a.verb}</span>{" "}
-                        <span className="font-mono text-xs text-brand">{a.target}</span>
+                        <span className="font-medium">{a.autorNome}</span>{" "}
+                        {a.autorTipo !== "user" && (
+                          <Badge
+                            variant="outline"
+                            className="mr-1 h-4 rounded-full px-1.5 text-[9px] uppercase"
+                          >
+                            {a.autorTipo === "ai"
+                              ? "IA"
+                              : a.autorTipo === "internal_staff"
+                                ? "Equipe Jawda"
+                                : "Sistema"}
+                          </Badge>
+                        )}
+                        <span className="text-muted-foreground">{a.acao}</span>{" "}
+                        {a.alvo && <span className="font-mono text-xs text-brand">{a.alvo}</span>}
                       </div>
                       <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {a.actor.cargo} · {formatRelative(a.at)}
+                        {formatRelative(a.data)}
                       </div>
                     </li>
                   ))}

@@ -104,6 +104,10 @@ export function usePendencias() {
     queryKey: pendenciasKeys.lista(orgId ?? null),
     enabled: orgId !== undefined,
     staleTime: 60_000,
+    // Mesmo horizonte de frescor do resto da Gestão à Vista (item 1, Bloco 6)
+    // — sem botão de "resetar painel" manual, o poll cobre quem fica com a
+    // aba aberta e focada por muito tempo.
+    refetchInterval: 60_000,
     queryFn: async (): Promise<PendenciaGrupo[]> => {
       if (!orgId) return [];
 

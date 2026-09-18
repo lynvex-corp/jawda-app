@@ -5,15 +5,31 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Flame, ShieldCheck, Check, Award, Crown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   RECONHECIMENTO_PERIODO_OPTIONS,
   useNCIdentificationRanking,
   useMelhoriaRanking,
   useActiveBadges,
+  useMeuProgressoIndividual,
   type ReconhecimentoPeriodo,
   type RankingEntry,
   type BadgeType,
 } from "@/lib/queries/reconhecimento";
+
+/** Ranking comparativo (Olho Vivo/Motor da Melhoria) é visível só pra quem
+ * tem visão de gestão sobre TODOS os colaboradores — Administrador do
+ * Cliente e Gestor da Qualidade. Os demais perfis (Colaborador, Gestor de
+ * Área, Auditor, Somente Leitura) veem só o próprio progresso individual
+ * (MeuProgressoCard), pra gerar cultura sem expor comparação entre pessoas. */
+const PERFIS_COM_RANKING = new Set(["admin", "quality_manager"]);
 
 function iniciais(nome: string) {
   const partes = nome.trim().split(/\s+/);
@@ -227,23 +243,78 @@ function ConquistasCard() {
   );
 }
 
+const progressoChartConfig: ChartConfig = {
+  ncs: { label: "NCs identificadas", color: "var(--brand)" },
+  melhorias: { label: "Melhorias registradas", color: "var(--success)" },
+};
+
+/** Progresso individual — SEM comparação com os demais (essa comparação é o
+ * Ranking, restrito a Gestor da Qualidade/Administrador). Mostra a evolução
+ * mês a mês do próprio usuário logado nas duas mesmas métricas do ranking. */
+function MeuProgressoCard() {
+  const { user } = useAuth();
+  const { data: pontos = [], isLoading } = useMeuProgressoIndividual(user?.id ?? null);
+  const semRegistro = !isLoading && pontos.every((p) => p.ncs === 0 && p.melhorias === 0);
+
+  return (
+    <Card className="rounded-xl border-border/80 shadow-sm lg:col-span-2">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-brand" />
+          <CardTitle className="text-base font-semibold">Meu progresso</CardTitle>
+        </div>
+        <CardDescription className="mt-1 text-xs leading-relaxed">
+          Sua evolução nos últimos 6 meses — sem comparação com outras pessoas.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {semRegistro ? (
+          <div className="rounded-lg border border-dashed border-border/60 p-4 text-center text-xs text-muted-foreground">
+            Nenhum registro seu nos últimos 6 meses ainda.
+          </div>
+        ) : (
+          <ChartContainer config={progressoChartConfig} className="h-[220px] w-full">
+            <BarChart data={pontos} barGap={6}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="mes" tickLine={false} axisLine={false} tickMargin={8} />
+              <YAxis tickLine={false} axisLine={false} width={30} allowDecimals={false} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="ncs" fill="var(--color-ncs)" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="melhorias" fill="var(--color-melhorias)" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ReconhecimentoPanel() {
+  const { currentOrg } = useAuth();
+  const vejoRanking = !!currentOrg && PERFIS_COM_RANKING.has(currentOrg.role);
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <RankingCard
-        titulo="Olho Vivo da Qualidade"
-        descricao="Pessoas que mais contribuem identificando problemas antes que virem prejuízo."
-        unidade="NCs"
-        rodape="Identificar cedo é cuidar. Cada registro aqui evita um prejuízo."
-        useRanking={useNCIdentificationRanking}
-      />
-      <RankingCard
-        titulo="Motor da Melhoria"
-        descricao="Pessoas que mais registram melhorias de processo — quem propõe faz a empresa avançar."
-        unidade="Melhorias"
-        rodape="Cada melhoria registrada é um passo a mais na cultura de qualidade."
-        useRanking={useMelhoriaRanking}
-      />
+      {vejoRanking ? (
+        <>
+          <RankingCard
+            titulo="Olho Vivo da Qualidade"
+            descricao="Pessoas que mais contribuem identificando problemas antes que virem prejuízo."
+            unidade="NCs"
+            rodape="Identificar cedo é cuidar. Cada registro aqui evita um prejuízo."
+            useRanking={useNCIdentificationRanking}
+          />
+          <RankingCard
+            titulo="Motor da Melhoria"
+            descricao="Pessoas que mais registram melhorias de processo — quem propõe faz a empresa avançar."
+            unidade="Melhorias"
+            rodape="Cada melhoria registrada é um passo a mais na cultura de qualidade."
+            useRanking={useMelhoriaRanking}
+          />
+        </>
+      ) : (
+        <MeuProgressoCard />
+      )}
       <ConquistasCard />
     </div>
   );

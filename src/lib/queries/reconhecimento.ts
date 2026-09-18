@@ -50,6 +50,10 @@ export function useNCIdentificationRanking(periodo: ReconhecimentoPeriodo) {
   const supabase = getSupabaseBrowserClient();
   return useQuery({
     queryKey: ["recognition-nc-ranking", periodo],
+    // Sem botão de "resetar painel" manual (item 1, Bloco 6) — poll de 60s
+    // mantém o ranking fresco sozinho; refetchOnWindowFocus já é padrão do
+    // React Query.
+    refetchInterval: 60_000,
     queryFn: async (): Promise<RankingEntry[]> => {
       const { data, error } = await supabase
         .from("ncs")
@@ -69,6 +73,7 @@ export function useMelhoriaRanking(periodo: ReconhecimentoPeriodo) {
   const supabase = getSupabaseBrowserClient();
   return useQuery({
     queryKey: ["recognition-melhoria-ranking", periodo],
+    refetchInterval: 60_000,
     queryFn: async (): Promise<RankingEntry[]> => {
       const { data, error } = await supabase
         .from("changes_improvements")
@@ -110,6 +115,7 @@ export function useActiveBadges() {
   const supabase = getSupabaseBrowserClient();
   return useQuery({
     queryKey: ["recognition-badges"],
+    refetchInterval: 60_000,
     queryFn: async (): Promise<BadgeStatus[]> => {
       const { data, error } = await supabase
         .from("recognition_badge_events")
@@ -155,6 +161,102 @@ export function useActiveBadges() {
         });
       }
       return result;
+    },
+  });
+}
+
+/* ============================================================
+ * Progresso individual (item 7, Bloco 6) — visão do PRÓPRIO usuário ao
+ * longo do tempo, sem comparação com os demais (isso é o Ranking, que só
+ * Gestor da Qualidade/Administrador enxergam). Reaproveita as mesmas duas
+ * fontes do ranking (ncs.created_by, changes_improvements tipo='melhoria'),
+ * só que filtradas pelo usuário logado e agrupadas por mês em vez de
+ * somadas num único total.
+ * ============================================================ */
+
+const MESES_PROGRESSO_INDIVIDUAL = 6;
+const MES_ABREV = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
+
+export interface ProgressoMensal {
+  mes: string;
+  ncs: number;
+  melhorias: number;
+}
+
+function chaveMes(iso: string) {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}`;
+}
+
+/** Progresso individual dos últimos 6 meses — janela fixa (não usa o filtro
+ * mês/trimestre/ano do ranking) porque tendência precisa de vários pontos
+ * no tempo, não de um único total acumulado. */
+export function useMeuProgressoIndividual(userId: string | null) {
+  const supabase = getSupabaseBrowserClient();
+  return useQuery({
+    queryKey: ["recognition-meu-progresso", userId],
+    enabled: userId !== null,
+    refetchInterval: 60_000,
+    queryFn: async (): Promise<ProgressoMensal[]> => {
+      const hoje = new Date();
+      const inicio = new Date(
+        hoje.getFullYear(),
+        hoje.getMonth() - (MESES_PROGRESSO_INDIVIDUAL - 1),
+        1,
+      );
+      const inicioIso = inicio.toISOString();
+
+      const [ncsRes, melhoriasRes] = await Promise.all([
+        supabase
+          .from("ncs")
+          .select("created_at")
+          .eq("created_by", userId as string)
+          .gte("created_at", inicioIso),
+        supabase
+          .from("changes_improvements")
+          .select("created_at")
+          .eq("created_by", userId as string)
+          .eq("tipo", "melhoria")
+          .gte("created_at", inicioIso),
+      ]);
+      if (ncsRes.error) throw ncsRes.error;
+      if (melhoriasRes.error) throw melhoriasRes.error;
+
+      const ncsPorMes = new Map<string, number>();
+      for (const r of ncsRes.data as unknown as { created_at: string }[]) {
+        const k = chaveMes(r.created_at);
+        ncsPorMes.set(k, (ncsPorMes.get(k) ?? 0) + 1);
+      }
+      const melhoriasPorMes = new Map<string, number>();
+      for (const r of melhoriasRes.data as unknown as { created_at: string }[]) {
+        const k = chaveMes(r.created_at);
+        melhoriasPorMes.set(k, (melhoriasPorMes.get(k) ?? 0) + 1);
+      }
+
+      const pontos: ProgressoMensal[] = [];
+      for (let i = 0; i < MESES_PROGRESSO_INDIVIDUAL; i++) {
+        const d = new Date(inicio.getFullYear(), inicio.getMonth() + i, 1);
+        const chave = `${d.getFullYear()}-${d.getMonth()}`;
+        pontos.push({
+          mes: MES_ABREV[d.getMonth()],
+          ncs: ncsPorMes.get(chave) ?? 0,
+          melhorias: melhoriasPorMes.get(chave) ?? 0,
+        });
+      }
+      return pontos;
     },
   });
 }

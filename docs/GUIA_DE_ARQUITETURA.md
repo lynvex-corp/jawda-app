@@ -122,13 +122,26 @@ Cliente sempre pode exportar os dados dele, em qualquer degrau da escada. Não s
 - Colaborador que sai: desativação + tela obrigatória de redirecionar pendências para outro
 - Um usuário pode pertencer a mais de uma empresa, com seletor no topo
 
-## 9. Escopo da v1 (o que entra em 1 mês)
+## 9. Escopo da v1 (o que entra em 1 mês) — **corrigida em nov/2026, item 0 do Bloco 6**
 
-**Bloco Gestão da Qualidade completo:**
+> Esta seção descrevia a intenção original de escopo, mas a execução real (Abas 4 a 16+) já ultrapassou esse recorte há tempos — construindo módulo sobre módulo, com dado real de Supabase, RLS e triggers, seguindo exatamente os princípios das seções 2 e 21. Corrigida aqui para refletir o que de fato existe, em vez de deixar o documento (que é "a lei do projeto", seção 1) desalinhado da execução.
+
+**Bloco Gestão da Qualidade (completo, era o núcleo original da v1):**
 - Não Conformidades
 - Planos de Ação
 - Auditorias (interna com peso, externa como casca leve)
 - Indicadores e KPIs
+
+**Módulos que a v1 previa deixar de fora e que já estão construídos, com rota real, componente próprio e dado real de Supabase (RLS + triggers de `activity_log`, mesmo padrão do Bloco Gestão da Qualidade):**
+- Documentos
+- Riscos e Oportunidades (hoje sub-aba de Estratégia — ver `src/lib/module-access.ts`)
+- Estratégia (Identidade Organizacional, Análise de Cenário, Partes Interessadas, Escopo do Sistema, Mudanças no SG; Análise Crítica saiu do menu mas a rota `/analise-critica` segue ativa)
+- Processos e Operação
+- Pessoas (Cargos e Perfis, Gestão de Aprendizagem, Avaliação de Desempenho)
+- Aquisição (Fornecedores)
+- Produção (Produto ou Serviço)
+- Comunicações
+- Suporte (sem `ModuleGate` — sempre liberado, não é um módulo do contrato)
 
 **Painel administrativo mínimo:**
 - Cadastro de empresas + provisionamento
@@ -136,10 +149,10 @@ Cliente sempre pode exportar os dados dele, em qualquer degrau da escada. Não s
 - Usuários e acessos (por empresa e o passe interno)
 - Financeiro básico com escada de inadimplência
 
-**Fica de fora da v1:**
-Documentos · Riscos · Estratégia · Processos · Pessoas · Aquisição · Produção · Comunicações · Agente de IA real · Comercial e funil · Onboarding e consultoria · Suporte · Nota fiscal automática · WhatsApp · Subdomínio por empresa · App offline
+**Segue de fato fora, sem evidência de construção até esta revisão:**
+Agente de IA real (arquitetura pronta, integração com LLM real pendente — seção 12) · Comercial e funil · Onboarding e consultoria · Nota fiscal automática · WhatsApp · Subdomínio por empresa · App offline
 
-O que fica de fora entra nos meses seguintes sobre a fundação, sem retrabalho.
+O que ainda fica de fora entra nos meses seguintes sobre a fundação, sem retrabalho.
 
 ## 10. Módulos da Gestão da Qualidade — regras críticas
 
@@ -412,6 +425,6 @@ Descoberto auditando o convite de dono de empresa (ABA 8): `auth.admin.inviteUse
 
 Toda alteração de arquitetura precisa passar por este documento antes de virar código. Se o Claude Code for programar algo que contradiz este documento, ele deve parar e apontar a contradição, não implementar.
 
-**Revisão registrada em:** fim das Abas 4-7 (padrões 21.1 a 21.5), depois estendida na Aba 12 (21.6), depois antes da migração dos módulos novos (21.7 e 21.8), e agora com a revisão da seção 3 sobre hospedagem (Vercel com região `gru1` fixada, aprovado para produção real, com VPS Hostinger mantido como evolução futura), e agora com a descoberta da allowlist de Redirect URLs do Supabase Auth (21.9).
+**Revisão registrada em:** fim das Abas 4-7 (padrões 21.1 a 21.5), depois estendida na Aba 12 (21.6), depois antes da migração dos módulos novos (21.7 e 21.8), depois com a revisão da seção 3 sobre hospedagem (Vercel com região `gru1` fixada, aprovado para produção real, com VPS Hostinger mantido como evolução futura), depois com a descoberta da allowlist de Redirect URLs do Supabase Auth (21.9), e agora (Bloco 6, item 0) com a correção da seção 9 — o escopo real da execução já ultrapassava o que a seção descrevia como "fora da v1" havia várias abas, e o documento só foi corrigido agora.
 
-**Próxima revisão prevista:** ao final da migração da Estratégia (Aba 16), para consolidar o que a primeira migração de módulo novo ensinar.
+**Próxima revisão prevista:** ao final da personalização de tema dinâmico por empresa (Bloco 6, itens 10-12), quando a seção 5 ("o sistema se pinta sozinho no carregamento") deixar de ser promessa e passar a descrever comportamento real.

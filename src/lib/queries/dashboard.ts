@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { useSessionOrgId } from "@/lib/queries/contract";
 import type { NCSeverityDb, NCStatusDb } from "@/lib/queries/ncs";
@@ -247,6 +247,12 @@ export function useDashboardData(periodo: DashboardPeriodo) {
   return useQuery({
     queryKey: dashboardKeys.data(orgId ?? null, periodo),
     enabled: orgId !== undefined,
+    // Atualização automática (item 1, Bloco 6): sem botão de "resetar" manual,
+    // a Gestão à Vista precisa se manter fresca sozinha. refetchOnWindowFocus
+    // já é o padrão do React Query (cobre "voltei pra aba"); o poll de 60s
+    // cobre quem fica com a aba aberta e focada por muito tempo. Mesmo
+    // horizonte de frescor já usado em useAlertCounters (staleTime 60_000).
+    refetchInterval: 60_000,
     queryFn: async (): Promise<DashboardData> => {
       const { inicio, chaves } = bucketsDoPeriodo(periodo);
       const inicioIso = inicio.toISOString();
@@ -407,27 +413,6 @@ export function useDashboardData(periodo: DashboardPeriodo) {
       };
     },
   });
-}
-
-/** Metade "dado" do reset da Gestão à Vista: joga fora o cache das queries
- * do painel — inclusive as do painel de Reconhecimento — forçando releitura
- * do banco. Não apaga nem altera NENHUM dado de negócio.
- *
- * A metade "preferência" (voltar o período ao padrão) fica em
- * `useDashboardPeriodo().limpar`, chamado pelo componente: o estado do
- * período vive na instância do hook que a tela usa, e uma segunda instância
- * criada aqui dentro não conseguiria atualizá-la. */
-export function useInvalidateDashboard() {
-  const queryClient = useQueryClient();
-
-  return useCallback(async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
-      queryClient.invalidateQueries({ queryKey: ["recognition-nc-ranking"] }),
-      queryClient.invalidateQueries({ queryKey: ["recognition-melhoria-ranking"] }),
-      queryClient.invalidateQueries({ queryKey: ["recognition-badges"] }),
-    ]);
-  }, [queryClient]);
 }
 
 /** Contadores de alerta da sidebar (bolinha vermelha em "Não Conformidades"

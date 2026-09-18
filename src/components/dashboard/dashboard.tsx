@@ -5,11 +5,9 @@ import {
   CalendarCheck,
   ArrowRight,
   ListChecks,
-  RotateCcw,
+  X,
   Inbox,
 } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,9 +40,9 @@ import { ReconhecimentoPanel } from "@/components/dashboard/reconhecimento";
 import { QuadroPendencias } from "@/components/dashboard/pendencias";
 import {
   DASHBOARD_PERIODO_OPTIONS,
+  DASHBOARD_PERIODO_PADRAO,
   useDashboardData,
   useDashboardPeriodo,
-  useInvalidateDashboard,
   type DashboardPeriodo,
 } from "@/lib/queries/dashboard";
 import { getErrorMessage } from "@/lib/utils";
@@ -108,27 +106,6 @@ function SemDados({ mensagem }: { mensagem: string }) {
 export function Dashboard() {
   const { periodo, setPeriodo, limpar } = useDashboardPeriodo();
   const { data, isLoading, isError, error, refetch, isFetching } = useDashboardData(periodo);
-  const invalidarPainel = useInvalidateDashboard();
-  const [resetando, setResetando] = useState(false);
-
-  /** Resetar = voltar o período ao padrão, apagar a preferência salva e
-   * reler tudo do banco. Não toca em dado de negócio e não pode quebrar a
-   * configuração: o padrão é sempre um estado válido. */
-  async function handleReset() {
-    setResetando(true);
-    try {
-      limpar();
-      await invalidarPainel();
-      await refetch();
-      toast.success("Gestão à Vista resetada", {
-        description: "Período voltou ao padrão e os dados foram relidos do sistema.",
-      });
-    } catch (err) {
-      toast.error("Não foi possível resetar o painel", { description: getErrorMessage(err) });
-    } finally {
-      setResetando(false);
-    }
-  }
 
   const kpis = data?.kpis;
   const semNC = (kpis?.totalNCs ?? 0) === 0;
@@ -156,15 +133,18 @@ export function Dashboard() {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            className="h-9 gap-2 rounded-lg"
-            onClick={handleReset}
-            disabled={resetando}
-          >
-            <RotateCcw className={`h-4 w-4 ${resetando ? "animate-spin" : ""}`} />
-            {resetando ? "Resetando…" : "Resetar painel"}
-          </Button>
+          {periodo !== DASHBOARD_PERIODO_PADRAO && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground"
+              onClick={limpar}
+              aria-label="Limpar filtro de período"
+              title="Limpar filtro de período"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
