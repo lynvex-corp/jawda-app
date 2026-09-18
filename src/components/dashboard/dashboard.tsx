@@ -38,6 +38,9 @@ import { severityClasses, statusClasses } from "@/lib/mock-data";
 import { Link } from "@tanstack/react-router";
 import { ReconhecimentoPanel } from "@/components/dashboard/reconhecimento";
 import { QuadroPendencias } from "@/components/dashboard/pendencias";
+import { CulturaDaQualidadeIndicador } from "@/components/dashboard/cultura-qualidade-indicador";
+import { MinhasAnotacoesCard } from "@/components/dashboard/minhas-anotacoes";
+import { useAuth } from "@/hooks/use-auth";
 import {
   DASHBOARD_PERIODO_OPTIONS,
   DASHBOARD_PERIODO_PADRAO,
@@ -103,9 +106,13 @@ function SemDados({ mensagem }: { mensagem: string }) {
   );
 }
 
+const PERFIS_CULTURA_QUALIDADE = new Set(["admin", "quality_manager"]);
+
 export function Dashboard() {
   const { periodo, setPeriodo, limpar } = useDashboardPeriodo();
   const { data, isLoading, isError, error, refetch, isFetching } = useDashboardData(periodo);
+  const { currentOrg } = useAuth();
+  const vejoCulturaDaQualidade = !!currentOrg && PERFIS_CULTURA_QUALIDADE.has(currentOrg.role);
 
   const kpis = data?.kpis;
   const semNC = (kpis?.totalNCs ?? 0) === 0;
@@ -199,7 +206,14 @@ export function Dashboard() {
         />
       </div>
 
-      <QuadroPendencias />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <QuadroPendencias />
+        </div>
+        <MinhasAnotacoesCard />
+      </div>
+
+      {vejoCulturaDaQualidade && <CulturaDaQualidadeIndicador />}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Link to="/planos-de-acao" className="block">

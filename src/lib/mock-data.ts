@@ -338,6 +338,9 @@ export const navGroups: NavGroup[] = [
       { label: "Escopo do Sistema", to: "/escopo-sistema", icon: "Target" },
       { label: "Riscos e Oportunidades", to: "/riscos", icon: "ShieldAlert" },
       { label: "Mudanças no SG", to: "/mudancas-sg", icon: "Shuffle" },
+      // Item 5, Bloco 6: autodiagnóstico anual de maturidade — indicador
+      // estratégico, também aparece na Gestão à Vista.
+      { label: "Cultura da Qualidade", to: "/cultura-da-qualidade", icon: "Sparkles" },
       // Análise Crítica pela Direção saiu do menu no Bloco 2 (item 9): vai
       // migrar para Documentos num bloco futuro. A rota /analise-critica
       // CONTINUA ativa e funcional — os dados seguem em

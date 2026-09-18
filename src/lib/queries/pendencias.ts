@@ -1,14 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { useSessionOrgId } from "@/lib/queries/contract";
+import { useAuth } from "@/hooks/use-auth";
 import type { CorrectiveActionStatusDb } from "@/lib/queries/action-plans";
 
 /* ============================================================
  * Quadro de Pendências — consolidação de tudo que está em aberto.
  *
- * Seis fontes, uma lista só. O objetivo é o usuário abrir a Gestão à Vista
- * e ver, num lugar único, tudo que depende dele — em vez de percorrer seis
- * módulos para descobrir o que está atrasado.
+ * Oito fontes, uma lista só (Bloco 6, item 4 acrescentou "ciência pendente"
+ * e "resposta de formulário pendente" às seis originais). O objetivo é o
+ * usuário abrir a Gestão à Vista e ver, num lugar único, tudo que depende
+ * dele — em vez de percorrer vários módulos para descobrir o que está
+ * atrasado.
+ *
+ * "Documento obrigatório de fornecedor/empregado" FICA DE FORA aqui — não
+ * existe hoje no schema um conceito de obrigatoriedade/vencimento de
+ * documento de pessoa/fornecedor (fornecedores só tem critério de
+ * qualificação estático, sem janela de validade; empregado não tem tabela
+ * de documento obrigatório nenhuma). Registrado como backlog separado, não
+ * implementado silenciosamente aqui dentro.
  *
  * PERMISSÃO: nenhuma query aqui filtra `org_id` nem papel na mão. A RLS de
  * cada tabela já faz as duas coisas — isolamento por organização (claim
@@ -24,6 +34,16 @@ import type { CorrectiveActionStatusDb } from "@/lib/queries/action-plans";
  * não devolveu nada porque o perfil não alcança aquela fonte, a seção some
  * em vez de anunciar "0", que sugeriria ao usuário que não existe nada
  * quando na verdade ele é que não pode ver.
+ *
+ * EXCEÇÃO às duas categorias novas (comunicacao/pesquisa): `communication_
+ * reads` e `org_climate_surveys`/`quality_culture_survey_answers` têm RLS
+ * de SELECT org-wide (qualquer membro da organização vê a linha de
+ * qualquer outro) — filtrar "só o que é meu" é, de propósito, tarefa do
+ * CLIENTE aqui, replicando exatamente o mesmo filtro já usado em
+ * NotificacoesTab (comunicacoes/page.tsx) e em useMyOpenOrgClimateSurvey
+ * (pessoas.ts). Não é duplicação arriscada de regra de segurança (RLS
+ * ainda impede ver dado de OUTRA organização); é só "de tudo que a RLS
+ * deixa eu ver, o que é endereçado a mim".
  * ============================================================ */
 
 export type PendenciaCategoria =
@@ -32,7 +52,9 @@ export type PendenciaCategoria =
   | "auditoria"
   | "competencia"
   | "treinamento"
-  | "presenca";
+  | "presenca"
+  | "comunicacao"
+  | "pesquisa";
 
 export interface Pendencia {
   id: string;
@@ -62,6 +84,8 @@ export const PENDENCIA_LABEL: Record<PendenciaCategoria, string> = {
   nc: "Não conformidades abertas",
   presenca: "Presenças não confirmadas",
   treinamento: "Treinamentos não avaliados",
+  comunicacao: "Ciência pendente",
+  pesquisa: "Respostas de formulário pendentes",
 };
 
 /** Mesma definição usada pelos contadores da Gestão à Vista. */
@@ -78,7 +102,8 @@ const LIMITE_POR_CATEGORIA = 50;
 
 export const pendenciasKeys = {
   all: ["pendencias"] as const,
-  lista: (orgId: string | null) => [...pendenciasKeys.all, orgId] as const,
+  lista: (orgId: string | null, userId: string | null, role: string | null) =>
+    [...pendenciasKeys.all, orgId, userId, role] as const,
 };
 
 function venceu(iso: string | null): boolean {
@@ -99,9 +124,12 @@ interface EmployeeRef {
 export function usePendencias() {
   const supabase = getSupabaseBrowserClient();
   const orgId = useSessionOrgId();
+  const { currentOrg, user } = useAuth();
+  const myRole = currentOrg?.role ?? null;
+  const myUserId = user?.id ?? null;
 
   return useQuery({
-    queryKey: pendenciasKeys.lista(orgId ?? null),
+    queryKey: pendenciasKeys.lista(orgId ?? null, myUserId, myRole),
     enabled: orgId !== undefined,
     staleTime: 60_000,
     // Mesmo horizonte de frescor do resto da Gestão à Vista (item 1, Bloco 6)
@@ -111,7 +139,21 @@ export function usePendencias() {
     queryFn: async (): Promise<PendenciaGrupo[]> => {
       if (!orgId) return [];
 
-      const [ncs, acoes, auditorias, competencias, treinamentos, presencas] = await Promise.all([
+      const hoje = new Date().toISOString().slice(0, 10);
+
+      const [
+        ncs,
+        acoes,
+        auditorias,
+        competencias,
+        treinamentos,
+        presencas,
+        comunicacoes,
+        minhasCiencias,
+        pesquisasAbertas,
+        minhasRespostasClima,
+        minhasRespostasCultura,
+      ] = await Promise.all([
         supabase
           .from("ncs")
           .select("id, code, description, sla_deadline")
@@ -154,9 +196,55 @@ export function usePendencias() {
           .contains("participants", [{ confirmado: false }])
           .order("event_date", { ascending: false })
           .limit(LIMITE_POR_CATEGORIA),
+        // Ciência pendente — comunicações já enviadas (sent_at not null),
+        // endereçadas a mim (target_profiles contém "todos" ou meu papel)
+        // ou emitidas por mim (não preciso confirmar ciência da própria
+        // comunicação). O filtro "é minha?" é o mesmo de NotificacoesTab
+        // (comunicacoes/page.tsx) — aqui só precisa dos campos crus.
+        supabase
+          .from("communications")
+          .select("id, description, sent_at, target_profiles, communicator_id")
+          .not("sent_at", "is", null)
+          .order("sent_at", { ascending: false })
+          .limit(LIMITE_POR_CATEGORIA),
+        supabase
+          .from("communication_reads")
+          .select("communication_id")
+          .eq("recipient_user_id", myUserId ?? ""),
+        // Resposta de formulário pendente — qualquer pesquisa (clima OU
+        // cultura da qualidade) com janela aberta hoje.
+        supabase
+          .from("org_climate_surveys")
+          .select("id, kind, janela_fim")
+          .lte("janela_inicio", hoje)
+          .gte("janela_fim", hoje),
+        // .eq(user_id) explícito mesmo a RLS já restringindo a "própria linha
+        // OU is_hr_authorized" — sem isso, um Administrador/Gestor da
+        // Qualidade (que enxerga TODA resposta via RLS) marcaria a pesquisa
+        // como "já respondida por mim" assim que QUALQUER pessoa respondesse.
+        supabase
+          .from("org_climate_survey_responses")
+          .select("survey_id")
+          .eq("user_id", myUserId ?? ""),
+        supabase
+          .from("quality_culture_survey_answers")
+          .select("survey_id")
+          .eq("user_id", myUserId ?? ""),
       ]);
 
-      for (const r of [ncs, acoes, auditorias, competencias, treinamentos, presencas]) {
+      for (const r of [
+        ncs,
+        acoes,
+        auditorias,
+        competencias,
+        treinamentos,
+        presencas,
+        comunicacoes,
+        minhasCiencias,
+        pesquisasAbertas,
+        minhasRespostasClima,
+        minhasRespostasCultura,
+      ]) {
         if (r.error) throw r.error;
       }
 
@@ -246,6 +334,57 @@ export function usePendencias() {
         });
       }
 
+      const idsCientes = new Set(
+        ((minhasCiencias.data ?? []) as unknown as { communication_id: string }[]).map(
+          (r) => r.communication_id,
+        ),
+      );
+      for (const c of comunicacoes.data ?? []) {
+        const targets = (c.target_profiles ?? []) as string[];
+        const enderecadaAMim = targets.includes("todos") || (!!myRole && targets.includes(myRole));
+        if (!enderecadaAMim || c.communicator_id === myUserId || idsCientes.has(c.id)) continue;
+        itens.push({
+          id: c.id,
+          categoria: "comunicacao",
+          titulo: c.description,
+          detalhe: "Confirme ciência desta comunicação",
+          // Comunicação não tem prazo formal de ciência.
+          prazo: null,
+          vencida: false,
+          href: "/comunicacoes",
+        });
+      }
+
+      const idsRespondidosClima = new Set(
+        ((minhasRespostasClima.data ?? []) as unknown as { survey_id: string }[]).map(
+          (r) => r.survey_id,
+        ),
+      );
+      const idsRespondidosCultura = new Set(
+        ((minhasRespostasCultura.data ?? []) as unknown as { survey_id: string }[]).map(
+          (r) => r.survey_id,
+        ),
+      );
+      for (const s of pesquisasAbertas.data ?? []) {
+        const respondida =
+          s.kind === "cultura_qualidade"
+            ? idsRespondidosCultura.has(s.id)
+            : idsRespondidosClima.has(s.id);
+        if (respondida) continue;
+        itens.push({
+          id: s.id,
+          categoria: "pesquisa",
+          titulo:
+            s.kind === "cultura_qualidade"
+              ? "Autodiagnóstico de Cultura da Qualidade"
+              : "Pesquisa de clima organizacional",
+          detalhe: "Sua resposta ainda não foi registrada",
+          prazo: s.janela_fim,
+          vencida: false,
+          href: s.kind === "cultura_qualidade" ? "/cultura-da-qualidade" : "/avaliacao-performance",
+        });
+      }
+
       const ordem: PendenciaCategoria[] = [
         "nc",
         "acao",
@@ -253,6 +392,8 @@ export function usePendencias() {
         "competencia",
         "treinamento",
         "presenca",
+        "comunicacao",
+        "pesquisa",
       ];
 
       return ordem

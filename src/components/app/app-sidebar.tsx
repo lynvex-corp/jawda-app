@@ -31,6 +31,7 @@ import {
   Lock,
   Gavel,
   Flag,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -82,6 +83,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LifeBuoy,
   Gavel,
   Flag,
+  Sparkles,
 };
 
 function useBadge(to: string): number | null {

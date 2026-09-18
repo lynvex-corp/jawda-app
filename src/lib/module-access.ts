@@ -22,6 +22,7 @@ export const ROUTE_MODULE: Record<string, ContractModule> = {
   // sidebar não divergir do cadeado real da rota.
   "/riscos": "strategy",
   "/mudancas-sg": "strategy",
+  "/cultura-da-qualidade": "strategy",
   "/identidade-organizacional": "strategy",
   "/diretrizes-estrategicas": "strategy",
   "/processos": "processes",

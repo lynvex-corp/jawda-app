@@ -28,6 +28,7 @@ import { Route as IdentidadeOrganizacionalRouteImport } from './routes/identidad
 import { Route as EscopoSistemaRouteImport } from './routes/escopo-sistema'
 import { Route as DocumentosRouteImport } from './routes/documentos'
 import { Route as DiretrizesEstrategicasRouteImport } from './routes/diretrizes-estrategicas'
+import { Route as CulturaDaQualidadeRouteImport } from './routes/cultura-da-qualidade'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ComunicacoesRouteImport } from './routes/comunicacoes'
 import { Route as CargosRouteImport } from './routes/cargos'
@@ -148,6 +149,11 @@ const DocumentosRoute = DocumentosRouteImport.update({
 const DiretrizesEstrategicasRoute = DiretrizesEstrategicasRouteImport.update({
   id: '/diretrizes-estrategicas',
   path: '/diretrizes-estrategicas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CulturaDaQualidadeRoute = CulturaDaQualidadeRouteImport.update({
+  id: '/cultura-da-qualidade',
+  path: '/cultura-da-qualidade',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
@@ -287,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/cargos': typeof CargosRoute
   '/comunicacoes': typeof ComunicacoesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/cultura-da-qualidade': typeof CulturaDaQualidadeRoute
   '/diretrizes-estrategicas': typeof DiretrizesEstrategicasRoute
   '/documentos': typeof DocumentosRouteWithChildren
   '/escopo-sistema': typeof EscopoSistemaRoute
@@ -332,6 +339,7 @@ export interface FileRoutesByTo {
   '/cargos': typeof CargosRoute
   '/comunicacoes': typeof ComunicacoesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/cultura-da-qualidade': typeof CulturaDaQualidadeRoute
   '/diretrizes-estrategicas': typeof DiretrizesEstrategicasRoute
   '/escopo-sistema': typeof EscopoSistemaRoute
   '/identidade-organizacional': typeof IdentidadeOrganizacionalRoute
@@ -374,6 +382,7 @@ export interface FileRoutesById {
   '/cargos': typeof CargosRoute
   '/comunicacoes': typeof ComunicacoesRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/cultura-da-qualidade': typeof CulturaDaQualidadeRoute
   '/diretrizes-estrategicas': typeof DiretrizesEstrategicasRoute
   '/documentos': typeof DocumentosRouteWithChildren
   '/escopo-sistema': typeof EscopoSistemaRoute
@@ -422,6 +431,7 @@ export interface FileRouteTypes {
     | '/cargos'
     | '/comunicacoes'
     | '/configuracoes'
+    | '/cultura-da-qualidade'
     | '/diretrizes-estrategicas'
     | '/documentos'
     | '/escopo-sistema'
@@ -467,6 +477,7 @@ export interface FileRouteTypes {
     | '/cargos'
     | '/comunicacoes'
     | '/configuracoes'
+    | '/cultura-da-qualidade'
     | '/diretrizes-estrategicas'
     | '/escopo-sistema'
     | '/identidade-organizacional'
@@ -508,6 +519,7 @@ export interface FileRouteTypes {
     | '/cargos'
     | '/comunicacoes'
     | '/configuracoes'
+    | '/cultura-da-qualidade'
     | '/diretrizes-estrategicas'
     | '/documentos'
     | '/escopo-sistema'
@@ -555,6 +567,7 @@ export interface RootRouteChildren {
   CargosRoute: typeof CargosRoute
   ComunicacoesRoute: typeof ComunicacoesRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
+  CulturaDaQualidadeRoute: typeof CulturaDaQualidadeRoute
   DiretrizesEstrategicasRoute: typeof DiretrizesEstrategicasRoute
   DocumentosRoute: typeof DocumentosRouteWithChildren
   EscopoSistemaRoute: typeof EscopoSistemaRoute
@@ -709,6 +722,13 @@ declare module '@tanstack/react-router' {
       path: '/diretrizes-estrategicas'
       fullPath: '/diretrizes-estrategicas'
       preLoaderRoute: typeof DiretrizesEstrategicasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cultura-da-qualidade': {
+      id: '/cultura-da-qualidade'
+      path: '/cultura-da-qualidade'
+      fullPath: '/cultura-da-qualidade'
+      preLoaderRoute: typeof CulturaDaQualidadeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracoes': {
@@ -999,6 +1019,7 @@ const rootRouteChildren: RootRouteChildren = {
   CargosRoute: CargosRoute,
   ComunicacoesRoute: ComunicacoesRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
+  CulturaDaQualidadeRoute: CulturaDaQualidadeRoute,
   DiretrizesEstrategicasRoute: DiretrizesEstrategicasRoute,
   DocumentosRoute: DocumentosRouteWithChildren,
   EscopoSistemaRoute: EscopoSistemaRoute,
