@@ -4,8 +4,15 @@ import { AppSidebar } from "./app-sidebar";
 import { Topbar } from "./topbar";
 import { AIAssistant } from "./ai-assistant";
 import { SobreJawdaProvider, SobreJawdaTrigger } from "./sobre-jawda";
+import { useApplyOrgTheme } from "@/lib/queries/org-theme";
 
 export function AppShell({ children }: { children: ReactNode }) {
+  // Tema dinâmico por organização (itens 10/11/12, Bloco 6) — "o sistema se
+  // pinta sozinho no carregamento" (seção 5 do Guia). AppShell é o único
+  // ponto que toda rota autenticada monta, então é aqui que a pintura
+  // precisa acontecer, sempre.
+  useApplyOrgTheme();
+
   return (
     <SobreJawdaProvider>
       <SidebarProvider>

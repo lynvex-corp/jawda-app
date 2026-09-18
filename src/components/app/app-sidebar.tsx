@@ -51,6 +51,7 @@ import { navTop, navGroups, navFooter, type NavItem } from "@/lib/mock-data";
 import { useAuth } from "@/hooks/use-auth";
 import { useEnabledModules } from "@/lib/queries/contract";
 import { useAlertCounters } from "@/lib/queries/dashboard";
+import { useOrgTheme } from "@/lib/queries/org-theme";
 import { moduleForRoute } from "@/lib/module-access";
 import { cn } from "@/lib/utils";
 
@@ -185,6 +186,10 @@ export function AppSidebar() {
   const { setOpen: setSobreJawdaOpen } = useSobreJawda();
   const { currentOrg } = useAuth();
   const orgName = currentOrg?.trade_name || currentOrg?.legal_name || null;
+  // Logo do cliente (itens 10/11/12, Bloco 6) — marca da Jawda continua no
+  // topo (identidade do produto); o bloco da empresa cliente, com logo
+  // quando existir, fica aqui embaixo, junto do nome que já era mostrado.
+  const { data: orgTheme } = useOrgTheme();
 
   // Enquanto o contrato ainda carrega (enabledModules undefined), nada
   // aparece bloqueado — mesmo critério do ModuleGate, evita cadeado
@@ -315,8 +320,17 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="mt-3 px-2">
             {orgName && (
-              <div className="truncate text-xs font-medium text-foreground" title={orgName}>
-                {orgName}
+              <div className="flex items-center gap-2">
+                {orgTheme?.logoUrl && (
+                  <img
+                    src={orgTheme.logoUrl}
+                    alt={orgName}
+                    className="h-5 w-5 shrink-0 rounded object-contain"
+                  />
+                )}
+                <div className="truncate text-xs font-medium text-foreground" title={orgName}>
+                  {orgName}
+                </div>
               </div>
             )}
             <div className="text-[10px] text-muted-foreground">Jawda versão 1</div>
