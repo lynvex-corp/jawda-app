@@ -19,7 +19,12 @@ import {
 } from "@/components/ui/table";
 import { JawdaLogo } from "@/components/brand/logo";
 import { useAuth } from "@/hooks/use-auth";
-import { useOrgTheme, useSaveOrgTheme, useUploadLogo } from "@/lib/queries/org-theme";
+import {
+  useOrgTheme,
+  useSaveOrgTheme,
+  useUploadLogo,
+  corDeContraste,
+} from "@/lib/queries/org-theme";
 import { getErrorMessage } from "@/lib/utils";
 import { Upload, Plug, CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
 
@@ -85,6 +90,72 @@ const CORES_PADRAO = {
   contentBgColor: "#F7F9FC",
 };
 
+interface PaletaSugerida {
+  nome: string;
+  brandColor: string;
+  accentColor: string;
+  textColor: string;
+  sidebarColor: string;
+  contentBgColor: string;
+}
+
+/** Paletas prontas (melhoria pedida junto com o Bug 2) — combinações
+ * internamente coerentes (primária saturada, destaque claro da mesma
+ * família, texto escuro legível, painel lateral e tela central claros)
+ * pra quem não tem tempo/domínio de design acertar 5 hex do zero. Escolher
+ * uma só preenche o rascunho do formulário — nada é salvo até "Salvar
+ * identidade", igual a editar campo por campo. */
+const PALETAS_SUGERIDAS: PaletaSugerida[] = [
+  {
+    nome: "Azul Corporativo",
+    brandColor: "#1F4E8C",
+    accentColor: "#DCE6F5",
+    textColor: "#1A1A1A",
+    sidebarColor: "#FFFFFF",
+    contentBgColor: "#F7F9FC",
+  },
+  {
+    nome: "Verde Sustentável",
+    brandColor: "#1B7A4D",
+    accentColor: "#D8F0E3",
+    textColor: "#14231C",
+    sidebarColor: "#FFFFFF",
+    contentBgColor: "#F5FBF8",
+  },
+  {
+    nome: "Roxo Moderno",
+    brandColor: "#5B3E9E",
+    accentColor: "#E7DFF7",
+    textColor: "#1E1533",
+    sidebarColor: "#FFFFFF",
+    contentBgColor: "#FAF8FE",
+  },
+  {
+    nome: "Grafite Elegante",
+    brandColor: "#2E3440",
+    accentColor: "#E5E9F0",
+    textColor: "#1A1D23",
+    sidebarColor: "#F5F6F8",
+    contentBgColor: "#FAFBFC",
+  },
+  {
+    nome: "Terracota Acolhedor",
+    brandColor: "#B5502D",
+    accentColor: "#F5DED2",
+    textColor: "#2B1710",
+    sidebarColor: "#FFFFFF",
+    contentBgColor: "#FDF7F4",
+  },
+  {
+    nome: "Petróleo Profissional",
+    brandColor: "#0F5C66",
+    accentColor: "#D6EEF0",
+    textColor: "#102426",
+    sidebarColor: "#FFFFFF",
+    contentBgColor: "#F4FAFB",
+  },
+];
+
 function IdentidadeTab() {
   const { currentOrg } = useAuth();
   const souAdmin = currentOrg?.role === "admin";
@@ -135,6 +206,14 @@ function IdentidadeTab() {
       onError: (err) =>
         toast.error("Não foi possível enviar o logo", { description: getErrorMessage(err) }),
     });
+  }
+
+  function aplicarPaleta(p: PaletaSugerida) {
+    setBrandColor(p.brandColor);
+    setAccentColor(p.accentColor);
+    setTextColor(p.textColor);
+    setSidebarColor(p.sidebarColor);
+    setContentBgColor(p.contentBgColor);
   }
 
   function salvarIdentidade() {
@@ -217,6 +296,31 @@ function IdentidadeTab() {
                 disabled={!souAdmin}
                 className="mt-2"
               />
+            </div>
+          </div>
+          <div>
+            <Label>Paletas sugeridas</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Escolha uma combinação pronta, ou ajuste cada cor manualmente abaixo.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {PALETAS_SUGERIDAS.map((p) => (
+                <button
+                  key={p.nome}
+                  type="button"
+                  disabled={!souAdmin}
+                  onClick={() => aplicarPaleta(p)}
+                  title={p.nome}
+                  className="flex items-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-xs transition-colors hover:border-brand/50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="flex overflow-hidden rounded-full border border-border/60">
+                    <span className="h-4 w-4" style={{ background: p.brandColor }} />
+                    <span className="h-4 w-4" style={{ background: p.accentColor }} />
+                    <span className="h-4 w-4" style={{ background: p.sidebarColor }} />
+                  </span>
+                  {p.nome}
+                </button>
+              ))}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
@@ -316,25 +420,50 @@ function IdentidadeTab() {
           <CardTitle className="text-base">Prévia</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-xl border border-border">
+          <div className="flex h-[280px] overflow-hidden rounded-xl border border-border">
+            {/* Painel lateral — única representação visual de sidebarColor;
+                sem isso, mudar essa cor não tinha NENHUM efeito visível na
+                prévia (uma das causas do Bug 2 relatado). */}
             <div
-              className="flex items-center justify-between border-b border-border px-4 py-3"
-              style={{ background: brandColor, color: "#fff" }}
+              className="flex w-16 shrink-0 flex-col items-center gap-3 border-r border-border/40 py-3"
+              style={{ background: sidebarColor, color: corDeContraste(sidebarColor) }}
             >
-              <div className="flex items-center gap-2">
-                <JawdaLogo showWordmark size={22} />
-              </div>
-              <span className="text-xs opacity-80">{tradeName || legalName || "Sua empresa"}</span>
+              <JawdaLogo showWordmark={false} size={18} />
+              <div
+                className="h-1.5 w-8 rounded-full opacity-40"
+                style={{ background: "currentColor" }}
+              />
+              <div
+                className="h-1.5 w-8 rounded-full opacity-25"
+                style={{ background: "currentColor" }}
+              />
+              <div
+                className="h-1.5 w-8 rounded-full opacity-25"
+                style={{ background: "currentColor" }}
+              />
             </div>
-            <div className="space-y-3 p-4" style={{ background: contentBgColor }}>
-              <div className="h-3 w-2/3 rounded" style={{ background: accentColor }} />
-              <div className="h-3 w-1/2 rounded" style={{ background: accentColor }} />
-              <Button className="mt-2" style={{ background: brandColor, color: "#fff" }}>
-                Botão de exemplo
-              </Button>
-              <p className="text-xs" style={{ color: textColor }}>
-                Texto de exemplo sobre a tela central.
-              </p>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div
+                className="flex items-center justify-between border-b border-border px-4 py-3"
+                style={{ background: brandColor, color: corDeContraste(brandColor) }}
+              >
+                <span className="text-sm font-medium">
+                  {tradeName || legalName || "Sua empresa"}
+                </span>
+              </div>
+              <div className="flex-1 space-y-3 p-4" style={{ background: contentBgColor }}>
+                <div className="h-3 w-2/3 rounded" style={{ background: accentColor }} />
+                <div className="h-3 w-1/2 rounded" style={{ background: accentColor }} />
+                <Button
+                  className="mt-2"
+                  style={{ background: brandColor, color: corDeContraste(brandColor) }}
+                >
+                  Botão de exemplo
+                </Button>
+                <p className="text-xs" style={{ color: textColor }}>
+                  Texto de exemplo sobre a tela central.
+                </p>
+              </div>
             </div>
           </div>
         </CardContent>

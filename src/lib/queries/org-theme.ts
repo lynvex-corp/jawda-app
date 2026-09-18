@@ -160,7 +160,7 @@ export function useUploadLogo() {
  * cor de texto próprio no formulário (sidebar, brand). Cor de texto do
  * conteúdo principal continua sendo a escolha explícita do usuário
  * (--foreground), não este cálculo. */
-function corDeContraste(hex: string): string {
+export function corDeContraste(hex: string): string {
   const limpo = hex.replace("#", "");
   if (limpo.length !== 6) return "oklch(1 0 0)";
   const r = parseInt(limpo.slice(0, 2), 16) / 255;
