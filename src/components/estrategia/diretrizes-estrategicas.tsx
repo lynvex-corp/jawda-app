@@ -14,8 +14,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, History, FilePlus2, Sparkles } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, History, FilePlus2, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
 import {
   useStrategicDirectivesCurrent,
   useStrategicDirectivesHistory,
@@ -25,6 +36,7 @@ import {
   useUpdateStrategicDirectivesText,
   useCreateStrategicValue,
   useUpdateStrategicValue,
+  useDiscardStrategicDirectivesDraft,
 } from "@/lib/queries/estrategia";
 import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
 import { getErrorMessage } from "@/lib/utils";
@@ -33,9 +45,18 @@ import { getErrorMessage } from "@/lib/utils";
  * página — é como esta tela aparece dentro da aba de Identidade
  * Organizacional (Bloco 2, item 10c), que já tem shell e cabeçalho próprios.
  * Sem a flag, continua sendo a página completa da rota
- * /diretrizes-estrategicas, que segue funcionando por URL direta. */
+ * /diretrizes-estrategicas, que segue funcionando por URL direta.
+ *
+ * Bloco 7: falta de gate de permissão aqui era bug real — as outras duas
+ * abas de Identidade Organizacional (Apresentação, Política) sempre
+ * gatearam ações por papel; esta não gateava nenhuma. Corrigido calculando
+ * `isDiretoria` aqui dentro (useAuth próprio) em vez de receber por prop,
+ * porque o componente é usado nos dois lugares (embutido e rota própria) e
+ * nenhum dos dois deve deixar passar sem essa checagem. */
 export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: boolean } = {}) {
   const Shell = embedded ? Fragment : AppShell;
+  const { currentOrg } = useAuth();
+  const isDiretoria = currentOrg?.role === "admin";
   const { data, isLoading } = useStrategicDirectivesCurrent();
   const { data: history } = useStrategicDirectivesHistory();
   const startFirstDraft = useStartFirstStrategicDirectivesDraft();
@@ -44,13 +65,14 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
   const updateText = useUpdateStrategicDirectivesText();
   const createValue = useCreateStrategicValue();
   const updateValue = useUpdateStrategicValue();
+  const discardDraft = useDiscardStrategicDirectivesDraft();
 
   const [missao, setMissao] = useState("");
   const [visao, setVisao] = useState("");
   const [proposito, setProposito] = useState("");
   const [novoValor, setNovoValor] = useState({ nome: "", descricao: "" });
   const [formalizeOpen, setFormalizeOpen] = useState(false);
-  const [versionLabel, setVersionLabel] = useState("");
+  const [discardOpen, setDiscardOpen] = useState(false);
 
   const directive = data?.directive ?? null;
   const values = data?.values ?? [];
@@ -95,19 +117,15 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
   };
 
   const confirmarFormalizacao = () => {
-    if (!directive || !versionLabel.trim()) {
-      toast.error("Informe o rótulo da versão");
-      return;
-    }
+    if (!directive) return;
     formalize.mutate(
-      { id: directive.id, versionLabel: versionLabel.trim() },
+      { id: directive.id },
       {
-        onSuccess: () => {
+        onSuccess: (result) => {
           toast.success("Diretrizes estratégicas formalizadas", {
-            description: versionLabel.trim(),
+            description: result.version_label ?? undefined,
           });
           setFormalizeOpen(false);
-          setVersionLabel("");
         },
         onError: (e) =>
           toast.error("Não foi possível formalizar", { description: getErrorMessage(e) }),
@@ -120,6 +138,18 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
       onSuccess: () => toast.success("Nova versão criada a partir da última formalizada"),
       onError: (e) =>
         toast.error("Não foi possível iniciar nova versão", { description: getErrorMessage(e) }),
+    });
+  };
+
+  const confirmarDescarte = () => {
+    if (!directive) return;
+    discardDraft.mutate(directive.id, {
+      onSuccess: () => {
+        toast.success("Rascunho descartado");
+        setDiscardOpen(false);
+      },
+      onError: (e) =>
+        toast.error("Não foi possível descartar", { description: getErrorMessage(e) }),
     });
   };
 
@@ -148,12 +178,14 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
               Inicie o primeiro rascunho de Missão, Visão, Valores e Propósito.
             </p>
           </div>
-          <Button
-            onClick={() => startFirstDraft.mutate()}
-            className="rounded-lg bg-brand text-white hover:bg-brand/90"
-          >
-            <Plus className="mr-1.5 h-4 w-4" /> Iniciar rascunho
-          </Button>
+          {isDiretoria && (
+            <Button
+              onClick={() => startFirstDraft.mutate()}
+              className="rounded-lg bg-brand text-white hover:bg-brand/90"
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Iniciar rascunho
+            </Button>
+          )}
         </div>
       </Shell>
     );
@@ -176,25 +208,37 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
               </p>
             </div>
           )}
-          <div className="flex gap-2">
-            {isDraft ? (
-              <Button
-                size="sm"
-                onClick={() => setFormalizeOpen(true)}
-                className="rounded-lg bg-brand text-white hover:bg-brand/90"
-              >
-                Formalizar Diretrizes Estratégicas
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={iniciarNovaVersao}
-                className="rounded-lg bg-brand text-white hover:bg-brand/90"
-              >
-                <History className="mr-1.5 h-4 w-4" /> Nova versão
-              </Button>
-            )}
-          </div>
+          {isDiretoria && (
+            <div className="flex gap-2">
+              {isDraft ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDiscardOpen(true)}
+                    className="rounded-lg"
+                  >
+                    <X className="mr-1.5 h-3.5 w-3.5" /> Cancelar alteração
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setFormalizeOpen(true)}
+                    className="rounded-lg bg-brand text-white hover:bg-brand/90"
+                  >
+                    Formalizar Diretrizes Estratégicas
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={iniciarNovaVersao}
+                  className="rounded-lg bg-brand text-white hover:bg-brand/90"
+                >
+                  <History className="mr-1.5 h-4 w-4" /> Nova versão
+                </Button>
+              )}
+            </div>
+          )}
         </header>
 
         {!isDraft && (
@@ -212,7 +256,7 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
               </label>
               <Textarea
                 value={missao}
-                disabled={!isDraft}
+                disabled={!isDraft || !isDiretoria}
                 onChange={(e) => setMissao(e.target.value)}
                 onBlur={salvarTextos}
                 className="min-h-[80px] rounded-lg text-sm"
@@ -224,7 +268,7 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
               </label>
               <Textarea
                 value={visao}
-                disabled={!isDraft}
+                disabled={!isDraft || !isDiretoria}
                 onChange={(e) => setVisao(e.target.value)}
                 onBlur={salvarTextos}
                 className="min-h-[80px] rounded-lg text-sm"
@@ -236,7 +280,7 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
               </label>
               <Textarea
                 value={proposito}
-                disabled={!isDraft}
+                disabled={!isDraft || !isDiretoria}
                 onChange={(e) => setProposito(e.target.value)}
                 onBlur={salvarTextos}
                 className="min-h-[80px] rounded-lg text-sm"
@@ -256,7 +300,7 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
                 >
                   <Input
                     defaultValue={v.nome}
-                    disabled={!isDraft}
+                    disabled={!isDraft || !isDiretoria}
                     onBlur={(e) =>
                       updateValue.mutate({ id: v.id, patch: { nome: e.target.value } })
                     }
@@ -264,7 +308,7 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
                   />
                   <Textarea
                     defaultValue={v.descricao}
-                    disabled={!isDraft}
+                    disabled={!isDraft || !isDiretoria}
                     onBlur={(e) =>
                       updateValue.mutate({ id: v.id, patch: { descricao: e.target.value } })
                     }
@@ -278,7 +322,7 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
                 </p>
               )}
             </div>
-            {isDraft && (
+            {isDraft && isDiretoria && (
               <div className="flex flex-wrap gap-2 rounded-lg border border-dashed border-border/60 p-3">
                 <Input
                   value={novoValor.nome}
@@ -327,25 +371,18 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
           <DialogHeader>
             <DialogTitle>Formalizar Diretrizes Estratégicas</DialogTitle>
             <DialogDescription>
-              Só a Alta Direção pode formalizar. Os campos ficam somente leitura depois disso.
+              Só a Diretoria (Administrador do Cliente) pode formalizar. Os campos ficam somente
+              leitura depois disso. O rótulo da versão é gerado automaticamente (ex.: "Diretrizes
+              Estratégicas_01.2026").
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium">Rótulo da versão</label>
-            <Input
-              value={versionLabel}
-              onChange={(e) => setVersionLabel(e.target.value)}
-              placeholder="Ex.: Missão, Visão, Valores e Propósito_01.2026"
-              className="rounded-md"
-              autoFocus
-            />
-          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormalizeOpen(false)}>
               Cancelar
             </Button>
             <Button
               onClick={confirmarFormalizacao}
+              disabled={formalize.isPending}
               className="bg-brand text-white hover:bg-brand/90"
             >
               Formalizar
@@ -353,6 +390,27 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar alteração</AlertDialogTitle>
+            <AlertDialogDescription>
+              O rascunho atual é descartado (fica registrado, mas não vira versão oficial) e a tela
+              volta a mostrar a última versão formalizada. O texto não salvo desta edição se perde.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-lg">Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmarDescarte}
+            >
+              Descartar rascunho
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Shell>
   );
 }

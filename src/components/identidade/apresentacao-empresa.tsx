@@ -1,55 +1,42 @@
 import { useEffect, useState } from "react";
-import { FilePlus2, History, Plus } from "lucide-react";
+import { FilePlus2, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
-import {
   useCompanyPresentationCurrent,
-  useCompanyPresentationHistory,
   useStartFirstCompanyPresentationDraft,
-  useStartNewCompanyPresentationVersion,
   useFormalizeCompanyPresentation,
   useUpdateCompanyPresentationContent,
 } from "@/lib/queries/identidade";
 import { getErrorMessage } from "@/lib/utils";
 
 /* ============================================================
- * Apresentação da Empresa (Bloco 2, item 10a).
+ * Apresentação da Empresa (Bloco 2, item 10a; simplificada no Bloco 7,
+ * item 1).
  *
- * Mesmo ciclo de vida da Política da Qualidade: um rascunho por vez, editar
- * livre enquanto rascunho, formalizar congela, nova versão reabre. A única
- * diferença de regra está no banco — aqui quem elabora também formaliza,
- * enquanto a Política exige Administrador.
+ * Sem rótulo de versão e sem histórico — não é exigido pela norma, é só
+ * identidade institucional. Fluxo: escreve, clica Formalizar (ação direta,
+ * sem dialog), e a partir daí o texto some da edição só até clicar
+ * "Editar" de novo — nunca cria uma versão nova.
  * ============================================================ */
 
-export function ApresentacaoEmpresaTab({ isQualityAuthorized }: { isQualityAuthorized: boolean }) {
+export function ApresentacaoEmpresaTab({ isDiretoria }: { isDiretoria: boolean }) {
   const { data, isLoading } = useCompanyPresentationCurrent();
-  const { data: history } = useCompanyPresentationHistory();
   const startFirstDraft = useStartFirstCompanyPresentationDraft();
-  const startNewVersion = useStartNewCompanyPresentationVersion();
   const formalize = useFormalizeCompanyPresentation();
   const updateContent = useUpdateCompanyPresentationContent();
 
   const [content, setContent] = useState("");
-  const [formalizeOpen, setFormalizeOpen] = useState(false);
-  const [versionLabel, setVersionLabel] = useState("");
+  const [editing, setEditing] = useState(false);
 
   const presentation = data?.presentation ?? null;
-  const isDraft = data?.isDraft ?? false;
+  const isFormalized = presentation?.status === "formalizada";
 
   useEffect(() => {
     if (presentation) setContent(presentation.content);
+    setEditing(false);
   }, [presentation?.id]);
 
   const salvar = () => {
@@ -60,31 +47,21 @@ export function ApresentacaoEmpresaTab({ isQualityAuthorized }: { isQualityAutho
     );
   };
 
-  const confirmarFormalizacao = () => {
-    if (!presentation || !versionLabel.trim()) {
-      toast.error("Informe o rótulo da versão");
-      return;
-    }
+  const formalizar = () => {
+    if (!presentation) return;
     formalize.mutate(
-      { id: presentation.id, versionLabel: versionLabel.trim() },
+      { id: presentation.id },
       {
-        onSuccess: () => {
-          toast.success("Apresentação formalizada", { description: versionLabel.trim() });
-          setFormalizeOpen(false);
-          setVersionLabel("");
-        },
+        onSuccess: () => toast.success("Apresentação formalizada"),
         onError: (e) =>
           toast.error("Não foi possível formalizar", { description: getErrorMessage(e) }),
       },
     );
   };
 
-  const iniciarNovaVersao = () => {
-    startNewVersion.mutate(undefined, {
-      onSuccess: () => toast.success("Nova versão criada a partir da última formalizada"),
-      onError: (e) =>
-        toast.error("Não foi possível iniciar nova versão", { description: getErrorMessage(e) }),
-    });
+  const concluirEdicao = () => {
+    salvar();
+    setEditing(false);
   };
 
   if (isLoading) {
@@ -110,47 +87,63 @@ export function ApresentacaoEmpresaTab({ isQualityAuthorized }: { isQualityAutho
             identidade organizacional.
           </p>
         </div>
-        {isQualityAuthorized && (
+        {isDiretoria && (
           <Button
             onClick={() => startFirstDraft.mutate()}
             className="rounded-lg bg-brand text-white hover:bg-brand/90"
           >
-            <Plus className="mr-1.5 h-4 w-4" /> Iniciar rascunho
+            <Plus className="mr-1.5 h-4 w-4" /> Iniciar
           </Button>
         )}
       </div>
     );
   }
 
+  const podeEditarTexto = isDiretoria && (!isFormalized || editing);
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        {isQualityAuthorized &&
-          (isDraft ? (
-            <Button
-              size="sm"
-              onClick={() => setFormalizeOpen(true)}
-              className="rounded-lg bg-brand text-white hover:bg-brand/90"
-            >
-              Formalizar Apresentação
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={iniciarNovaVersao}
-              className="rounded-lg bg-brand text-white hover:bg-brand/90"
-            >
-              <History className="mr-1.5 h-4 w-4" /> Nova versão
-            </Button>
-          ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs text-muted-foreground">
+          {isFormalized &&
+            (presentation.formalizedByName
+              ? `Formalizada em ${new Date(presentation.formalizedAt!).toLocaleDateString("pt-BR")} por ${presentation.formalizedByName}`
+              : "Formalizada")}
+        </div>
+        {isDiretoria && (
+          <div className="flex gap-2">
+            {!isFormalized && (
+              <Button
+                size="sm"
+                onClick={formalizar}
+                disabled={formalize.isPending}
+                className="rounded-lg bg-brand text-white hover:bg-brand/90"
+              >
+                Formalizar
+              </Button>
+            )}
+            {isFormalized && !editing && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setEditing(true)}
+                className="rounded-lg"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar
+              </Button>
+            )}
+            {isFormalized && editing && (
+              <Button
+                size="sm"
+                onClick={concluirEdicao}
+                className="rounded-lg bg-brand text-white hover:bg-brand/90"
+              >
+                Concluir edição
+              </Button>
+            )}
+          </div>
+        )}
       </div>
-
-      {!isDraft && (
-        <LockedDocumentBanner>
-          Esta é a última versão formalizada ({presentation.versionLabel}) — somente leitura. Clique
-          em "Nova versão" para editar.
-        </LockedDocumentBanner>
-      )}
 
       <Card className="rounded-2xl border-border/80 shadow-sm">
         <CardContent className="p-6">
@@ -159,7 +152,7 @@ export function ApresentacaoEmpresaTab({ isQualityAuthorized }: { isQualityAutho
           </label>
           <Textarea
             value={content}
-            disabled={!isDraft || !isQualityAuthorized}
+            disabled={!podeEditarTexto}
             onChange={(e) => setContent(e.target.value)}
             onBlur={salvar}
             placeholder="Histórico da organização, área de atuação, porte, mercados atendidos…"
@@ -167,50 +160,6 @@ export function ApresentacaoEmpresaTab({ isQualityAuthorized }: { isQualityAutho
           />
         </CardContent>
       </Card>
-
-      {history && history.length > 0 && (
-        <VersionHistoryCard
-          entries={history.map((h) => ({
-            id: h.id,
-            label: h.versionLabel ?? "",
-            date: h.formalizedAt,
-            byName: h.formalizedByName,
-            snippet: h.content,
-          }))}
-        />
-      )}
-
-      <Dialog open={formalizeOpen} onOpenChange={setFormalizeOpen}>
-        <DialogContent className="max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Formalizar Apresentação da Empresa</DialogTitle>
-            <DialogDescription>
-              O texto fica somente leitura depois disso. Para alterar, crie uma nova versão.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium">Rótulo da versão</label>
-            <Input
-              value={versionLabel}
-              onChange={(e) => setVersionLabel(e.target.value)}
-              placeholder="Ex.: Apresentação_01.2026"
-              className="rounded-md"
-              autoFocus
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFormalizeOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={confirmarFormalizacao}
-              className="bg-brand text-white hover:bg-brand/90"
-            >
-              Formalizar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

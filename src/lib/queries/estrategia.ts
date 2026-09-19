@@ -2071,12 +2071,25 @@ export function useFormalizeStrategicDirectives() {
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, versionLabel }: { id: string; versionLabel: string }) => {
+    mutationFn: async ({ id }: { id: string }) => {
       assertNotReadOnly();
-      const { error } = await supabase.rpc("formalize_strategic_directives", {
-        p_id: id,
-        p_version_label: versionLabel,
-      });
+      const { data, error } = await supabase.rpc("formalize_strategic_directives", { p_id: id });
+      if (error) throw error;
+      return data as { version_label: string | null };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: strategicDirectivesKeys.all }),
+  });
+}
+
+/** Bloco 7, item 4: mesmo "Cancelar alteração" de Política da Qualidade —
+ * ver useDiscardQualityPolicyDraft (documentos.ts) para o raciocínio. */
+export function useDiscardStrategicDirectivesDraft() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("discard_strategic_directives_draft", { p_id: id });
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: strategicDirectivesKeys.all }),

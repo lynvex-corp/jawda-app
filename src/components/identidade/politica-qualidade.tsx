@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { FilePlus2, History, Plus } from "lucide-react";
+import { FilePlus2, History, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -13,6 +12,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
 import {
   useQualityPolicyCurrent,
@@ -21,6 +30,7 @@ import {
   useStartNewQualityPolicyVersion,
   useFormalizeQualityPolicy,
   useUpdateQualityPolicyContent,
+  useDiscardQualityPolicyDraft,
 } from "@/lib/queries/documentos";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -34,19 +44,25 @@ import { getErrorMessage } from "@/lib/utils";
  * As queries continuam em lib/queries/documentos.ts de propósito: a tabela
  * quality_policy não mudou de lugar, e mover as queries junto criaria um
  * diff grande sem ganho e quebraria quem já as importa.
+ *
+ * Bloco 7: rótulo de versão não é mais digitado — o banco gera sozinho
+ * ("Política da Qualidade_01.2026", incrementando por ano). Formalizar
+ * continua exclusivo da Diretoria (já era antes). "Cancelar alteração"
+ * descarta o rascunho aberto sem formalizar nada.
  * ============================================================ */
 
-export function PoliticaQualidadeTab({ isQualityAuthorized }: { isQualityAuthorized: boolean }) {
+export function PoliticaQualidadeTab({ isDiretoria }: { isDiretoria: boolean }) {
   const { data, isLoading } = useQualityPolicyCurrent();
   const { data: history } = useQualityPolicyHistory();
   const startFirstDraft = useStartFirstQualityPolicyDraft();
   const startNewVersion = useStartNewQualityPolicyVersion();
   const formalize = useFormalizeQualityPolicy();
   const updateContent = useUpdateQualityPolicyContent();
+  const discardDraft = useDiscardQualityPolicyDraft();
 
   const [content, setContent] = useState("");
   const [formalizeOpen, setFormalizeOpen] = useState(false);
-  const [versionLabel, setVersionLabel] = useState("");
+  const [discardOpen, setDiscardOpen] = useState(false);
 
   const policy = data?.policy ?? null;
   const isDraft = data?.isDraft ?? false;
@@ -64,17 +80,15 @@ export function PoliticaQualidadeTab({ isQualityAuthorized }: { isQualityAuthori
   };
 
   const confirmarFormalizacao = () => {
-    if (!policy || !versionLabel.trim()) {
-      toast.error("Informe o rótulo da versão");
-      return;
-    }
+    if (!policy) return;
     formalize.mutate(
-      { id: policy.id, versionLabel: versionLabel.trim() },
+      { id: policy.id },
       {
-        onSuccess: () => {
-          toast.success("Política da Qualidade formalizada", { description: versionLabel.trim() });
+        onSuccess: (result) => {
+          toast.success("Política da Qualidade formalizada", {
+            description: result.version_label ?? undefined,
+          });
           setFormalizeOpen(false);
-          setVersionLabel("");
         },
         onError: (e) =>
           toast.error("Não foi possível formalizar", { description: getErrorMessage(e) }),
@@ -87,6 +101,18 @@ export function PoliticaQualidadeTab({ isQualityAuthorized }: { isQualityAuthori
       onSuccess: () => toast.success("Nova versão criada a partir da última formalizada"),
       onError: (e) =>
         toast.error("Não foi possível iniciar nova versão", { description: getErrorMessage(e) }),
+    });
+  };
+
+  const confirmarDescarte = () => {
+    if (!policy) return;
+    discardDraft.mutate(policy.id, {
+      onSuccess: () => {
+        toast.success("Rascunho descartado");
+        setDiscardOpen(false);
+      },
+      onError: (e) =>
+        toast.error("Não foi possível descartar", { description: getErrorMessage(e) }),
     });
   };
 
@@ -112,7 +138,7 @@ export function PoliticaQualidadeTab({ isQualityAuthorized }: { isQualityAuthori
             Inicie o primeiro rascunho para começar o cadastro.
           </p>
         </div>
-        {isQualityAuthorized && (
+        {isDiretoria && (
           <Button
             onClick={() => startFirstDraft.mutate()}
             className="rounded-lg bg-brand text-white hover:bg-brand/90"
@@ -127,15 +153,25 @@ export function PoliticaQualidadeTab({ isQualityAuthorized }: { isQualityAuthori
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {isQualityAuthorized &&
+        {isDiretoria &&
           (isDraft ? (
-            <Button
-              size="sm"
-              onClick={() => setFormalizeOpen(true)}
-              className="rounded-lg bg-brand text-white hover:bg-brand/90"
-            >
-              Formalizar Política da Qualidade
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setDiscardOpen(true)}
+                className="rounded-lg"
+              >
+                <X className="mr-1.5 h-3.5 w-3.5" /> Cancelar alteração
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setFormalizeOpen(true)}
+                className="rounded-lg bg-brand text-white hover:bg-brand/90"
+              >
+                Formalizar Política da Qualidade
+              </Button>
+            </>
           ) : (
             <Button
               size="sm"
@@ -161,7 +197,7 @@ export function PoliticaQualidadeTab({ isQualityAuthorized }: { isQualityAuthori
           </label>
           <Textarea
             value={content}
-            disabled={!isDraft || !isQualityAuthorized}
+            disabled={!isDraft || !isDiretoria}
             onChange={(e) => setContent(e.target.value)}
             onBlur={salvar}
             className="mt-1.5 min-h-[160px] rounded-lg text-sm"
@@ -187,25 +223,17 @@ export function PoliticaQualidadeTab({ isQualityAuthorized }: { isQualityAuthori
             <DialogTitle>Formalizar Política da Qualidade</DialogTitle>
             <DialogDescription>
               Só a Diretoria (Administrador do Cliente) pode formalizar. O texto fica somente
-              leitura depois disso.
+              leitura depois disso. O rótulo da versão é gerado automaticamente (ex.: "Política da
+              Qualidade_01.2026").
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium">Rótulo da versão</label>
-            <Input
-              value={versionLabel}
-              onChange={(e) => setVersionLabel(e.target.value)}
-              placeholder="Ex.: Política da Qualidade_01.2026"
-              className="rounded-md"
-              autoFocus
-            />
-          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormalizeOpen(false)}>
               Cancelar
             </Button>
             <Button
               onClick={confirmarFormalizacao}
+              disabled={formalize.isPending}
               className="bg-brand text-white hover:bg-brand/90"
             >
               Formalizar
@@ -213,6 +241,27 @@ export function PoliticaQualidadeTab({ isQualityAuthorized }: { isQualityAuthori
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar alteração</AlertDialogTitle>
+            <AlertDialogDescription>
+              O rascunho atual é descartado (fica registrado, mas não vira versão oficial) e a tela
+              volta a mostrar a última versão formalizada. O texto não salvo desta edição se perde.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-lg">Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmarDescarte}
+            >
+              Descartar rascunho
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

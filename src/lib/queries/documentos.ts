@@ -132,12 +132,26 @@ export function useFormalizeQualityPolicy() {
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, versionLabel }: { id: string; versionLabel: string }) => {
+    mutationFn: async ({ id }: { id: string }) => {
       assertNotReadOnly();
-      const { error } = await supabase.rpc("formalize_quality_policy", {
-        p_id: id,
-        p_version_label: versionLabel,
-      });
+      const { data, error } = await supabase.rpc("formalize_quality_policy", { p_id: id });
+      if (error) throw error;
+      return data as { version_label: string | null };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qualityPolicyKeys.all }),
+  });
+}
+
+/** Bloco 7, item 4: sai do rascunho sem formalizar nada — marca
+ * 'descartada' no banco (nunca some, seção 20 do Guia) e a tela volta a
+ * mostrar a última versão formalizada. */
+export function useDiscardQualityPolicyDraft() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("discard_quality_policy_draft", { p_id: id });
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: qualityPolicyKeys.all }),
