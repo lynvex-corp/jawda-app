@@ -36,7 +36,7 @@ import { cn, getErrorMessage } from "@/lib/utils";
 import {
   useRisksOpportunities,
   useCreateRiskOpportunity,
-  useGenerateActionPlanFromRisk,
+  useLinkRiskToActionPlan,
   useUpdateRiskOpportunity,
   useReassessRisk,
   RISK_AREA_OPTIONS,
@@ -46,6 +46,7 @@ import {
   type RiskArea,
   type RiskDecision,
 } from "@/lib/queries/estrategia";
+import { GerarPlanoAcaoDialog } from "@/components/estrategia/gerar-plano-dialog";
 
 function nivel(p: number, i: number) {
   const v = p * i;
@@ -68,7 +69,7 @@ const areaLabel = Object.fromEntries(RISK_AREA_OPTIONS.map((o) => [o.value, o.la
 export function RiscosPage() {
   const { data: rows = [], isLoading } = useRisksOpportunities();
   const createRisk = useCreateRiskOpportunity();
-  const generatePlan = useGenerateActionPlanFromRisk();
+  const linkPlan = useLinkRiskToActionPlan();
   const updateRisk = useUpdateRiskOpportunity();
   const reassess = useReassessRisk();
 
@@ -84,6 +85,9 @@ export function RiscosPage() {
   const [reassessOpen, setReassessOpen] = useState<RiskOpportunity | null>(null);
   const [novaProbabilidade, setNovaProbabilidade] = useState(3);
   const [novoImpacto, setNovoImpacto] = useState(3);
+  // Bloco 8: mesmo dialog de 5W2H usado em Análise de Cenário — o plano
+  // precisa nascer com ação corretiva pra aparecer em Planos de Ação.
+  const [planoRisco, setPlanoRisco] = useState<RiskOpportunity | null>(null);
 
   const cellMap = useMemo(() => {
     const map = new Map<string, RiskOpportunity[]>();
@@ -126,21 +130,7 @@ export function RiscosPage() {
     );
   };
 
-  const gerarPlano = (r: RiskOpportunity) => {
-    generatePlan.mutate(
-      {
-        riskId: r.id,
-        description:
-          r.actionDescription ||
-          `Tratar ${r.type === "risco" ? "risco" : "oportunidade"}: ${r.description}`,
-      },
-      {
-        onSuccess: (plan) =>
-          toast.success("Plano de ação gerado", { description: `Vínculo criado: ${plan.code}` }),
-        onError: (e) => toast.error("Erro ao gerar plano", { description: getErrorMessage(e) }),
-      },
-    );
-  };
+  const gerarPlano = (r: RiskOpportunity) => setPlanoRisco(r);
 
   const salvarReavaliacao = () => {
     if (!reassessOpen) return;
@@ -573,6 +563,22 @@ export function RiscosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <GerarPlanoAcaoDialog
+        open={planoRisco !== null}
+        onOpenChange={(o) => !o && setPlanoRisco(null)}
+        origem="Risco/Oportunidade"
+        problemaInicial={
+          planoRisco
+            ? planoRisco.actionDescription ||
+              `Tratar ${planoRisco.type === "risco" ? "risco" : "oportunidade"}: ${planoRisco.description}`
+            : ""
+        }
+        onGerado={(plan) => {
+          if (planoRisco) linkPlan.mutate({ riskId: planoRisco.id, planId: plan.id });
+          setPlanoRisco(null);
+        }}
+      />
     </AppShell>
   );
 }

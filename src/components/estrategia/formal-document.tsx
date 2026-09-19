@@ -1,6 +1,30 @@
-import { History, Lock } from "lucide-react";
+import { History, Info, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+
+/** Ícone de instruções com popup de texto (Bloco 8, itens 3 e 7) — clique em
+ * vez de hover, porque hover não existe em touch (seção 15 do Guia: uso em
+ * campo é navegador responsivo). Reutilizável em qualquer tela de Estratégia
+ * que precise de uma orientação curta sem ocupar espaço permanente na UI. */
+export function InfoHint({ text }: { text: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="Instruções"
+          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-brand"
+        >
+          <Info className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 whitespace-pre-line text-xs leading-relaxed text-foreground/85">
+        {text}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 /** Peças reutilizáveis do padrão "documento formal versionado" (seção 21.5
  * do Guia de Arquitetura) — usado agora em 5 sub-abas de Estratégia

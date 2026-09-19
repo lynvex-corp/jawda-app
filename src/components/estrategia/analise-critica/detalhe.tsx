@@ -49,11 +49,12 @@ import {
   useApproveCriticalAnalysisParticipation,
   useAnnulCriticalAnalysis,
   useCreateCriticalAnalysisActionItem,
-  useGenerateActionPlanFromCriticalAnalysisItem,
+  useLinkCriticalAnalysisItemToActionPlan,
   ACTION_ITEM_TYPE_OPTIONS,
   type CriticalAnalysisActionItemType,
 } from "@/lib/queries/estrategia";
 import { LockedDocumentBanner } from "@/components/estrategia/formal-document";
+import { GerarPlanoAcaoDialog } from "@/components/estrategia/gerar-plano-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -70,7 +71,7 @@ export function AnaliseCriticaDetailPage() {
   const approveParticipation = useApproveCriticalAnalysisParticipation();
   const annul = useAnnulCriticalAnalysis();
   const createActionItem = useCreateCriticalAnalysisActionItem();
-  const generatePlan = useGenerateActionPlanFromCriticalAnalysisItem();
+  const linkPlan = useLinkCriticalAnalysisItemToActionPlan();
   const { user } = useAuth();
   const currentUserId = user?.id;
 
@@ -86,6 +87,12 @@ export function AnaliseCriticaDetailPage() {
     type: "oportunidade_melhoria",
     description: "",
   });
+  // Bloco 8: mesmo dialog de 5W2H usado em Análise de Cenário/Riscos — o
+  // plano precisa nascer com ação corretiva pra aparecer em Planos de Ação.
+  const [planoActionItem, setPlanoActionItem] = useState<{
+    id: string;
+    description: string;
+  } | null>(null);
 
   useEffect(() => {
     if (meeting) {
@@ -184,16 +191,8 @@ export function AnaliseCriticaDetailPage() {
     );
   };
 
-  const gerarPlano = (actionItemId: string, description: string) => {
-    generatePlan.mutate(
-      { actionItemId, meetingId: meeting.id, description },
-      {
-        onSuccess: ({ plan }) =>
-          toast.success("Plano de ação gerado", { description: `Vínculo criado: ${plan.code}` }),
-        onError: (e) => toast.error("Erro ao gerar plano", { description: getErrorMessage(e) }),
-      },
-    );
-  };
+  const gerarPlano = (actionItemId: string, description: string) =>
+    setPlanoActionItem({ id: actionItemId, description });
 
   return (
     <AppShell>
@@ -639,6 +638,22 @@ export function AnaliseCriticaDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <GerarPlanoAcaoDialog
+        open={planoActionItem !== null}
+        onOpenChange={(o) => !o && setPlanoActionItem(null)}
+        origem="Análise Crítica"
+        problemaInicial={planoActionItem?.description ?? ""}
+        onGerado={(plan) => {
+          if (planoActionItem)
+            linkPlan.mutate({
+              actionItemId: planoActionItem.id,
+              meetingId: meeting.id,
+              planId: plan.id,
+            });
+          setPlanoActionItem(null);
+        }}
+      />
     </AppShell>
   );
 }

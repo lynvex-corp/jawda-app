@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, Lock, History, FilePlus2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
 import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
 import { getErrorMessage } from "@/lib/utils";
 import {
@@ -35,7 +36,13 @@ import {
   useUpdateStakeholder,
 } from "@/lib/queries/estrategia";
 
+/** Bloco 8, item 6: rótulo automático (mesmo padrão de Política da
+ * Qualidade/Diretrizes Estratégicas) e submódulo exclusivo da Diretoria —
+ * a RLS de stakeholder_analyses não tinha NENHUMA trava de papel antes
+ * desta entrega (qualquer usuário com acesso de escrita podia formalizar). */
 export function PartesInteressadasPage() {
+  const { currentOrg } = useAuth();
+  const isDiretoria = currentOrg?.role === "admin";
   const { data, isLoading } = useStakeholderCurrent();
   const { data: history } = useStakeholderHistory();
   const startFirstDraft = useStartFirstStakeholderDraft();
@@ -48,7 +55,6 @@ export function PartesInteressadasPage() {
   const [novaOpen, setNovaOpen] = useState(false);
   const [nova, setNova] = useState({ nome: "", requisitos: "", expectativas: "" });
   const [formalizeOpen, setFormalizeOpen] = useState(false);
-  const [versionLabel, setVersionLabel] = useState("");
 
   const analysis = data?.analysis ?? null;
   const stakeholders = data?.stakeholders ?? [];
@@ -77,17 +83,13 @@ export function PartesInteressadasPage() {
   };
 
   const confirmarFormalizacao = () => {
-    if (!analysis || !versionLabel.trim()) {
-      toast.error("Informe o rótulo da versão");
-      return;
-    }
+    if (!analysis) return;
     formalize.mutate(
-      { analysisId: analysis.id, versionLabel: versionLabel.trim() },
+      { analysisId: analysis.id },
       {
-        onSuccess: () => {
-          toast.success("Análise formalizada", { description: versionLabel.trim() });
+        onSuccess: (result) => {
+          toast.success("Análise formalizada", { description: result.version_label ?? undefined });
           setFormalizeOpen(false);
-          setVersionLabel("");
         },
         onError: (e) =>
           toast.error("Não foi possível formalizar", { description: getErrorMessage(e) }),
@@ -128,12 +130,14 @@ export function PartesInteressadasPage() {
               Inicie o primeiro rascunho para começar o cadastro.
             </p>
           </div>
-          <Button
-            onClick={() => startFirstDraft.mutate()}
-            className="rounded-lg bg-brand text-white hover:bg-brand/90"
-          >
-            <Plus className="mr-1.5 h-4 w-4" /> Iniciar cadastro
-          </Button>
+          {isDiretoria && (
+            <Button
+              onClick={() => startFirstDraft.mutate()}
+              className="rounded-lg bg-brand text-white hover:bg-brand/90"
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Iniciar cadastro
+            </Button>
+          )}
         </div>
       </AppShell>
     );
@@ -152,35 +156,37 @@ export function PartesInteressadasPage() {
               sistema de gestão.
             </p>
           </div>
-          <div className="flex gap-2">
-            {isDraft ? (
-              <>
+          {isDiretoria && (
+            <div className="flex gap-2">
+              {isDraft ? (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => setNovaOpen(true)}
+                    variant="outline"
+                    className="rounded-lg"
+                  >
+                    <Plus className="mr-1.5 h-4 w-4" /> Nova parte
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setFormalizeOpen(true)}
+                    className="rounded-lg bg-brand text-white hover:bg-brand/90"
+                  >
+                    Formalizar análise
+                  </Button>
+                </>
+              ) : (
                 <Button
                   size="sm"
-                  onClick={() => setNovaOpen(true)}
-                  variant="outline"
-                  className="rounded-lg"
-                >
-                  <Plus className="mr-1.5 h-4 w-4" /> Nova parte
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setFormalizeOpen(true)}
+                  onClick={iniciarNovaVersao}
                   className="rounded-lg bg-brand text-white hover:bg-brand/90"
                 >
-                  Formalizar análise
+                  <History className="mr-1.5 h-4 w-4" /> Nova versão
                 </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                onClick={iniciarNovaVersao}
-                className="rounded-lg bg-brand text-white hover:bg-brand/90"
-              >
-                <History className="mr-1.5 h-4 w-4" /> Nova versão
-              </Button>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </header>
 
         {!isDraft && (
@@ -237,7 +243,7 @@ export function PartesInteressadasPage() {
                       <TableCell>
                         <Input
                           value={p.nome}
-                          disabled={!isDraft}
+                          disabled={!isDraft || !isDiretoria}
                           onChange={(e) =>
                             updateStakeholder.mutate({ id: p.id, patch: { nome: e.target.value } })
                           }
@@ -247,7 +253,7 @@ export function PartesInteressadasPage() {
                       <TableCell>
                         <Textarea
                           value={p.requisitos}
-                          disabled={!isDraft}
+                          disabled={!isDraft || !isDiretoria}
                           onChange={(e) =>
                             updateStakeholder.mutate({
                               id: p.id,
@@ -260,7 +266,7 @@ export function PartesInteressadasPage() {
                       <TableCell>
                         <Textarea
                           value={p.expectativas}
-                          disabled={!isDraft}
+                          disabled={!isDraft || !isDiretoria}
                           onChange={(e) =>
                             updateStakeholder.mutate({
                               id: p.id,
@@ -349,25 +355,18 @@ export function PartesInteressadasPage() {
           <DialogHeader>
             <DialogTitle>Formalizar Partes Interessadas</DialogTitle>
             <DialogDescription>
-              A análise vira somente leitura. Para editar de novo, crie uma nova versão.
+              Só a Diretoria (Administrador do Cliente) pode formalizar. A análise vira somente
+              leitura depois disso. O rótulo da versão é gerado automaticamente (ex.: "Análise de
+              partes interessadas_01.2026").
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium">Rótulo da versão</label>
-            <Input
-              value={versionLabel}
-              onChange={(e) => setVersionLabel(e.target.value)}
-              placeholder="Ex.: Partes Interessadas_01.2026"
-              className="rounded-md"
-              autoFocus
-            />
-          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormalizeOpen(false)}>
               Cancelar
             </Button>
             <Button
               onClick={confirmarFormalizacao}
+              disabled={formalize.isPending}
               className="bg-brand text-white hover:bg-brand/90"
             >
               Formalizar

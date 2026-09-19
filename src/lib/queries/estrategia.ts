@@ -370,51 +370,26 @@ export function useMoveSwotCard() {
   });
 }
 
-/** Gancho SWOT → Plano de Ação (seção 21.4 do Guia): 2 passos, mesmo padrão
- * de audit_findings em src/lib/queries/audits.ts — cria o plano, depois
- * aponta o card pra ele. O trigger de swot_cards já registra
- * "gerou_plano_de_acao" na trilha quando o UPDATE acontece. */
-export function useGenerateActionPlanFromSwotCard() {
+/** Gancho SWOT → Plano de Ação (seção 21.4 do Guia). Bloco 8, itens 4 e 5:
+ * a criação do plano em si (cabeçalho + ação corretiva 5W2H) passou a
+ * acontecer via GerarPlanoAcaoDialog (useCreateActionPlan, o mesmo caminho
+ * do wizard "Novo Plano de Ação") — este hook só faz o segundo passo do
+ * gancho, apontar o(s) card(s) selecionado(s) pro plano já criado. Aceita
+ * vários ids de uma vez porque o item 5 pede seleção múltipla consolidada
+ * num único plano. O trigger de swot_cards já registra "gerou_plano_de_ação"
+ * na trilha por card quando cada UPDATE acontece. */
+export function useLinkSwotCardsToActionPlan() {
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ cardId, description }: { cardId: string; description: string }) => {
-      const { data: plan, error: planErr } = await supabase
-        .from("action_plans")
-        .insert({ origin_type: "estrategia", problem_description: description })
-        .select("id, code")
-        .single();
-      if (planErr) throw planErr;
-
-      const { error: cardErr } = await supabase
+    mutationFn: async ({ cardIds, planId }: { cardIds: string[]; planId: string }) => {
+      const { error } = await supabase
         .from("swot_cards")
-        .update({ generated_action_plan_id: plan.id })
-        .eq("id", cardId);
-      if (cardErr) throw cardErr;
-
-      return plan as { id: string; code: string };
+        .update({ generated_action_plan_id: planId })
+        .in("id", cardIds);
+      if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: swotKeys.current() }),
-  });
-}
-
-/** Plano de ação avulso a partir de uma recomendação cruzada da IA (não
- * está preso a um card específico — combina dois ou mais quadrantes). Sem
- * gancho bidirecional porque não há uma única entidade de origem para
- * apontar de volta (seção 21.4 do Guia: o gancho existe quando há UM
- * registro de origem; aqui a origem é a análise como um todo). */
-export function useCreateStrategyActionPlan() {
-  const supabase = getSupabaseBrowserClient();
-  return useMutation({
-    mutationFn: async ({ description }: { description: string }) => {
-      const { data, error } = await supabase
-        .from("action_plans")
-        .insert({ origin_type: "estrategia", problem_description: description })
-        .select("id, code")
-        .single();
-      if (error) throw error;
-      return data as { id: string; code: string };
-    },
   });
 }
 
@@ -582,23 +557,20 @@ export function useStartNewStakeholderVersion() {
   });
 }
 
+/** Bloco 8, item 6: rótulo de versão deixa de ser digitado — o banco gera
+ * sozinho ("Análise de partes interessadas_01.2026"), mesmo padrão já
+ * aplicado em Política da Qualidade e Diretrizes Estratégicas (Bloco 7). */
 export function useFormalizeStakeholderAnalysis() {
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      analysisId,
-      versionLabel,
-    }: {
-      analysisId: string;
-      versionLabel: string;
-    }) => {
+    mutationFn: async ({ analysisId }: { analysisId: string }) => {
       assertNotReadOnly();
-      const { error } = await supabase.rpc("formalize_stakeholder_analysis", {
+      const { data, error } = await supabase.rpc("formalize_stakeholder_analysis", {
         p_analysis_id: analysisId,
-        p_version_label: versionLabel,
       });
       if (error) throw error;
+      return data as { version_label: string | null };
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: stakeholderKeys.all }),
   });
@@ -1072,27 +1044,21 @@ export function useUpdateRiskOpportunity() {
   });
 }
 
-/** Gancho Risco/Oportunidade → Plano de Ação, mesmo padrão de 2 passos de
- * useGenerateActionPlanFromSwotCard. */
-export function useGenerateActionPlanFromRisk() {
+/** Gancho Risco/Oportunidade → Plano de Ação. Bloco 8: mesma correção do
+ * SWOT (ver useLinkSwotCardsToActionPlan) — o plano nasce via
+ * GerarPlanoAcaoDialog/useCreateActionPlan (cabeçalho + ação corretiva
+ * 5W2H, o único jeito de aparecer em Planos de Ação); este hook só aponta
+ * o risco pro plano já criado. */
+export function useLinkRiskToActionPlan() {
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ riskId, description }: { riskId: string; description: string }) => {
-      const { data: plan, error: planErr } = await supabase
-        .from("action_plans")
-        .insert({ origin_type: "risco_oportunidade", problem_description: description })
-        .select("id, code")
-        .single();
-      if (planErr) throw planErr;
-
-      const { error: riskErr } = await supabase
+    mutationFn: async ({ riskId, planId }: { riskId: string; planId: string }) => {
+      const { error } = await supabase
         .from("risks_opportunities")
-        .update({ generated_action_plan_id: plan.id })
+        .update({ generated_action_plan_id: planId })
         .eq("id", riskId);
-      if (riskErr) throw riskErr;
-
-      return plan as { id: string; code: string };
+      if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: riskKeys.list() }),
   });
@@ -1868,38 +1834,31 @@ export function useCreateCriticalAnalysisActionItem() {
   });
 }
 
-/** Gancho Ação de Saída → Plano de Ação, mesmo padrão de 2 passos usado em
- * SWOT/Riscos (seção 21.4 do Guia). */
-export function useGenerateActionPlanFromCriticalAnalysisItem() {
+/** Gancho Ação de Saída → Plano de Ação. Bloco 8: mesma correção do SWOT
+ * (ver useLinkSwotCardsToActionPlan) — o plano nasce via
+ * GerarPlanoAcaoDialog/useCreateActionPlan; este hook só aponta a ação de
+ * saída pro plano já criado. */
+export function useLinkCriticalAnalysisItemToActionPlan() {
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       actionItemId,
       meetingId,
-      description,
+      planId,
     }: {
       actionItemId: string;
       meetingId: string;
-      description: string;
+      planId: string;
     }) => {
-      const { data: plan, error: planErr } = await supabase
-        .from("action_plans")
-        .insert({ origin_type: "analise_critica", problem_description: description })
-        .select("id, code")
-        .single();
-      if (planErr) throw planErr;
-
-      const { error: itemErr } = await supabase
+      const { error } = await supabase
         .from("critical_analysis_action_items")
-        .update({ generated_action_plan_id: plan.id })
+        .update({ generated_action_plan_id: planId })
         .eq("id", actionItemId);
-      if (itemErr) throw itemErr;
-
-      return { plan: plan as { id: string; code: string }, meetingId };
+      if (error) throw error;
     },
-    onSuccess: ({ meetingId }) =>
-      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(meetingId) }),
+    onSuccess: (_d, vars) =>
+      queryClient.invalidateQueries({ queryKey: criticalAnalysisKeys.detail(vars.meetingId) }),
   });
 }
 

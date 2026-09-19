@@ -15,6 +15,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sparkles,
   Plus,
@@ -27,6 +28,7 @@ import {
   ShieldAlert,
   Trash2,
   Eye,
+  ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, getErrorMessage } from "@/lib/utils";
@@ -43,16 +45,44 @@ import {
   useCreateSwotCard,
   useUpdateSwotCard,
   useMoveSwotCard,
-  useGenerateActionPlanFromSwotCard,
-  useCreateStrategyActionPlan,
+  useLinkSwotCardsToActionPlan,
   useRisksOpportunities,
   useCreateRiskOpportunity,
   type SwotQuadrant,
   type SwotCard,
 } from "@/lib/queries/estrategia";
-import { LockedDocumentBanner } from "@/components/estrategia/formal-document";
+import { LockedDocumentBanner, InfoHint } from "@/components/estrategia/formal-document";
+import { GerarPlanoAcaoDialog } from "@/components/estrategia/gerar-plano-dialog";
 
 const QUADRANTS: SwotQuadrant[] = ["forca", "fraqueza", "oportunidade", "ameaca"];
+
+const CONTEXTO_INFO_TEXT = `Ao analisar o contexto da organização, considere:
+
+Contexto externo: ambiente legal, tecnológico, competitivo, de mercado, cultural, social e econômico, seja em nível internacional, nacional, regional ou local.
+
+Contexto interno: valores, cultura, conhecimento organizacional e desempenho da empresa.
+
+Nota: o objetivo é identificar questões que afetam a capacidade da organização de atingir os resultados pretendidos pelo sistema de gestão da qualidade.`;
+
+/** Bloco 8, item 5: enquadramento do texto por quadrante — pontos negativos
+ * (fraqueza/ameaça) "tratam", pontos positivos (força/oportunidade)
+ * "potencializam". É só rótulo de texto sobre a mesma estrutura de plano de
+ * ação (corretiva) — a seção 10 do Guia trava a v1 em corretiva e
+ * contingência, sem tipo novo de plano. */
+function prefixoQuadrante(q: SwotQuadrant): string {
+  switch (q) {
+    case "fraqueza":
+      return "Tratar fraqueza";
+    case "ameaca":
+      return "Tratar ameaça";
+    case "forca":
+      return "Potencializar força";
+    case "oportunidade":
+      return "Potencializar oportunidade";
+    default:
+      return "Tratar";
+  }
+}
 
 const quadrantMeta: Record<
   SwotQuadrant,
@@ -113,8 +143,7 @@ export function AnaliseCenarioPage() {
   const createCard = useCreateSwotCard();
   const updateCard = useUpdateSwotCard();
   const moveCard = useMoveSwotCard();
-  const generatePlan = useGenerateActionPlanFromSwotCard();
-  const createStandalonePlan = useCreateStrategyActionPlan();
+  const linkCardsToPlan = useLinkSwotCardsToActionPlan();
   const { data: risks = [] } = useRisksOpportunities();
   const createRisk = useCreateRiskOpportunity();
 
@@ -126,6 +155,15 @@ export function AnaliseCenarioPage() {
   const [aiRecs, setAiRecs] = useState<IARec[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [formalizeOpen, setFormalizeOpen] = useState(false);
+  // Itens 4 e 5: seleção múltipla de cards para consolidar num só plano de
+  // ação. `planoDialog` guarda o texto inicial e o que fazer com o plano
+  // gerado — reaproveitado tanto pela seleção de cards quanto pelas
+  // recomendações da IA (mesmo dialog, dois chamadores diferentes).
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [planoDialog, setPlanoDialog] = useState<{
+    problema: string;
+    onGerado: (plan: { id: string; code: string }) => void;
+  } | null>(null);
   // Item 4: escolha de qual versão anterior serve de modelo. "branco" começa
   // do zero; qualquer outro valor é o id da análise a copiar.
   const [modeloOpen, setModeloOpen] = useState(false);
@@ -160,19 +198,37 @@ export function AnaliseCenarioPage() {
     setDragId(null);
   };
 
-  const gerarPlano = (card: SwotCard) => {
-    generatePlan.mutate(
-      {
-        cardId: card.id,
-        description: `Tratar ${card.quadrant === "fraqueza" ? "fraqueza" : "ameaça"}: ${card.description}`,
+  const toggleSelecionado = (cardId: string) => {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  };
+
+  const abrirGeracaoConsolidada = () => {
+    const selecionadosCards = cards.filter((c) => selecionados.has(c.id));
+    if (selecionadosCards.length === 0) return;
+    const problema = selecionadosCards
+      .map((c) => `${prefixoQuadrante(c.quadrant)}: ${c.description}`)
+      .join("\n");
+    const idsAlvo = selecionadosCards.map((c) => c.id);
+    setPlanoDialog({
+      problema,
+      onGerado: (plan) => {
+        linkCardsToPlan.mutate(
+          { cardIds: idsAlvo, planId: plan.id },
+          {
+            onError: (e) =>
+              toast.error("Plano criado, mas não foi possível vincular os cards", {
+                description: getErrorMessage(e),
+              }),
+          },
+        );
+        setSelecionados(new Set());
       },
-      {
-        onSuccess: (plan) =>
-          toast.success("Plano de ação gerado", { description: `Vínculo criado: ${plan.code}` }),
-        onError: (e) =>
-          toast.error("Não foi possível gerar o plano", { description: getErrorMessage(e) }),
-      },
-    );
+    });
   };
 
   const gerarRisco = (card: SwotCard) => {
@@ -330,16 +386,10 @@ export function AnaliseCenarioPage() {
   };
 
   const aplicarRec = (rec: IARec) => {
-    createStandalonePlan.mutate(
-      { description: rec.titulo },
-      {
-        onSuccess: (plan) => {
-          toast.success("Plano criado a partir da IA", { description: plan.code });
-          setAiRecs((prev) => prev.filter((r) => r.id !== rec.id));
-        },
-        onError: (e) => toast.error("Erro ao gerar plano", { description: getErrorMessage(e) }),
-      },
-    );
+    setPlanoDialog({
+      problema: rec.titulo,
+      onGerado: () => setAiRecs((prev) => prev.filter((r) => r.id !== rec.id)),
+    });
   };
 
   if (isLoading) {
@@ -419,8 +469,38 @@ export function AnaliseCenarioPage() {
           <div className="mb-4">
             <LockedDocumentBanner>
               Esta é a última versão formalizada ({formatarVersaoSwot(analysis)}) — somente leitura.
-              Clique em "Nova versão" para editar.
+              Clique em "Nova versão" para editar. Gerar plano de ação e gerar risco/oportunidade
+              continuam disponíveis normalmente.
             </LockedDocumentBanner>
+          </div>
+        )}
+
+        {/* Itens 4 e 5: barra de seleção múltipla para consolidar num só
+            plano de ação — disponível em rascunho ou em versão formalizada
+            (item 1: decidir sobre item antigo não exige nova versão). */}
+        {selecionados.size > 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand/30 bg-brand-soft/60 px-4 py-2.5">
+            <span className="text-xs font-medium text-brand">
+              {selecionados.size}{" "}
+              {selecionados.size === 1 ? "item selecionado" : "itens selecionados"}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelecionados(new Set())}
+                className="rounded-lg"
+              >
+                Limpar seleção
+              </Button>
+              <Button
+                size="sm"
+                onClick={abrirGeracaoConsolidada}
+                className="rounded-lg bg-brand text-white hover:bg-brand/90"
+              >
+                <ClipboardList className="mr-1.5 h-3.5 w-3.5" /> Gerar Plano de Ação
+              </Button>
+            </div>
           </div>
         )}
 
@@ -471,7 +551,6 @@ export function AnaliseCenarioPage() {
                               setFormText(c.description);
                             }}
                             onDelete={() => excluirCard(c)}
-                            onGeneratePlan={() => gerarPlano(c)}
                           />
                         ))}
                       </div>
@@ -483,7 +562,6 @@ export function AnaliseCenarioPage() {
             {QUADRANTS.map((q) => {
               const meta = quadrantMeta[q];
               const list = cards.filter((c) => c.quadrant === q);
-              const showAction = q === "fraqueza" || q === "ameaca";
               const showRiskAction = q === "ameaca" || q === "oportunidade";
               return (
                 <div
@@ -526,11 +604,13 @@ export function AnaliseCenarioPage() {
                           setFormText(c.description);
                         }}
                         onDelete={() => excluirCard(c)}
-                        onGeneratePlan={showAction ? () => gerarPlano(c) : undefined}
                         onGenerateRisk={showRiskAction ? () => gerarRisco(c) : undefined}
                         linkedRiskCode={
                           risks.find((r) => r.originSwotCardId === c.id)?.code ?? null
                         }
+                        selecionavel
+                        selecionado={selecionados.has(c.id)}
+                        onToggleSelecionado={() => toggleSelecionado(c.id)}
                       />
                     ))}
                     {isDraft && (
@@ -554,7 +634,10 @@ export function AnaliseCenarioPage() {
             <Card className="rounded-2xl border-border/80 shadow-sm">
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-foreground">Contexto</h2>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-sm font-semibold text-foreground">Contexto</h2>
+                    <InfoHint text={CONTEXTO_INFO_TEXT} />
+                  </div>
                   {analysis.status === "formalizada" && (
                     <Badge variant="outline" className="rounded-md text-[10px]">
                       Versão {formatarVersaoSwot(analysis)}
@@ -845,6 +928,19 @@ export function AnaliseCenarioPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Itens 4 e 5 — gerar plano de ação a partir de cards selecionados ou
+          de uma recomendação da IA (mesmo dialog, dois chamadores). */}
+      <GerarPlanoAcaoDialog
+        open={planoDialog !== null}
+        onOpenChange={(o) => !o && setPlanoDialog(null)}
+        origem="Estratégia"
+        problemaInicial={planoDialog?.problema ?? ""}
+        onGerado={(plan) => {
+          planoDialog?.onGerado(plan);
+          setPlanoDialog(null);
+        }}
+      />
     </AppShell>
   );
 }
@@ -854,20 +950,29 @@ function SwotCardItem({
   isDraft,
   onDragStart,
   onEdit,
-  onGeneratePlan,
   onGenerateRisk,
   onDelete,
   linkedRiskCode,
+  selecionavel,
+  selecionado,
+  onToggleSelecionado,
 }: {
   card: SwotCard;
   isDraft: boolean;
   onDragStart: () => void;
   onEdit: () => void;
-  onGeneratePlan?: () => void;
   onGenerateRisk?: () => void;
   onDelete?: () => void;
   linkedRiskCode?: string | null;
+  selecionavel?: boolean;
+  selecionado?: boolean;
+  onToggleSelecionado?: () => void;
 }) {
+  // Itens 1, 2, 4 e 5: seleção pra gerar plano de ação funciona a qualquer
+  // momento (rascunho ou versão formalizada) — decidir sobre um card antigo
+  // não é edição de conteúdo, não deveria exigir nova versão.
+  const podeSelecionar = selecionavel && !card.generatedActionPlanCode && onToggleSelecionado;
+
   return (
     <div
       draggable={isDraft}
@@ -875,10 +980,19 @@ function SwotCardItem({
       className={cn(
         "group rounded-xl border border-border/70 bg-card p-3 shadow-sm transition",
         isDraft && "cursor-grab hover:border-brand/40 hover:shadow-md active:cursor-grabbing",
+        selecionado && "border-brand/60 bg-brand-soft/30 ring-1 ring-brand/40",
       )}
     >
       <div className="flex items-start gap-2">
         {isDraft && <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/60" />}
+        {podeSelecionar && (
+          <Checkbox
+            checked={!!selecionado}
+            onCheckedChange={onToggleSelecionado}
+            aria-label="Selecionar para gerar plano de ação"
+            className="mt-0.5 shrink-0"
+          />
+        )}
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-foreground">{card.description}</div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -890,23 +1004,14 @@ function SwotCardItem({
                 <Link2 className="mr-1 h-3 w-3" /> {card.sourceNcCode}
               </Badge>
             )}
-            {card.generatedActionPlanCode ? (
+            {card.generatedActionPlanCode && (
               <Badge
                 variant="outline"
                 className="rounded-md border-brand/30 bg-brand-soft text-[10px] text-brand"
               >
                 <Link2 className="mr-1 h-3 w-3" /> {card.generatedActionPlanCode}
               </Badge>
-            ) : onGeneratePlan && isDraft ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={onGeneratePlan}
-                className="h-7 rounded-md px-2 text-[11px] text-brand hover:bg-brand-soft"
-              >
-                <Plus className="mr-1 h-3 w-3" /> Gerar Plano de Ação
-              </Button>
-            ) : null}
+            )}
             {linkedRiskCode ? (
               <Badge
                 variant="outline"
@@ -914,7 +1019,7 @@ function SwotCardItem({
               >
                 <ShieldAlert className="mr-1 h-3 w-3" /> {linkedRiskCode}
               </Badge>
-            ) : onGenerateRisk && isDraft ? (
+            ) : onGenerateRisk ? (
               <Button
                 size="sm"
                 variant="ghost"

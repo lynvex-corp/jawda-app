@@ -48,8 +48,20 @@ import {
   useCreateScopeNotApplicableItem,
   useUpdateScopeItemJustification,
 } from "@/lib/queries/estrategia";
-import { LockedDocumentBanner, VersionHistoryCard } from "@/components/estrategia/formal-document";
+import {
+  LockedDocumentBanner,
+  VersionHistoryCard,
+  InfoHint,
+} from "@/components/estrategia/formal-document";
 import { getErrorMessage } from "@/lib/utils";
+
+// Bloco 8, item 7 — texto exato pedido, popup ao lado do título da página.
+const ESCOPO_INFO_TEXT = `Ao determinar o escopo do sistema de gestão da qualidade considere:
+- As questões internas e externas
+- Requisitos das partes interessadas
+- Os produtos e serviços que serão fornecidos
+- Os limites da empresa (atuação, localização, etc)
+Nota: Verifique se há algum requisito da norma ISO 9001 que não se aplica e justifique.`;
 
 // Só ISO 9001 por enquanto (Bloco 2, item 6). ISO 14001 e 45001 saíram da
 // UI, mas continuam válidas no check de contract_norms no banco — remover de
@@ -220,9 +232,12 @@ export function EscopoSistemaPage() {
       <div className="mx-auto max-w-[1200px] space-y-6">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              Escopo do Sistema de Gestão
-            </h1>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                Escopo do Sistema de Gestão
+              </h1>
+              <InfoHint text={ESCOPO_INFO_TEXT} />
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">
               Declare o que o sistema de gestão cobre e o que fica de fora. Cada revisão aprovada
               substitui a anterior.
