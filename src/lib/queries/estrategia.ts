@@ -1188,7 +1188,10 @@ export function useChangesImprovements() {
   });
 }
 
-export function useCreateChangeImprovement() {
+/** Bloco 9, item 2: cadastro e avaliação (Lista de Verificação) num só
+ * passo — quem cadastra já avalia, sem "enviar" separado. Substitui o
+ * antigo useCreateChangeImprovement (insert puro em 'rascunho'). */
+export function useCreateAndEvaluateChangeImprovement() {
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
   return useMutation({
@@ -1197,12 +1200,29 @@ export function useCreateChangeImprovement() {
       descricao: string;
       proposito: string;
       dataInicio?: string;
+      consequenciasBool: boolean;
+      consequenciasDetalhe: string;
+      integridadeBool: boolean;
+      integridadeDetalhe: string;
+      recursoBool: boolean;
+      recursoDetalhe: string;
+      responsabilidadesBool: boolean;
+      responsabilidadesDetalhe: string;
     }) => {
-      const { error } = await supabase.from("changes_improvements").insert({
-        tipo: input.tipo,
-        descricao: input.descricao,
-        proposito: input.proposito,
-        data_inicio: input.dataInicio || null,
+      assertNotReadOnly();
+      const { error } = await supabase.rpc("create_and_evaluate_change_improvement", {
+        p_tipo: input.tipo,
+        p_descricao: input.descricao,
+        p_proposito: input.proposito,
+        p_data_inicio: input.dataInicio || null,
+        p_consequencias_bool: input.consequenciasBool,
+        p_consequencias_detalhe: input.consequenciasDetalhe || null,
+        p_integridade_bool: input.integridadeBool,
+        p_integridade_detalhe: input.integridadeDetalhe || null,
+        p_recurso_bool: input.recursoBool,
+        p_recurso_detalhe: input.recursoDetalhe || null,
+        p_responsabilidades_bool: input.responsabilidadesBool,
+        p_responsabilidades_detalhe: input.responsabilidadesDetalhe || null,
       });
       if (error) throw error;
     },
@@ -1210,6 +1230,38 @@ export function useCreateChangeImprovement() {
   });
 }
 
+/** Bloco 9, item 3: editar descrição/propósito/data de início mesmo depois
+ * de aprovada — a Lista de Verificação e a decisão já tomada não reabrem
+ * aqui (RLS já permitia UPDATE em qualquer status, só faltava o hook). */
+export function useUpdateChangeImprovement() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      descricao,
+      proposito,
+      dataInicio,
+    }: {
+      id: string;
+      descricao: string;
+      proposito: string;
+      dataInicio?: string;
+    }) => {
+      assertNotReadOnly();
+      const { error } = await supabase
+        .from("changes_improvements")
+        .update({ descricao, proposito, data_inicio: dataInicio || null })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: changeKeys.list() }),
+  });
+}
+
+/** Mantida só para o fluxo legado (1 registro real já parado em
+ * 'aguardando_avaliacao' antes desta entrega) — a tela nova de cadastro
+ * não passa mais por aqui. Ver comentário na migration 20260920100000. */
 export function useSubmitChangeForEvaluation() {
   const supabase = getSupabaseBrowserClient();
   const queryClient = useQueryClient();
