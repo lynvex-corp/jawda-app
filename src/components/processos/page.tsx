@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/app/app-shell";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -245,21 +246,17 @@ export function ProcessosPage() {
             </div>
             <div>
               <label className="text-xs font-medium">Dono do processo</label>
-              <Select
+              <SearchableSelect
                 value={novo.ownerEmployeeId ?? undefined}
                 onValueChange={(v) => setNovo({ ...novo, ownerEmployeeId: v })}
-              >
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue placeholder="Selecione em Cargos e Perfis" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione em Cargos e Perfis"
+                searchPlaceholder="Buscar por nome…"
+                emptyMessage="Nenhum funcionário encontrado."
+                className="mt-1 h-9 text-sm"
+                options={[...employees]
+                  .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+                  .map((e) => ({ value: e.id, label: e.nome }))}
+              />
               {employees.length === 0 && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Nenhuma pessoa cadastrada ainda — cadastre em Cargos e Perfis.

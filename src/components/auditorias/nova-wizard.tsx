@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ShieldCheck, Trash2, Lock } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,9 @@ function ChipToggle({
 export function NovaAuditoriaWizard() {
   const navigate = useNavigate();
   const { data: members = [] } = useOrgMembers();
+  const membrosOrdenados = [...members].sort((a, b) =>
+    a.fullName.localeCompare(b.fullName, "pt-BR"),
+  );
   const createAudit = useCreateAudit();
 
   const [tipo, setTipo] = useState<AuditTypeDb>("interna");
@@ -254,18 +258,14 @@ export function NovaAuditoriaWizard() {
               <CardContent className="space-y-3">
                 <div>
                   <Label className="text-xs">Auditor líder</Label>
-                  <Select value={leadAuditorId} onValueChange={setLeadAuditorId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {members.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.fullName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={leadAuditorId}
+                    onValueChange={setLeadAuditorId}
+                    placeholder="Selecionar"
+                    searchPlaceholder="Buscar por nome…"
+                    emptyMessage="Nenhuma pessoa encontrada."
+                    options={membrosOrdenados.map((m) => ({ value: m.id, label: m.fullName }))}
+                  />
                 </div>
                 <div>
                   <Label className="text-xs">Equipe (opcional)</Label>
@@ -285,20 +285,17 @@ export function NovaAuditoriaWizard() {
                         </button>
                       </span>
                     ))}
-                    <Select value="" onValueChange={(v) => v && toggleEquipe(v)}>
-                      <SelectTrigger className="h-8 w-[200px] text-xs">
-                        <SelectValue placeholder="+ Adicionar pessoa" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {members
-                          .filter((m) => !equipe.includes(m.id) && m.id !== leadAuditorId)
-                          .map((m) => (
-                            <SelectItem key={m.id} value={m.id}>
-                              {m.fullName}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value=""
+                      onValueChange={(v) => v && toggleEquipe(v)}
+                      placeholder="+ Adicionar pessoa"
+                      searchPlaceholder="Buscar por nome…"
+                      emptyMessage="Nenhuma pessoa encontrada."
+                      className="h-8 w-[200px] text-xs"
+                      options={membrosOrdenados
+                        .filter((m) => !equipe.includes(m.id) && m.id !== leadAuditorId)
+                        .map((m) => ({ value: m.id, label: m.fullName }))}
+                    />
                   </div>
                 </div>
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">

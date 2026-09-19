@@ -46,9 +46,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { severityClasses, statusClasses, usuariosMock } from "@/lib/mock-data";
 import { planoStatusClasses } from "@/lib/mock-data";
-import { useCancelNC, useNC, useNCs } from "@/lib/queries/ncs";
+import { useCancelNC, useNC, useNCs, useApproveNCAiAuthoring } from "@/lib/queries/ncs";
 import { useActionPlanByNc, ACTION_PLAN_STATUS_LABEL } from "@/lib/queries/action-plans";
-import { cn } from "@/lib/utils";
+import { useOrgTheme } from "@/lib/queries/org-theme";
+import { useAuth } from "@/hooks/use-auth";
+import { cn, getErrorMessage } from "@/lib/utils";
 
 type StepStatus = "done" | "current" | "pending";
 
@@ -66,9 +68,13 @@ export function NCDetailPage() {
   const { data: nc, isLoading, isError } = useNC(id);
   const { data: allNCs = [] } = useNCs();
   const { data: planoVinculadoData } = useActionPlanByNc(id);
+  const { data: orgTheme } = useOrgTheme();
+  const { currentOrg, profile } = useAuth();
   const cancelNC = useCancelNC();
+  const approveAi = useApproveNCAiAuthoring();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const podeAprovarIA = currentOrg?.role === "admin" || currentOrg?.role === "quality_manager";
 
   if (isLoading) {
     return (
@@ -106,6 +112,23 @@ export function NCDetailPage() {
           }),
       },
     );
+  }
+
+  function handleApproveAi() {
+    if (!nc) return;
+    approveAi.mutate(nc.id, {
+      onSuccess: () => toast.success("Análise de causa aprovada"),
+      onError: (e) => toast.error("Não foi possível aprovar", { description: getErrorMessage(e) }),
+    });
+  }
+
+  /** Item 7: "Exportar RNC (PDF)" — impressão do navegador (window.print)
+   * com uma view impressa dedicada (ver <PrintableRNC> abaixo), seguindo
+   * o padrão institucional da seção 21.8 do Guia. Sem dependência nova —
+   * é a primeira exportação real do sistema; nenhum outro botão
+   * "Exportar PDF" existente gera algo de verdade hoje. */
+  function handleExportPdf() {
+    window.print();
   }
 
   const criadoEm = new Date(nc.criadoEm);
@@ -155,7 +178,7 @@ export function NCDetailPage() {
       responsavel: { nome: "Beatriz Souza", iniciais: "BS" },
       resumo: (
         <>
-          Gravidade <strong>{nc.gravidade}</strong>, categoria Qualidade. SLA definido conforme
+          Gravidade <strong>{nc.gravidade}</strong>, categoria Qualidade. Prazo definido conforme
           matriz corporativa.
         </>
       ),
@@ -163,16 +186,19 @@ export function NCDetailPage() {
     {
       key: "causa",
       title: "Análise de Causa",
-      status: nc.status === "Em Análise" ? "current" : "done",
-      date: format(new Date(criadoEm.getTime() + 86400_000), "dd/MM/yyyy 'às' HH:mm", {
-        locale: ptBR,
-      }),
-      responsavel: { nome: "Carlos Mendes", iniciais: "CM" },
-      resumo: (
+      status: nc.rootCauseCompletedAt ? "done" : nc.status === "Em Análise" ? "current" : "pending",
+      date: nc.rootCauseCompletedAt
+        ? format(new Date(nc.rootCauseCompletedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+        : undefined,
+      resumo: nc.rootCauseCompletedAt ? (
         <>
-          Ferramenta: 5 Porquês. Causa raiz:{" "}
-          <em>"Falha no processo de gestão da calibração de equipamentos de medição."</em>
+          Ferramenta: {nc.rootCauseTool === "ishikawa" ? "Diagrama de Causa e Efeito" : "5 Porquês"}
+          . Causa raiz: <em>"{nc.rootCauseText || "Não consolidada"}"</em>
+          {nc.isAiAuthored && !nc.aiApprovedByName && " — aguardando aprovação da IA."}
+          {nc.isAiAuthored && nc.aiApprovedByName && ` — aprovada por ${nc.aiApprovedByName}.`}
         </>
+      ) : (
+        "Etapa pendente."
       ),
     },
     {
@@ -226,7 +252,8 @@ export function NCDetailPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-[1200px] space-y-6">
+      <PrintableRNC nc={nc} orgTheme={orgTheme} geradoPor={profile?.full_name ?? null} />
+      <div className="mx-auto max-w-[1200px] space-y-6 print:hidden">
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-3">
@@ -259,11 +286,13 @@ export function NCDetailPage() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-1.5 rounded-lg">
-              <Edit3 className="h-4 w-4" /> Editar
+          <div className="flex items-center gap-2 print:hidden">
+            <Button asChild variant="outline" className="gap-1.5 rounded-lg">
+              <Link to="/nao-conformidades/nova" search={{ ncId: nc.id }}>
+                <Edit3 className="h-4 w-4" /> Editar
+              </Link>
             </Button>
-            <Button variant="outline" className="gap-1.5 rounded-lg">
+            <Button variant="outline" onClick={handleExportPdf} className="gap-1.5 rounded-lg">
               <FileDown className="h-4 w-4" /> Exportar RNC (PDF)
             </Button>
             <DropdownMenu>
@@ -486,6 +515,41 @@ export function NCDetailPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Item 3: governança de IA — a análise de causa gerada por IA
+                fica presa aqui até um Gestor da Qualidade/Administrador
+                aprovar (enforce_nc_ai_approval, migration 20260920110000). */}
+            {nc.isAiAuthored && !nc.aiApprovedByName && (
+              <Card className="rounded-xl border-brand/30 bg-brand-soft/30 shadow-sm">
+                <CardContent className="space-y-3 p-5">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-brand" />
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Análise de causa gerada por IA
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Precisa de aprovação do Gestor da Qualidade ou Administrador antes de seguir
+                    para o plano de ação.
+                  </p>
+                  {podeAprovarIA ? (
+                    <Button
+                      size="sm"
+                      onClick={handleApproveAi}
+                      disabled={approveAi.isPending}
+                      className="w-full rounded-lg bg-brand text-white hover:bg-brand/90"
+                    >
+                      Aprovar análise de causa
+                    </Button>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      Aguardando aprovação — só Gestor da Qualidade ou Administrador pode aprovar.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="rounded-xl border-border/80 shadow-sm">
               <CardContent className="space-y-4 p-5">
                 <h3 className="text-sm font-semibold text-foreground">Informações</h3>
@@ -530,7 +594,7 @@ export function NCDetailPage() {
                 <Separator />
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Prazo SLA</span>
+                    <span className="text-muted-foreground">Prazo</span>
                     <span className="font-medium text-foreground">
                       {format(prazo, "dd/MM/yyyy", { locale: ptBR })}
                     </span>
@@ -694,6 +758,106 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-start justify-between gap-3">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="text-right font-medium text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+/** Item 7 — RNC impressa/exportada em PDF (window.print, ver
+ * handleExportPdf). Cabeçalho e rodapé institucionais seguem o padrão da
+ * seção 21.8 do Guia (logo, empresa, título, data, quem gerou) — é a
+ * primeira exportação real do sistema; futuras exportações (relatório de
+ * auditoria, ata de análise crítica, etc.) devem reaproveitar este
+ * mesmo modelo em vez de montar cabeçalho próprio de novo. `hidden
+ * print:block` — só existe visualmente durante a impressão. */
+function PrintableRNC({
+  nc,
+  orgTheme,
+  geradoPor,
+}: {
+  nc: NonNullable<ReturnType<typeof useNC>["data"]>;
+  orgTheme:
+    | { tradeName: string | null; legalName: string; logoUrl: string | null }
+    | null
+    | undefined;
+  geradoPor: string | null;
+}) {
+  const nomeEmpresa = orgTheme?.tradeName || orgTheme?.legalName || "Empresa";
+  return (
+    <div className="hidden print:block print:p-8 print:text-black">
+      <div className="flex items-center justify-between border-b-2 border-black pb-3">
+        <div className="flex items-center gap-3">
+          {orgTheme?.logoUrl && (
+            <img src={orgTheme.logoUrl} alt={nomeEmpresa} className="h-10 w-auto object-contain" />
+          )}
+          <div>
+            <div className="text-sm font-semibold">{nomeEmpresa}</div>
+            <div className="text-xs">Relatório de Não Conformidade (RNC)</div>
+          </div>
+        </div>
+        <div className="text-right text-xs">
+          <div>Gerado em {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</div>
+          {geradoPor && <div>por {geradoPor}</div>}
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-4 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-base font-semibold">{nc.codigo}</span>
+          <span>
+            {nc.status} · Gravidade {nc.gravidade}
+          </span>
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold uppercase">Origem</div>
+          <div>{nc.origem}</div>
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold uppercase">Descrição</div>
+          <p className="whitespace-pre-wrap">{nc.descricao}</p>
+        </div>
+
+        {nc.local && (
+          <div>
+            <div className="text-xs font-semibold uppercase">Local / Setor</div>
+            <div>
+              {nc.local}
+              {nc.setorOcorrencia ? ` — ${nc.setorOcorrencia}` : ""}
+            </div>
+          </div>
+        )}
+
+        {nc.rootCauseCompletedAt && (
+          <div>
+            <div className="text-xs font-semibold uppercase">
+              Análise de Causa (
+              {nc.rootCauseTool === "ishikawa" ? "Diagrama de Causa e Efeito" : "5 Porquês"})
+            </div>
+            {nc.rootCauseTool === "5porques" && nc.fiveWhys.length > 0 && (
+              <ol className="list-decimal space-y-0.5 pl-5">
+                {nc.fiveWhys.map((p, i) => p && <li key={i}>{p}</li>)}
+              </ol>
+            )}
+            <p className="mt-1">
+              <strong>Causa raiz:</strong> {nc.rootCauseText || "—"}
+            </p>
+            {nc.isAiAuthored && (
+              <p className="mt-1 text-xs">
+                Gerada por IA —{" "}
+                {nc.aiApprovedByName
+                  ? `aprovada por ${nc.aiApprovedByName}`
+                  : "aguardando aprovação"}
+                .
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-8 border-t border-black pt-2 text-center text-[10px]">
+        Documento gerado pelo Jáwda — página 1
+      </div>
     </div>
   );
 }

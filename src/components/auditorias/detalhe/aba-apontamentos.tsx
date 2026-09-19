@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import {
   Dialog,
   DialogContent,
@@ -371,18 +372,16 @@ function GerarPlanoDialog({
             </div>
             <div>
               <Label className="text-xs">Quem</Label>
-              <Select value={responsavelId} onValueChange={setResponsavelId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Responsável" />
-                </SelectTrigger>
-                <SelectContent>
-                  {members.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={responsavelId}
+                onValueChange={setResponsavelId}
+                placeholder="Responsável"
+                searchPlaceholder="Buscar por nome…"
+                emptyMessage="Nenhuma pessoa encontrada."
+                options={[...members]
+                  .sort((a, b) => a.fullName.localeCompare(b.fullName, "pt-BR"))
+                  .map((m) => ({ value: m.id, label: m.fullName }))}
+              />
             </div>
           </div>
           <div>

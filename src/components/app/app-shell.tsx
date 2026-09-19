@@ -16,12 +16,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <SobreJawdaProvider>
       <SidebarProvider>
+        {/* Bloco 10, item 7: exportação em PDF via impressão do navegador
+            — sidebar/topbar/rodapé/assistente somem na impressão (regra
+            global em styles.css), deixando só o que a tela marcar como
+            printable (ex.: PrintableRNC em
+            nao-conformidades/detalhe.tsx). */}
         <div className="flex min-h-screen w-full bg-background">
           <AppSidebar />
           <div className="flex min-w-0 flex-1 flex-col">
             <Topbar />
-            <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
-            <footer className="border-t border-border/60 px-4 py-3 text-center md:px-8">
+            <main className="flex-1 px-4 py-6 md:px-8 md:py-8 print:p-0">{children}</main>
+            <footer className="border-t border-border/60 px-4 py-3 text-center print:hidden md:px-8">
               <SobreJawdaTrigger />
             </footer>
           </div>

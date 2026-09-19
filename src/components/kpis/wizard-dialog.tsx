@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { useQualityObjectives, useCreateIndicator } from "@/lib/queries/indicators";
 import { useOrgMembers } from "@/lib/queries/action-plans";
 import {
@@ -186,66 +187,52 @@ export function NovoIndicadorDialog({
                 </Field>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Objetivo da qualidade (obrigatório)">
-                    <Select value={draft.objetivoId} onValueChange={(v) => set("objetivoId", v)}>
-                      <SelectTrigger className="rounded-lg text-xs">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {objetivos.map((o) => (
-                          <SelectItem key={o.id} value={o.id}>
-                            {o.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={draft.objetivoId}
+                      onValueChange={(v) => set("objetivoId", v)}
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar objetivo…"
+                      emptyMessage="Nenhum objetivo encontrado."
+                      className="rounded-lg text-xs"
+                      options={objetivos.map((o) => ({ value: o.id, label: o.nome }))}
+                    />
                   </Field>
                   <Field label="Processo relacionado">
-                    <Select value={draft.processo} onValueChange={(v) => set("processo", v)}>
-                      <SelectTrigger className="rounded-lg text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {processosKpi.map((p) => (
-                          <SelectItem key={p} value={p}>
-                            {p}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={draft.processo}
+                      onValueChange={(v) => set("processo", v)}
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar processo…"
+                      emptyMessage="Nenhum processo encontrado."
+                      className="rounded-lg text-xs"
+                      options={processosKpi.map((p) => ({ value: p, label: p }))}
+                    />
                   </Field>
                   <Field label="Responsável pela medição">
-                    <Select
+                    <SearchableSelect
                       value={draft.responsavelMedicaoId}
                       onValueChange={(v) => set("responsavelMedicaoId", v)}
-                    >
-                      <SelectTrigger className="rounded-lg text-xs">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {membros.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.fullName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar por nome…"
+                      emptyMessage="Nenhuma pessoa encontrada."
+                      className="rounded-lg text-xs"
+                      options={[...membros]
+                        .sort((a, b) => a.fullName.localeCompare(b.fullName, "pt-BR"))
+                        .map((m) => ({ value: m.id, label: m.fullName }))}
+                    />
                   </Field>
                   <Field label="Responsável pela análise">
-                    <Select
+                    <SearchableSelect
                       value={draft.responsavelAnaliseId}
                       onValueChange={(v) => set("responsavelAnaliseId", v)}
-                    >
-                      <SelectTrigger className="rounded-lg text-xs">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {membros.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.fullName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar por nome…"
+                      emptyMessage="Nenhuma pessoa encontrada."
+                      className="rounded-lg text-xs"
+                      options={[...membros]
+                        .sort((a, b) => a.fullName.localeCompare(b.fullName, "pt-BR"))
+                        .map((m) => ({ value: m.id, label: m.fullName }))}
+                    />
                   </Field>
                 </div>
               </>

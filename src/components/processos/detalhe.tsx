@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/app/app-shell";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -365,18 +366,17 @@ export function ProcessoDetailPage() {
                 </div>
                 {canManage && (
                   <div className="mt-3 flex gap-1.5">
-                    <Select value={novoColaboradorId} onValueChange={setNovoColaboradorId}>
-                      <SelectTrigger className="h-8 flex-1 text-xs">
-                        <SelectValue placeholder="Selecione…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {colaboradoresDisponiveis.map((e) => (
-                          <SelectItem key={e.id} value={e.id}>
-                            {e.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={novoColaboradorId}
+                      onValueChange={setNovoColaboradorId}
+                      placeholder="Selecione…"
+                      searchPlaceholder="Buscar por nome…"
+                      emptyMessage="Nenhum colaborador encontrado."
+                      className="h-8 flex-1 text-xs"
+                      options={[...colaboradoresDisponiveis]
+                        .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+                        .map((e) => ({ value: e.id, label: e.nome }))}
+                    />
                     <Button
                       size="sm"
                       variant="outline"
@@ -474,7 +474,7 @@ export function ProcessoDetailPage() {
               <CardContent className="space-y-3 p-5">
                 <div>
                   <label className="text-xs font-medium">Indicador vinculado</label>
-                  <Select
+                  <SearchableSelect
                     value={processo.indicatorId ?? "none"}
                     disabled={!canManage}
                     onValueChange={(v) =>
@@ -486,19 +486,19 @@ export function ProcessoDetailPage() {
                         },
                       )
                     }
-                  >
-                    <SelectTrigger className="mt-1 h-9 text-sm">
-                      <SelectValue placeholder="Nenhum indicador vinculado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
-                      {indicators.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.codigo} — {i.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Nenhum indicador vinculado"
+                    searchPlaceholder="Buscar por código ou nome…"
+                    emptyMessage="Nenhum indicador encontrado."
+                    className="mt-1 h-9 text-sm"
+                    options={[
+                      { value: "none", label: "Nenhum" },
+                      ...indicators.map((i) => ({
+                        value: i.id,
+                        label: i.codigo,
+                        sublabel: i.nome,
+                      })),
+                    ]}
+                  />
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     O cartão do processo mostra o último valor medido contra a meta.
                   </p>
@@ -666,21 +666,17 @@ export function ProcessoDetailPage() {
                 </div>
                 <div>
                   <label className="text-xs font-medium">Dono do processo</label>
-                  <Select
+                  <SearchableSelect
                     value={form.ownerEmployeeId ?? undefined}
                     onValueChange={(v) => setForm({ ...form, ownerEmployeeId: v })}
-                  >
-                    <SelectTrigger className="mt-1 h-9 text-sm">
-                      <SelectValue placeholder="Selecione em Cargos e Perfis" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {employees.map((e) => (
-                        <SelectItem key={e.id} value={e.id}>
-                          {e.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Selecione em Cargos e Perfis"
+                    searchPlaceholder="Buscar por nome…"
+                    emptyMessage="Nenhum funcionário encontrado."
+                    className="mt-1 h-9 text-sm"
+                    options={[...employees]
+                      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+                      .map((e) => ({ value: e.id, label: e.nome }))}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>

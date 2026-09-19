@@ -13,13 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { useOrgMembers } from "@/lib/queries/action-plans";
 import { useIndicators, useQualityObjectives } from "@/lib/queries/indicators";
 import { useIndicatorMeasurements, type Measurement } from "@/lib/queries/indicator-measurements";
@@ -136,45 +130,44 @@ export function IndicadoresModule() {
   const filtrosBar = (
     <div className="flex flex-wrap items-center gap-2">
       <ListFilter className="h-4 w-4 text-muted-foreground" />
-      <Select value={fProcesso} onValueChange={setFProcesso}>
-        <SelectTrigger className="h-9 w-[150px] rounded-lg text-xs">
-          <SelectValue placeholder="Processo" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos os processos</SelectItem>
-          {processosKpi.map((p) => (
-            <SelectItem key={p} value={p}>
-              {p}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select value={fObjetivo} onValueChange={setFObjetivo}>
-        <SelectTrigger className="h-9 w-[190px] rounded-lg text-xs">
-          <SelectValue placeholder="Objetivo" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos os objetivos</SelectItem>
-          {objetivos.map((o) => (
-            <SelectItem key={o.id} value={o.id}>
-              {o.nome}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select value={fResp} onValueChange={setFResp}>
-        <SelectTrigger className="h-9 w-[160px] rounded-lg text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos responsáveis</SelectItem>
-          {membros.map((m) => (
-            <SelectItem key={m.id} value={m.id}>
-              {m.fullName}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <SearchableSelect
+        value={fProcesso}
+        onValueChange={setFProcesso}
+        placeholder="Processo"
+        searchPlaceholder="Buscar processo…"
+        emptyMessage="Nenhum processo encontrado."
+        className="h-9 w-[150px] rounded-lg text-xs"
+        options={[
+          { value: "all", label: "Todos os processos" },
+          ...processosKpi.map((p) => ({ value: p, label: p })),
+        ]}
+      />
+      <SearchableSelect
+        value={fObjetivo}
+        onValueChange={setFObjetivo}
+        placeholder="Objetivo"
+        searchPlaceholder="Buscar objetivo…"
+        emptyMessage="Nenhum objetivo encontrado."
+        className="h-9 w-[190px] rounded-lg text-xs"
+        options={[
+          { value: "all", label: "Todos os objetivos" },
+          ...objetivos.map((o) => ({ value: o.id, label: o.nome })),
+        ]}
+      />
+      <SearchableSelect
+        value={fResp}
+        onValueChange={setFResp}
+        placeholder="Responsável"
+        searchPlaceholder="Buscar por nome…"
+        emptyMessage="Nenhum responsável encontrado."
+        className="h-9 w-[160px] rounded-lg text-xs"
+        options={[
+          { value: "all", label: "Todos responsáveis" },
+          ...[...membros]
+            .sort((a, b) => a.fullName.localeCompare(b.fullName, "pt-BR"))
+            .map((m) => ({ value: m.id, label: m.fullName })),
+        ]}
+      />
     </div>
   );
 

@@ -10,13 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
@@ -195,23 +189,22 @@ function AddRaciForm({
         <DialogTitle>Adicionar {label}</DialogTitle>
         <DialogDescription>Escolha uma pessoa ou um cargo de Cargos e Perfis.</DialogDescription>
       </DialogHeader>
-      <Select value={value} onValueChange={setValue}>
-        <SelectTrigger className="h-9 text-sm">
-          <SelectValue placeholder="Selecione…" />
-        </SelectTrigger>
-        <SelectContent>
-          {positions.map((p) => (
-            <SelectItem key={`p:${p.id}`} value={`p:${p.id}`}>
-              {p.nome} (cargo)
-            </SelectItem>
-          ))}
-          {employees.map((e) => (
-            <SelectItem key={`e:${e.id}`} value={`e:${e.id}`}>
-              {e.nome}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <SearchableSelect
+        value={value}
+        onValueChange={setValue}
+        placeholder="Selecione…"
+        searchPlaceholder="Buscar por nome ou cargo…"
+        emptyMessage="Nenhum resultado."
+        className="h-9 text-sm"
+        options={[
+          ...[...positions]
+            .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+            .map((p) => ({ value: `p:${p.id}`, label: p.nome, sublabel: "Cargo" })),
+          ...[...employees]
+            .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+            .map((e) => ({ value: `e:${e.id}`, label: e.nome, sublabel: "Pessoa" })),
+        ]}
+      />
       <DialogFooter>
         <Button variant="outline" onClick={onDone}>
           Cancelar

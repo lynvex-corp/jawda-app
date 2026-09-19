@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Check,
@@ -17,14 +17,12 @@ import {
   Info,
   Sparkles,
   Plus,
-  ThumbsUp,
-  ThumbsDown,
-  AlertCircle,
+  Eraser,
   PartyPopper,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
@@ -33,7 +31,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -55,25 +52,25 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import {
-  usuariosMock,
   slaPorGravidade,
   severityClasses,
   origensNC,
   origemSiglas,
-  ncCodigo,
   setoresOcorrencia,
   guiaGravidadePadrao,
-  PREFIXO_NC_PADRAO,
   type Severity,
   type Origem,
   type SetorOcorrencia,
 } from "@/lib/mock-data";
 import {
   useCreateNC,
+  useNC,
   useNCs,
   useUpdateNC,
+  useSaveNCRootCause,
   type CategoriaNC,
   type NCRecord,
+  type RootCauseTool,
 } from "@/lib/queries/ncs";
 import { cn } from "@/lib/utils";
 
@@ -83,20 +80,22 @@ const DESCRICAO_EXEMPLOS = [
   "Ex.: Reclamação do cliente Alfa Ltda. registrada em 15/09 sobre atraso de 6 dias na entrega do pedido 8821, sem comunicação prévia.",
 ];
 
+/** Bloco 10, itens 6, 7 e 9: o wizard termina na Análise de Causa. Plano
+ * de Ação e Avaliação de Eficácia deixaram de ser etapas fake aqui —
+ * viravam só simulação local que nunca gravava nada (a tela de detalhe
+ * da NC já manda pro fluxo real de Planos de Ação, com nc_id vinculado,
+ * onde a verificação de eficácia (seção 11 do Guia) já é real e testada;
+ * duplicar essa lógica aqui de novo seria o mesmo erro que já foi
+ * corrigido pra SWOT/Riscos/Análise Crítica nos Blocos 8-9). */
 const STEPS = [
   { n: 1, label: "Identificação", short: "Ident." },
   { n: 2, label: "Classificação", short: "Class." },
   { n: 3, label: "Análise de Causa", short: "Causa" },
-  { n: 4, label: "Plano de Ação", short: "Ação" },
-  { n: 5, label: "Avaliação de Eficácia", short: "Eficácia" },
 ];
 
 const CATEGORIAS = ["Qualidade", "Segurança", "Meio Ambiente", "Regulatório", "Financeiro"];
 const LOCAIS = ["Produção", "Administrativo", "Serviço", "Outros"];
 const ORIGENS: Origem[] = origensNC;
-
-const NC_SEQ = 42;
-const NC_ANO = 2026;
 
 const PORQUE_GUIA = [
   "descreva o porquê que relaciona o sintoma",
@@ -285,55 +284,28 @@ function SeverityCard({
   );
 }
 
-function UserPicker({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string | undefined;
-  onChange: (id: string) => void;
-  placeholder: string;
-}) {
-  return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-10 rounded-lg">
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {usuariosMock.map((u) => (
-          <SelectItem key={u.id} value={u.id}>
-            <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="bg-brand-soft text-brand text-[10px] font-semibold">
-                  {u.iniciais}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                <span className="text-sm">{u.nome}</span>
-                <span className="text-[10px] text-muted-foreground">{u.cargo}</span>
-              </div>
-            </div>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
 export function NovaNCWizard() {
-  const [step, setStep] = useState(1);
-  const [completed, setCompleted] = useState<Set<number>>(new Set());
+  // Bloco 10, itens 7 e 9: "Editar"/"retomar de onde parou" chegam aqui
+  // via ?ncId= (mesmo mecanismo de /planos-de-acao/novo). Etapas 1-2 já
+  // existem nesse caso — o wizard entra direto na Análise de Causa,
+  // carregando o que já foi salvo (inclusive um rascunho anterior).
+  const { ncId: ncIdParam } = useSearch({ from: "/nao-conformidades/nova" });
+  const isEditMode = Boolean(ncIdParam);
+  const { data: existingNC, isLoading: loadingExistingNC } = useNC(ncIdParam);
+
+  const [step, setStep] = useState(isEditMode ? 3 : 1);
+  const [completed, setCompleted] = useState<Set<number>>(isEditMode ? new Set([1, 2]) : new Set());
   const [finalizado, setFinalizado] = useState(false);
   const [createdNC, setCreatedNC] = useState<NCRecord | null>(null);
   const createNC = useCreateNC();
   const updateNC = useUpdateNC();
+  const saveRootCause = useSaveNCRootCause();
   const { data: allNCs = [] } = useNCs();
 
   // Step 1
   const [dataOcorrencia, setDataOcorrencia] = useState<Date | undefined>(new Date("2026-07-14"));
   const [local, setLocal] = useState<string>();
   const [origem, setOrigem] = useState<Origem>();
-  const [prefixo, setPrefixo] = useState(PREFIXO_NC_PADRAO);
   const [setorOcorrencia, setSetorOcorrencia] = useState<string>();
   const [tipoAcao, setTipoAcao] = useState<"Corretiva" | "Preventiva">("Corretiva");
   const [descricao, setDescricao] = useState("");
@@ -350,8 +322,9 @@ export function NovaNCWizard() {
   const [categoria, setCategoria] = useState<string>();
   const [guias, setGuias] = useState(guiaGravidadePadrao);
 
-  // Step 3
-  const [causaTool, setCausaTool] = useState<"5porques" | "ishikawa">("5porques");
+  // Step 3 — Análise de Causa (real desde o Bloco 10; ver
+  // useSaveNCRootCause em lib/queries/ncs.ts)
+  const [causaTool, setCausaTool] = useState<RootCauseTool>("5porques");
   const [porques, setPorques] = useState<string[]>(["", "", "", "", ""]);
   const [problemaEfeito, setProblemaEfeito] = useState("");
   const [ameacaFraqueza, setAmeacaFraqueza] = useState<"sim" | "nao" | undefined>();
@@ -371,46 +344,35 @@ export function NovaNCWizard() {
   );
   const [causaRaiz, setCausaRaiz] = useState("");
   const [causaRaizEditada, setCausaRaizEditada] = useState(false);
+  const [causaRaizAiAuthored, setCausaRaizAiAuthored] = useState(false);
   const [revisarRiscos, setRevisarRiscos] = useState(false);
 
-  // Step 4
-  const [contDesc, setContDesc] = useState("");
-  const [contResp, setContResp] = useState<string>();
-  const [contData, setContData] = useState<Date | undefined>();
-  const [w5h2, setW5h2] = useState({
-    what: "",
-    why: "",
-    where: "",
-    who: "",
-    when: "",
-    how: "",
-    howMuch: "",
-  });
-  const [resultadoEsperado, setResultadoEsperado] = useState("");
+  // Edit mode: carrega a NC e o rascunho de causa raiz já salvos.
+  useEffect(() => {
+    if (!existingNC) return;
+    setCreatedNC(existingNC);
+    setOrigem(existingNC.origem);
+    setDescricao(existingNC.descricao);
+    setGravidade(existingNC.gravidade);
+    setCategoria(existingNC.category);
+    setSetorOcorrencia(existingNC.setorOcorrencia);
+    setLocal(existingNC.local || undefined);
+    setReincidente(existingNC.reincidente);
+    if (existingNC.rootCauseTool) setCausaTool(existingNC.rootCauseTool);
+    if (existingNC.fiveWhys.length) setPorques(existingNC.fiveWhys);
+    if (Object.keys(existingNC.ishikawaNotes).length) {
+      setIshikawa((prev) => ({ ...prev, ...existingNC.ishikawaNotes }));
+    }
+    setProblemaEfeito(existingNC.rootCauseProblem);
+    setCausaRaiz(existingNC.rootCauseText);
+    setCausaRaizAiAuthored(existingNC.isAiAuthored);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingNC?.id]);
 
-  // Step 5
-  const [metodoAval, setMetodoAval] = useState<string>();
-  const [avaliador, setAvaliador] = useState<string>();
-  const [evidEficacia, setEvidEficacia] = useState<Evidence[]>([]);
-  const evidEficaciaRef = useRef<HTMLInputElement>(null);
-  const [resultado, setResultado] = useState<"aprovado" | "reprovado" | "reinspecao" | undefined>();
-  const [obsFinais, setObsFinais] = useState("");
-
-  function handleEfFiles(files: FileList | null) {
-    if (!files) return;
-    const next: Evidence[] = Array.from(files).map((f) => {
-      const kind = fileKind(f.name, f.type);
-      return {
-        id: `${f.name}-${f.size}-${Math.random().toString(36).slice(2, 8)}`,
-        name: f.name,
-        size: f.size,
-        kind,
-        url: kind === "image" ? URL.createObjectURL(f) : undefined,
-      };
-    });
-    setEvidEficacia((prev) => [...prev, ...next]);
-  }
-
+  /** Item 3: marca a análise como gerada por IA — dispara a governança no
+   * banco (enforce_nc_ai_approval) quando a causa raiz for salva: a NC
+   * fica em "aguardando aprovação" até um Gestor da Qualidade ou
+   * Administrador aprovar, mesmo que o texto seja editado depois. */
   function sugerirCausaIA() {
     setPorques([
       "O peso do lote 4821 ficou fora da tolerância especificada.",
@@ -428,46 +390,31 @@ export function NovaNCWizard() {
     setCausaRaiz(
       "Falha no processo de gestão da calibração de equipamentos de medição, agravada pela ausência de verificação diária estruturada no checklist de linha.",
     );
+    setCausaRaizAiAuthored(true);
     toast.success("Sugestão gerada pela IA", {
-      description: "Revise antes de continuar — a análise final é sua responsabilidade.",
+      description:
+        "Revise antes de continuar — precisa de aprovação do Gestor da Qualidade ou Administrador.",
     });
   }
 
-  function sugerirPlanoIA() {
-    setContDesc(
-      "Segregar imediatamente todos os lotes produzidos com a balança BAL-07 no período suspeito e substituir por balança BAL-03 (calibrada).",
-    );
-    setW5h2({
-      what: "Implantar sistema de bloqueio automático de equipamentos com calibração vencida.",
-      why: "Impedir que produtos sejam liberados com base em medições não confiáveis.",
-      where: "Linha de envase 03 e todo o setor de pesagem.",
-      who: "Coordenação de Manutenção + Qualidade",
-      when: "Em até 30 dias após aprovação do plano",
-      how: "Integrar cronograma de calibração ao sistema MES com bloqueio por leitor de código.",
-      howMuch: "Estimativa: R$ 12.400,00 (licenças + horas de integração)",
-    });
-    setResultadoEsperado(
-      "Redução a zero de liberações com equipamento de medição fora de calibração nos próximos 6 meses.",
-    );
-    toast.success("Rascunho de plano gerado pela IA", {
-      description: "Revise cada campo antes de submeter para aprovação.",
-    });
+  /** Item 4: limpar a sugestão preenchida automaticamente. */
+  function limparSugestaoCausa() {
+    setPorques(["", "", "", "", ""]);
+    setIshikawa(Object.fromEntries(ISHI_CATS.map((c) => [c, [] as string[]])));
+    setCausaRaiz("");
+    setCausaRaizAiAuthored(false);
+    setCausaRaizEditada(false);
+    toast.success("Sugestão descartada");
   }
 
   const proximoPorqueHabilitado = (i: number) => i === 0 || porques[i - 1].trim().length > 0;
 
-  // Antes da NC ser gravada, o código é só uma prévia local — o código real
-  // (sequencial por ano, por organização) é gerado no banco pela trigger
-  // set_nc_code_and_sla ao criar o registro (ver migração
-  // 20260729140300_ncs_triggers.sql).
-  const previewCodigo = useMemo(
-    () =>
-      origem
-        ? ncCodigo(origem, NC_SEQ, NC_ANO, prefixo || PREFIXO_NC_PADRAO)
-        : `${prefixo || PREFIXO_NC_PADRAO}_[ORIGEM]_${String(NC_SEQ).padStart(3, "0")}_${NC_ANO}`,
-    [origem, prefixo],
-  );
-  const codigoNC = createdNC?.codigo ?? previewCodigo;
+  // Item 1: o código nunca foi enviado ao banco a partir de um "prefixo"
+  // digitado aqui (createNC não tem esse parâmetro) — o código real
+  // (sequencial por ano/organização, a partir de organizations.
+  // code_prefix_nc) é gerado sozinho pela trigger set_nc_code_and_sla ao
+  // criar o registro. Antes da criação, mostra só que será gerado.
+  const codigoNC = createdNC?.codigo ?? "Gerado automaticamente ao salvar";
 
   function setPorque(i: number, valor: string) {
     setPorques((prev) => {
@@ -514,12 +461,10 @@ export function NovaNCWizard() {
     setEvidences((prev) => prev.filter((e) => e.id !== id));
   }
 
-  // Identificação (etapa 1) + Classificação (etapa 2) são os campos que
-  // existem de fato na tabela `ncs` nesta aba — Análise de Causa, Plano de
-  // Ação e Avaliação de Eficácia (etapas 3-5) ainda são simulação local,
-  // porque os módulos correspondentes (action_plans, etc.) não foram
-  // migrados ainda ("uma coisa de cada vez"). A NC é gravada ao sair da
-  // etapa 2, com os campos coletados até ali.
+  // Identificação (etapa 1) + Classificação (etapa 2) gravam a NC ao sair
+  // da etapa 2. Análise de Causa (etapa 3) grava de verdade desde o Bloco
+  // 10 — ver useSaveNCRootCause. Plano de Ação e Avaliação de Eficácia não
+  // são mais etapas deste wizard (ver comentário em STEPS).
   async function goNext() {
     if (step === 2 && !createdNC) {
       if (!origem || !descricao.trim() || !gravidade) {
@@ -551,42 +496,85 @@ export function NovaNCWizard() {
         return;
       }
     }
+    if (step === 2 && createdNC) {
+      // Entrando na Análise de Causa — "Em Análise" distingue essa etapa
+      // de "Em Classificação" no Kanban (mesma distinção que já existia
+      // no banco, só nunca era usada por aqui).
+      updateNC.mutate({ id: createdNC.id, status: "Em Análise" });
+    }
     setCompleted((prev) => new Set(prev).add(step));
     setStep((s) => Math.min(STEPS.length, s + 1));
   }
 
-  async function encerrarNC() {
-    if (createdNC) {
-      const statusFinal =
-        resultado === "aprovado"
-          ? "Encerrada"
-          : resultado === "reprovado"
-            ? "Plano em Execução"
-            : "Em Avaliação";
-      try {
-        await updateNC.mutateAsync({
-          id: createdNC.id,
-          status: statusFinal,
-          swotForwarded: ameacaFraqueza === "sim",
-        });
-      } catch {
-        toast.error("NC salva, mas não foi possível atualizar o status final", {
-          description: "Ajuste o status pela tela de detalhe da NC.",
-        });
-      }
+  /** Item 6: "Salvar rascunho" — grava a Análise de Causa como está, sem
+   * exigir que esteja completa, sem avançar de etapa. Item 9: é o mesmo
+   * mecanismo que permite "retomar de onde parou" (ver ?ncId= no topo). */
+  async function salvarRascunhoCausa() {
+    if (!createdNC) return;
+    try {
+      await saveRootCause.mutateAsync({
+        id: createdNC.id,
+        tool: causaTool,
+        problem: causaTool === "ishikawa" ? problemaEfeito : descricao,
+        fiveWhys: causaTool === "5porques" ? porques : undefined,
+        ishikawaNotes: causaTool === "ishikawa" ? ishikawa : undefined,
+        rootCauseText: causaRaiz,
+        aiAuthored: causaRaizAiAuthored,
+        swotForwarded: ameacaFraqueza === "sim",
+      });
+      toast.success("Rascunho salvo");
+    } catch {
+      toast.error("Não foi possível salvar o rascunho");
     }
-    setCompleted((prev) => new Set(prev).add(5));
-    setFinalizado(true);
-    toast.success("Não conformidade encerrada", {
-      description: `${codigoNC} concluída com sucesso.`,
-    });
   }
+
+  /** Fecha a etapa 3 e o wizard. O plano de ação (quando houver) e a
+   * avaliação de eficácia acontecem no fluxo real de Planos de Ação, a
+   * partir do card já existente na tela de detalhe da NC. */
+  async function concluirAnaliseCausa() {
+    if (!createdNC) return;
+    try {
+      await saveRootCause.mutateAsync({
+        id: createdNC.id,
+        tool: causaTool,
+        problem: causaTool === "ishikawa" ? problemaEfeito : descricao,
+        fiveWhys: causaTool === "5porques" ? porques : undefined,
+        ishikawaNotes: causaTool === "ishikawa" ? ishikawa : undefined,
+        rootCauseText: causaRaiz,
+        aiAuthored: causaRaizAiAuthored,
+        swotForwarded: ameacaFraqueza === "sim",
+        completed: true,
+      });
+      setCompleted((prev) => new Set(prev).add(3));
+      setFinalizado(true);
+      toast.success("Não conformidade registrada", {
+        description: causaRaizAiAuthored
+          ? "Análise gerada por IA — aguardando aprovação do Gestor da Qualidade ou Administrador."
+          : `${codigoNC} pronta para tratativa.`,
+      });
+    } catch {
+      toast.error("Não foi possível concluir o registro", {
+        description: "Tente novamente em instantes.",
+      });
+    }
+  }
+
   function goPrev() {
-    setStep((s) => Math.max(1, s - 1));
+    setStep((s) => Math.max(isEditMode ? 3 : 1, s - 1));
   }
 
   const ncsCatalog = allNCs.slice(0, 12);
   const linkedNCs = ncsCatalog.filter((nc) => ncsVinculadas.includes(nc.id));
+
+  if (isEditMode && loadingExistingNC) {
+    return (
+      <AppShell>
+        <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+          Carregando não conformidade…
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -599,13 +587,15 @@ export function NovaNCWizard() {
                 Não Conformidades
               </Link>
               <ChevronRight className="h-3 w-3" />
-              <span>Nova</span>
+              <span>{isEditMode ? codigoNC : "Nova"}</span>
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              Nova Não Conformidade
+              {isEditMode ? "Editar Análise de Causa" : "Nova Não Conformidade"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Preencha as etapas do fluxo. Você pode salvar como rascunho a qualquer momento.
+              {isEditMode
+                ? "Continue de onde parou — o rascunho salvo já está preenchido abaixo."
+                : "Preencha as etapas do fluxo. Você pode salvar como rascunho a qualquer momento."}
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-card px-3 py-1.5">
@@ -615,11 +605,13 @@ export function NovaNCWizard() {
         </div>
 
         {/* Stepper */}
-        <Card className="rounded-xl border-border/80 shadow-sm">
-          <CardContent className="p-4">
-            <Stepper current={step} completed={completed} />
-          </CardContent>
-        </Card>
+        {!isEditMode && (
+          <Card className="rounded-xl border-border/80 shadow-sm">
+            <CardContent className="p-4">
+              <Stepper current={step} completed={completed} />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Step 1 */}
         {step === 1 && (
@@ -640,19 +632,10 @@ export function NovaNCWizard() {
                     value={codigoNC}
                     className="h-10 rounded-lg bg-muted font-mono text-sm text-brand"
                   />
-                  <div className="flex items-center gap-2 pt-1">
-                    <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                      Prefixo
-                    </Label>
-                    <Input
-                      value={prefixo}
-                      onChange={(e) => setPrefixo(e.target.value.toUpperCase().slice(0, 6))}
-                      className="h-8 w-24 rounded-lg font-mono text-xs"
-                    />
-                    <span className="text-[11px] text-muted-foreground">
-                      Formato: prefixo_origem_nº_ano {origem && `(origem ${origemSiglas[origem]})`}
-                    </span>
-                  </div>
+                  <p className="pt-1 text-[11px] text-muted-foreground">
+                    Gerado automaticamente conforme a origem ao salvar
+                    {origem && ` (origem ${origemSiglas[origem]})`}.
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Data da ocorrência</Label>
@@ -1078,14 +1061,26 @@ export function NovaNCWizard() {
                     Selecione a ferramenta, mapeie as causas e consolide a causa raiz.
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={sugerirCausaIA}
-                  className="gap-1.5 rounded-lg border-brand/40 text-brand hover:bg-brand-soft"
-                >
-                  <Sparkles className="h-4 w-4" /> Sugerir causa raiz com IA
-                </Button>
+                <div className="flex gap-2">
+                  {causaRaizAiAuthored && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={limparSugestaoCausa}
+                      className="gap-1.5 rounded-lg"
+                    >
+                      <Eraser className="h-4 w-4" /> Limpar sugestão
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={sugerirCausaIA}
+                    className="gap-1.5 rounded-lg border-brand/40 text-brand hover:bg-brand-soft"
+                  >
+                    <Sparkles className="h-4 w-4" /> Sugerir causa raiz com IA
+                  </Button>
+                </div>
               </div>
 
               <ToggleGroup
@@ -1248,6 +1243,13 @@ export function NovaNCWizard() {
                   placeholder="Consolide a causa raiz com base na ferramenta escolhida…"
                   className="rounded-lg"
                 />
+                {causaRaizAiAuthored && (
+                  <div className="flex items-start gap-2 rounded-lg border border-brand/30 bg-brand-soft/50 p-3 text-xs text-brand">
+                    <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    Gerada por IA — ao concluir, esta NC fica aguardando aprovação do Gestor da
+                    Qualidade ou Administrador antes de seguir.
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3 rounded-xl border border-border/80 bg-muted/30 p-4">
@@ -1256,7 +1258,7 @@ export function NovaNCWizard() {
                     Esta NC representa uma ameaça ou fraqueza para a organização?
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Aproveitamento estratégico — alimenta a análise SWOT (item 4.1 / 6.1).
+                    Aproveitamento estratégico — alimenta a análise SWOT.
                   </div>
                 </div>
                 <ToggleGroup
@@ -1310,311 +1312,7 @@ export function NovaNCWizard() {
           </Card>
         )}
 
-        {/* Step 4 — Plano de Ação */}
-        {step === 4 && !finalizado && (
-          <Card className="rounded-xl border-border/80 shadow-sm">
-            <CardContent className="space-y-6 p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-base font-semibold text-foreground">4. Plano de Ação</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Defina contenção imediata e ação corretiva estruturada (detalhamento da ação).
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={sugerirPlanoIA}
-                  className="gap-1.5 rounded-lg border-brand/40 text-brand hover:bg-brand-soft"
-                >
-                  <Sparkles className="h-4 w-4" /> Gerar rascunho do plano com IA
-                </Button>
-              </div>
-
-              <section className="space-y-4 rounded-xl border border-[color:var(--severity-high)]/25 bg-[color:var(--severity-high)]/5 p-4">
-                <div className="flex items-center gap-2">
-                  <ShieldAlert className="h-4 w-4 text-[color:var(--severity-high)]" />
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Ação Imediata / Contenção
-                  </h3>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1.5 md:col-span-2">
-                    <Label>Descrição da contenção</Label>
-                    <Textarea
-                      rows={3}
-                      value={contDesc}
-                      onChange={(e) => setContDesc(e.target.value)}
-                      className="rounded-lg"
-                      placeholder="Descreva o que será feito imediatamente para conter o desvio…"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Responsável</Label>
-                    <UserPicker
-                      value={contResp}
-                      onChange={setContResp}
-                      placeholder="Selecione o responsável"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Data</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "h-10 w-full justify-start rounded-lg text-left font-normal",
-                            !contData && "text-muted-foreground",
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {contData
-                            ? format(contData, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-                            : "Selecione a data"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={contData}
-                          onSelect={setContData}
-                          initialFocus
-                          className="pointer-events-auto p-3"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-              </section>
-
-              <section className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <BadgeCheck className="h-4 w-4 text-brand" />
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Ação Corretiva — Detalhamento da Ação
-                  </h3>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {(
-                    [
-                      ["what", "O quê", "descrição da ação", "textarea"],
-                      ["why", "Por quê", "justificativa", "textarea"],
-                      ["where", "Onde", "local de aplicação", "input"],
-                      ["who", "Quem", "responsável", "input"],
-                      ["when", "Quando", "prazo", "input"],
-                      ["how", "Como", "método de execução", "textarea"],
-                      ["howMuch", "Quanto custa", "custo estimado", "input"],
-                    ] as const
-                  ).map(([key, ptL, enL, type]) => (
-                    <div
-                      key={key}
-                      className="space-y-1.5 rounded-xl border border-border/80 bg-card p-3"
-                    >
-                      <div className="flex items-baseline justify-between">
-                        <Label className="text-sm font-semibold">{ptL}</Label>
-                        <span className="text-[10px] tracking-wide text-muted-foreground">
-                          {enL}
-                        </span>
-                      </div>
-                      {type === "textarea" ? (
-                        <Textarea
-                          rows={3}
-                          value={w5h2[key]}
-                          onChange={(e) => setW5h2((p) => ({ ...p, [key]: e.target.value }))}
-                          className="rounded-lg"
-                        />
-                      ) : (
-                        <Input
-                          value={w5h2[key]}
-                          onChange={(e) => setW5h2((p) => ({ ...p, [key]: e.target.value }))}
-                          className="h-10 rounded-lg"
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <div className="space-y-1.5">
-                <Label>Resultado esperado</Label>
-                <Textarea
-                  rows={3}
-                  value={resultadoEsperado}
-                  onChange={(e) => setResultadoEsperado(e.target.value)}
-                  className="rounded-lg"
-                  placeholder="Descreva o indicador ou evidência que confirmará a eficácia…"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 5 — Avaliação de Eficácia */}
-        {step === 5 && !finalizado && (
-          <Card className="rounded-xl border-border/80 shadow-sm">
-            <CardContent className="space-y-6 p-6">
-              <div>
-                <h2 className="text-base font-semibold text-foreground">
-                  5. Avaliação de Eficácia
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Confirme se as ações resolveram a causa raiz e encerre a NC.
-                </p>
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label>Método de avaliação</Label>
-                  <Select value={metodoAval} onValueChange={setMetodoAval}>
-                    <SelectTrigger className="h-10 rounded-lg">
-                      <SelectValue placeholder="Selecione o método" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {["Teste", "Observação", "Entrevista", "Simulação", "Outros"].map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Avaliador</Label>
-                  <UserPicker
-                    value={avaliador}
-                    onChange={setAvaliador}
-                    placeholder="Selecione o avaliador"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Evidência de eficácia</Label>
-                <div
-                  onClick={() => evidEficaciaRef.current?.click()}
-                  className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border/80 bg-muted/30 p-6 text-center hover:border-brand/50 hover:bg-brand-soft/20"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                    <UploadCloud className="h-5 w-5" />
-                  </div>
-                  <div className="text-sm font-medium text-foreground">
-                    Anexe fotos, relatórios ou registros de verificação
-                  </div>
-                  <input
-                    ref={evidEficaciaRef}
-                    type="file"
-                    multiple
-                    hidden
-                    onChange={(e) => handleEfFiles(e.target.files)}
-                  />
-                </div>
-                {evidEficacia.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
-                    {evidEficacia.map((ev) => (
-                      <div
-                        key={ev.id}
-                        className="aspect-square overflow-hidden rounded-lg border border-border/70 bg-muted"
-                      >
-                        {ev.kind === "image" && ev.url ? (
-                          <img src={ev.url} alt={ev.name} className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-muted-foreground">
-                            <FileText className="h-6 w-6" />
-                            <span className="line-clamp-2 text-center text-[10px]">{ev.name}</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Resultado</Label>
-                <div className="grid gap-3 md:grid-cols-3">
-                  {(
-                    [
-                      {
-                        v: "aprovado",
-                        label: "Aprovado",
-                        desc: "Ação eficaz — NC pode ser encerrada.",
-                        cls: "border-[color:var(--success)]/40 bg-[color:var(--success)]/5 text-[color:var(--success)]",
-                        icon: ThumbsUp,
-                      },
-                      {
-                        v: "reprovado",
-                        label: "Reprovado",
-                        desc: "Ação não resolveu — retorna ao Plano de Ação.",
-                        cls: "border-[color:var(--severity-critical)]/40 bg-[color:var(--severity-critical)]/5 text-[color:var(--severity-critical)]",
-                        icon: ThumbsDown,
-                      },
-                      {
-                        v: "reinspecao",
-                        label: "Aprovado após nova inspeção",
-                        desc: "Requer nova verificação em prazo definido.",
-                        cls: "border-[color:var(--warning)]/50 bg-[color:var(--warning)]/10 text-[color:var(--severity-high)]",
-                        icon: AlertCircle,
-                      },
-                    ] as const
-                  ).map((opt) => {
-                    const Icon = opt.icon;
-                    const selected = resultado === opt.v;
-                    return (
-                      <button
-                        key={opt.v}
-                        type="button"
-                        onClick={() => setResultado(opt.v)}
-                        className={cn(
-                          "flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all",
-                          opt.cls,
-                          selected
-                            ? "ring-2 ring-offset-2 ring-current"
-                            : "opacity-80 hover:opacity-100",
-                        )}
-                      >
-                        <div className="flex w-full items-center justify-between">
-                          <Icon className="h-5 w-5" />
-                          {selected && <Check className="h-4 w-4" />}
-                        </div>
-                        <div className="text-sm font-semibold">{opt.label}</div>
-                        <div className="text-xs text-foreground/70">{opt.desc}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {resultado === "reprovado" && (
-                <div className="flex items-start gap-3 rounded-xl border border-[color:var(--severity-critical)]/30 bg-[color:var(--severity-critical)]/5 p-4">
-                  <AlertCircle className="mt-0.5 h-5 w-5 text-[color:var(--severity-critical)]" />
-                  <div className="space-y-1">
-                    <div className="text-sm font-semibold text-foreground">
-                      A NC retornará para a etapa de Plano de Ação
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Ao encerrar, o responsável será notificado para revisar as ações corretivas e
-                      submeter uma nova avaliação.
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <Label>Observações finais</Label>
-                <Textarea
-                  rows={3}
-                  value={obsFinais}
-                  onChange={(e) => setObsFinais(e.target.value)}
-                  className="rounded-lg"
-                  placeholder="Registre aprendizados, ressalvas ou próximos monitoramentos…"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Success / Encerramento */}
+        {/* Success — Análise de Causa registrada */}
         {finalizado && (
           <Card className="rounded-xl border-[color:var(--success)]/30 bg-[color:var(--success)]/5 shadow-sm">
             <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
@@ -1623,10 +1321,12 @@ export function NovaNCWizard() {
               </div>
               <div>
                 <h2 className="text-2xl font-semibold text-foreground">
-                  Não Conformidade encerrada
+                  Não conformidade registrada
                 </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Todas as etapas foram concluídas e registradas na trilha de auditoria.
+                <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                  {causaRaizAiAuthored
+                    ? "A análise de causa foi gerada por IA e aguarda aprovação do Gestor da Qualidade ou Administrador. Depois de aprovada, vincule um plano de ação na tela de detalhe."
+                    : "A análise de causa foi registrada. Continue na tela de detalhe para vincular um plano de ação."}
                 </p>
               </div>
               <div className="w-full max-w-lg rounded-xl border border-border/80 bg-card p-4 text-left">
@@ -1650,22 +1350,22 @@ export function NovaNCWizard() {
                     <dt className="text-muted-foreground">Setor</dt>
                     <dd className="font-medium">{setorOcorrencia ?? "—"}</dd>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-muted-foreground">Resultado</dt>
-                    <dd className="font-medium capitalize">{resultado ?? "—"}</dd>
-                  </div>
                 </dl>
               </div>
               <div className="flex gap-2">
                 <Button asChild variant="outline" className="rounded-lg">
                   <Link to="/nao-conformidades">Voltar para lista</Link>
                 </Button>
-                <Button
-                  asChild
-                  className="rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
-                >
-                  <Link to="/nao-conformidades/nova">Registrar outra NC</Link>
-                </Button>
+                {createdNC && (
+                  <Button
+                    asChild
+                    className="rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
+                  >
+                    <Link to="/nao-conformidades/$id" params={{ id: createdNC.id }}>
+                      Ver detalhe da NC
+                    </Link>
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1677,13 +1377,25 @@ export function NovaNCWizard() {
         <div className="sticky bottom-0 -mx-4 mt-6 border-t border-border/80 bg-background/95 px-4 py-3 backdrop-blur md:-mx-8 md:px-8">
           <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3">
             <div>
-              <Button variant="ghost" onClick={goPrev} disabled={step === 1} className="gap-1">
+              <Button
+                variant="ghost"
+                onClick={goPrev}
+                disabled={step === (isEditMode ? 3 : 1)}
+                className="gap-1"
+              >
                 <ChevronLeft className="h-4 w-4" /> Voltar
               </Button>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" className="gap-1 rounded-lg">
-                <Save className="h-4 w-4" /> Salvar rascunho
+              {/* Item 6: antes não tinha onClick nenhum — não salvava nada. */}
+              <Button
+                variant="outline"
+                onClick={salvarRascunhoCausa}
+                disabled={!createdNC || saveRootCause.isPending}
+                className="gap-1 rounded-lg"
+              >
+                <Save className="h-4 w-4" />{" "}
+                {saveRootCause.isPending ? "Salvando…" : "Salvar rascunho"}
               </Button>
               {step < STEPS.length ? (
                 <Button
@@ -1695,11 +1407,11 @@ export function NovaNCWizard() {
                 </Button>
               ) : (
                 <Button
-                  onClick={encerrarNC}
-                  disabled={updateNC.isPending}
+                  onClick={concluirAnaliseCausa}
+                  disabled={saveRootCause.isPending}
                   className="gap-1.5 rounded-lg bg-[color:var(--success)] px-5 py-5 text-white hover:bg-[color:var(--success)]/90"
                 >
-                  <Check className="h-5 w-5" /> Encerrar Não Conformidade
+                  <Check className="h-5 w-5" /> Concluir e registrar
                 </Button>
               )}
             </div>

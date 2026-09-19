@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app/app-shell";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,9 @@ export function DocumentosPage() {
 
   const { data: documents = [] } = useDocuments();
   const { data: members = [] } = useOrgMembers();
+  const membrosOrdenados = [...members].sort((a, b) =>
+    a.fullName.localeCompare(b.fullName, "pt-BR"),
+  );
   const createDocument = useCreateDocument();
   const uploadFile = useUploadDocumentFile();
   const setDocumentFile = useSetDocumentFile();
@@ -328,43 +332,27 @@ export function DocumentosPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">Responsável</label>
-                <Select
+                <SearchableSelect
                   value={novo.responsibleId}
                   onValueChange={(v) => setNovo({ ...novo, responsibleId: v })}
-                >
-                  <SelectTrigger className="rounded-md">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[...members]
-                      .sort((a, b) => a.fullName.localeCompare(b.fullName))
-                      .map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.fullName}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Selecione"
+                  searchPlaceholder="Buscar por nome…"
+                  emptyMessage="Nenhuma pessoa encontrada."
+                  className="rounded-md"
+                  options={membrosOrdenados.map((m) => ({ value: m.id, label: m.fullName }))}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">Elaborador</label>
-                <Select
+                <SearchableSelect
                   value={novo.elaboradorId}
                   onValueChange={(v) => setNovo({ ...novo, elaboradorId: v })}
-                >
-                  <SelectTrigger className="rounded-md">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[...members]
-                      .sort((a, b) => a.fullName.localeCompare(b.fullName))
-                      .map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.fullName}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Selecione"
+                  searchPlaceholder="Buscar por nome…"
+                  emptyMessage="Nenhuma pessoa encontrada."
+                  className="rounded-md"
+                  options={membrosOrdenados.map((m) => ({ value: m.id, label: m.fullName }))}
+                />
               </div>
             </div>
             <div className="space-y-1.5">

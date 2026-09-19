@@ -12,9 +12,11 @@ import {
   Trash2,
   Settings2,
   Link2,
+  Eraser,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/app-shell";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -164,6 +166,10 @@ export function NovoPlanoWizard() {
   const navigate = useNavigate();
   const search = NovoPlanoRoute.useSearch();
   const { data: orgMembers = [] } = useOrgMembers();
+  const membrosOrdenados = useMemo(
+    () => [...orgMembers].sort((a, b) => a.fullName.localeCompare(b.fullName, "pt-BR")),
+    [orgMembers],
+  );
   const { data: ncs = [] } = useNCs();
   const createActionPlan = useCreateActionPlan();
 
@@ -191,6 +197,10 @@ export function NovoPlanoWizard() {
   const [acoes, setAcoes] = useState<AcaoCorretiva[]>([novaAcao()]);
   const [iaLoading, setIaLoading] = useState(false);
   const [iaProposta, setIaProposta] = useState<IAProposta | null>(null);
+  // Item 3: true assim que a proposta é aplicada ao formulário — mesmo que
+  // editada depois, o plano nasce aguardando aprovação do Gestor da
+  // Qualidade/Administrador (governança conservadora, igual à da NC).
+  const [iaAplicada, setIaAplicada] = useState(false);
 
   const prazoContingencia = useMemo(() => addDiasUteis(new Date(), prazoContDias), [prazoContDias]);
 
@@ -212,7 +222,19 @@ export function NovoPlanoWizard() {
     setContencao(iaProposta.contencao);
     setAcoes(iaProposta.acoes);
     setIaProposta(null);
+    setIaAplicada(true);
     toast.success("Proposta aplicada — revise antes de concluir.");
+  };
+
+  /** Item 4: limpar a sugestão já aplicada ao formulário (o "Descartar" que
+   * já existia só cancelava a prévia antes de aplicar). */
+  const limparSugestaoAplicada = () => {
+    setUsarContingencia(false);
+    setContencao("");
+    setContResponsavelId("");
+    setAcoes([novaAcao()]);
+    setIaAplicada(false);
+    toast.success("Sugestão descartada");
   };
 
   const updateAcao = (i: number, field: keyof AcaoCorretiva, value: string) =>
@@ -264,11 +286,17 @@ export function NovoPlanoWizard() {
           como: a.como.trim(),
           quanto: Number(a.quanto.replace(/[^\d.,-]/g, "").replace(",", ".")) || 0,
         })),
+        aiAuthored: iaAplicada,
       },
       {
         onSuccess: (plan) => {
           toast.success(
             `${plan.code} criado com ${acoes.length} ação(ões) corretiva(s)${usarContingencia ? " + contingência" : ""}.`,
+            {
+              description: iaAplicada
+                ? "Gerado a partir de proposta de IA — aguardando aprovação do Gestor da Qualidade ou Administrador."
+                : undefined,
+            },
           );
           navigate({ to: "/planos-de-acao" });
         },
@@ -351,22 +379,24 @@ export function NovoPlanoWizard() {
                 {origem === "Não Conformidade" && (
                   <div>
                     <Label>Não conformidade vinculada (opcional)</Label>
-                    <Select
+                    {/* Item 2: busca livre por código ou descrição — antes
+                        só dava pra rolar a lista inteira de NCs. */}
+                    <SearchableSelect
                       value={ncId || "none"}
                       onValueChange={(v) => setNcId(v === "none" ? "" : v)}
-                    >
-                      <SelectTrigger className="mt-2">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhuma (plano avulso)</SelectItem>
-                        {ncs.map((n) => (
-                          <SelectItem key={n.id} value={n.id}>
-                            {n.codigo} — {n.descricao.slice(0, 50)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar por código ou descrição…"
+                      emptyMessage="Nenhuma NC encontrada."
+                      className="mt-2"
+                      options={[
+                        { value: "none", label: "Nenhuma (plano avulso)" },
+                        ...ncs.map((n) => ({
+                          value: n.id,
+                          label: n.codigo,
+                          sublabel: n.descricao,
+                        })),
+                      ]}
+                    />
                   </div>
                 )}
               </div>
@@ -417,18 +447,15 @@ export function NovoPlanoWizard() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <Label>Responsável</Label>
-                      <Select value={contResponsavelId} onValueChange={setContResponsavelId}>
-                        <SelectTrigger className="mt-2">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {orgMembers.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.fullName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        value={contResponsavelId}
+                        onValueChange={setContResponsavelId}
+                        placeholder="Selecione"
+                        searchPlaceholder="Buscar por nome…"
+                        emptyMessage="Nenhuma pessoa encontrada."
+                        className="mt-2"
+                        options={membrosOrdenados.map((u) => ({ value: u.id, label: u.fullName }))}
+                      />
                     </div>
                     <div>
                       <Label className="flex items-center gap-1.5">
@@ -541,6 +568,20 @@ export function NovoPlanoWizard() {
                     Cada linha vira um item acompanhável no módulo de Planos de Ação. Todos os
                     campos são obrigatórios.
                   </p>
+                  {iaAplicada && (
+                    <div className="mt-2 flex items-center gap-2 text-[11px] text-brand">
+                      <Sparkles className="h-3 w-3" /> Preenchido por sugestão de IA
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={limparSugestaoAplicada}
+                        className="h-6 gap-1 rounded-md px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                      >
+                        <Eraser className="h-3 w-3" /> Limpar sugestão
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <Badge
                   variant="outline"
@@ -594,21 +635,18 @@ export function NovoPlanoWizard() {
                       </div>
                       <div className="md:col-span-4">
                         <Label className="text-xs">Quem — responsável pela tratativa *</Label>
-                        <Select
+                        <SearchableSelect
                           value={a.responsavelId}
                           onValueChange={(v) => updateAcao(i, "responsavelId", v)}
-                        >
-                          <SelectTrigger className="mt-1.5">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {orgMembers.map((u) => (
-                              <SelectItem key={u.id} value={u.id}>
-                                {u.fullName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Selecione"
+                          searchPlaceholder="Buscar por nome…"
+                          emptyMessage="Nenhuma pessoa encontrada."
+                          className="mt-1.5"
+                          options={membrosOrdenados.map((u) => ({
+                            value: u.id,
+                            label: u.fullName,
+                          }))}
+                        />
                       </div>
                       <div className="md:col-span-4">
                         <Label className="text-xs">Quando — prazo *</Label>

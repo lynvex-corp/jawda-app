@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppShell } from "@/components/app/app-shell";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -355,61 +356,51 @@ function EvaluationListPage({ onOpen }: { onOpen: (id: string) => void }) {
           <div className="space-y-3 text-sm">
             <div>
               <label className="text-xs font-medium">Avaliado</label>
-              <Select
+              <SearchableSelect
                 value={novaAvaliacao.employeeId}
                 onValueChange={(v) => setNovaAvaliacao({ ...novaAvaliacao, employeeId: v })}
-              >
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione"
+                searchPlaceholder="Buscar por nome…"
+                emptyMessage="Nenhum funcionário encontrado."
+                className="mt-1 h-9 text-sm"
+                options={[...employees]
+                  .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+                  .map((e) => ({ value: e.id, label: e.nome }))}
+              />
             </div>
             <div>
               <label className="text-xs font-medium">Ciclo</label>
-              <Select
+              <SearchableSelect
                 value={novaAvaliacao.cycleId}
                 onValueChange={(v) => setNovaAvaliacao({ ...novaAvaliacao, cycleId: v })}
-              >
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cycles.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {PERIODICITY_OPTIONS.find((o) => o.value === c.periodicidade)?.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione"
+                searchPlaceholder="Buscar ciclo…"
+                emptyMessage="Nenhum ciclo encontrado."
+                className="mt-1 h-9 text-sm"
+                options={cycles.map((c) => ({
+                  value: c.id,
+                  label:
+                    PERIODICITY_OPTIONS.find((o) => o.value === c.periodicidade)?.label ?? c.id,
+                }))}
+              />
             </div>
             <div>
               <label className="text-xs font-medium">Avaliador</label>
-              <Select
+              {/* Item 9: só Gestor de Área e Administrador avaliam — a RLS
+                  de INSERT (20260912090200) recusaria qualquer outro nome
+                  aqui, então nem oferecer é mais claro que deixar escolher
+                  e falhar ao salvar. */}
+              <SearchableSelect
                 value={novaAvaliacao.avaliadorUserId}
                 onValueChange={(v) => setNovaAvaliacao({ ...novaAvaliacao, avaliadorUserId: v })}
-              >
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* Item 9: só Gestor de Área e Administrador avaliam — a
-                      RLS de INSERT (20260912090200) recusaria qualquer
-                      outro nome aqui, então nem oferecer é mais claro que
-                      deixar escolher e falhar ao salvar. */}
-                  {avaliadoresElegiveis.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione"
+                searchPlaceholder="Buscar por nome…"
+                emptyMessage="Nenhuma pessoa encontrada."
+                className="mt-1 h-9 text-sm"
+                options={[...avaliadoresElegiveis]
+                  .sort((a, b) => a.fullName.localeCompare(b.fullName, "pt-BR"))
+                  .map((m) => ({ value: m.id, label: m.fullName }))}
+              />
               {avaliadoresElegiveis.length === 0 && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Nenhum Gestor de Área ou Administrador cadastrado ainda.

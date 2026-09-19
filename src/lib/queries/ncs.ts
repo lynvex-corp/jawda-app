@@ -145,6 +145,8 @@ const SECTOR_UI_TO_DB: Record<SetorOcorrencia, NCSectorDb> = Object.fromEntries(
  * Linha do banco + tradução para o shape `NC` já usado pela UI
  * ============================================================ */
 
+export type RootCauseTool = "5porques" | "ishikawa";
+
 export interface NcDbRow {
   id: string;
   org_id: string;
@@ -166,6 +168,12 @@ export interface NcDbRow {
   ai_authored: boolean;
   ai_approved_by: string | null;
   ai_approved_at: string | null;
+  root_cause_tool: RootCauseTool | null;
+  root_cause_problem: string | null;
+  five_whys: string[] | null;
+  ishikawa_notes: Record<string, string[]> | null;
+  root_cause_text: string | null;
+  root_cause_completed_at: string | null;
   cancelled_at: string | null;
   cancelled_by: string | null;
   cancel_reason: string | null;
@@ -174,10 +182,11 @@ export interface NcDbRow {
   indicator_id: string | null;
   responsible: { full_name: string } | null;
   indicator: { code: string } | null;
+  ai_approved_by_profile?: { full_name: string } | null;
 }
 
 const NC_SELECT =
-  "*, responsible:profiles!responsible_id(full_name), indicator:indicators!indicator_id(code)";
+  "*, responsible:profiles!responsible_id(full_name), indicator:indicators!indicator_id(code), ai_approved_by_profile:profiles!ai_approved_by(full_name)";
 
 function initials(name: string) {
   return name
@@ -205,6 +214,7 @@ export interface NCRecord extends NC {
   category?: CategoriaNC;
   isAiAuthored: boolean;
   aiApprovedBy: string | null;
+  aiApprovedByName: string | null;
   aiApprovedAt: string | null;
   cancelledAt: string | null;
   cancelReason: string | null;
@@ -212,6 +222,12 @@ export interface NCRecord extends NC {
   createdBy: string;
   indicatorId: string | null;
   indicatorCode: string | null;
+  rootCauseTool: RootCauseTool | null;
+  rootCauseProblem: string;
+  fiveWhys: string[];
+  ishikawaNotes: Record<string, string[]>;
+  rootCauseText: string;
+  rootCauseCompletedAt: string | null;
 }
 
 function mapRowToNC(row: NcDbRow): NCRecord {
@@ -236,6 +252,7 @@ function mapRowToNC(row: NcDbRow): NCRecord {
     category: row.category ? CATEGORY_DB_TO_UI[row.category] : undefined,
     isAiAuthored: row.ai_authored,
     aiApprovedBy: row.ai_approved_by,
+    aiApprovedByName: row.ai_approved_by_profile?.full_name ?? null,
     aiApprovedAt: row.ai_approved_at,
     cancelledAt: row.cancelled_at,
     cancelReason: row.cancel_reason,
@@ -243,6 +260,12 @@ function mapRowToNC(row: NcDbRow): NCRecord {
     createdBy: row.created_by,
     indicatorId: row.indicator_id,
     indicatorCode: row.indicator?.code ?? null,
+    rootCauseTool: row.root_cause_tool,
+    rootCauseProblem: row.root_cause_problem ?? "",
+    fiveWhys: row.five_whys ?? [],
+    ishikawaNotes: row.ishikawa_notes ?? {},
+    rootCauseText: row.root_cause_text ?? "",
+    rootCauseCompletedAt: row.root_cause_completed_at,
   };
 }
 
@@ -405,6 +428,91 @@ export function useCancelNC() {
           cancelled_at: new Date().toISOString(),
           cancelled_by: user?.id ?? null,
         })
+        .eq("id", id)
+        .select(NC_SELECT)
+        .single();
+      if (error) throw error;
+      return mapRowToNC(data as unknown as NcDbRow);
+    },
+    onSuccess: (nc) => {
+      queryClient.invalidateQueries({ queryKey: ncKeys.lists() });
+      queryClient.setQueryData(ncKeys.detail(nc.id), nc);
+    },
+  });
+}
+
+/** Bloco 10, itens 3, 6 e 9: Análise de Causa (5 Porquês/Ishikawa) real —
+ * antes vivia só em memória do navegador (etapa 3 do wizard nunca gravava
+ * nada, seção do comentário original ficou desatualizada). Usada tanto
+ * por "Salvar rascunho" quanto por "Concluir e registrar" — mesma
+ * escrita, a diferença é só o que a tela faz depois.
+ *
+ * aiAuthored=true dispara a governança de IA (enforce_nc_ai_approval,
+ * 20260920110000): a NC vai para 'aguardando_verificacao' até um Gestor
+ * da Qualidade/Administrador aprovar (useApproveNCAiAuthoring abaixo) —
+ * mesma regra "a IA propõe, o humano decide" (seção 12 do Guia), sempre
+ * que a IA foi usada, mesmo que editada depois. */
+export interface SaveNCRootCauseInput {
+  id: string;
+  tool: RootCauseTool;
+  problem: string;
+  fiveWhys?: string[];
+  ishikawaNotes?: Record<string, string[]>;
+  rootCauseText: string;
+  aiAuthored: boolean;
+  swotForwarded: boolean;
+  completed?: boolean;
+}
+
+export function useSaveNCRootCause() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: SaveNCRootCauseInput) => {
+      const patch: Record<string, unknown> = {
+        root_cause_tool: input.tool,
+        root_cause_problem: input.problem || null,
+        five_whys: input.fiveWhys ?? null,
+        ishikawa_notes: input.ishikawaNotes ?? null,
+        root_cause_text: input.rootCauseText || null,
+        swot_forwarded: input.swotForwarded,
+      };
+      // ai_authored só é enviada quando true: uma vez marcada, a trava do
+      // banco (enforce_nc_ai_approval) exige aprovação antes de qualquer
+      // update tirar o status de 'aguardando_verificacao' — reenviar
+      // "false" por engano num rascunho salvo depois não deve desmarcar.
+      if (input.aiAuthored) patch.ai_authored = true;
+      if (input.completed) patch.root_cause_completed_at = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from("ncs")
+        .update(patch)
+        .eq("id", input.id)
+        .select(NC_SELECT)
+        .single();
+      if (error) throw error;
+      return mapRowToNC(data as unknown as NcDbRow);
+    },
+    onSuccess: (nc) => {
+      queryClient.invalidateQueries({ queryKey: ncKeys.lists() });
+      queryClient.setQueryData(ncKeys.detail(nc.id), nc);
+    },
+  });
+}
+
+/** Só Gestor da Qualidade ou Administrador — travado no banco também
+ * (enforce_nc_ai_approval), não só aqui. */
+export function useApproveNCAiAuthoring() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from("ncs")
+        .update({ ai_approved_by: user?.id ?? null })
         .eq("id", id)
         .select(NC_SELECT)
         .single();

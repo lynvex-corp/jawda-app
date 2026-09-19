@@ -13,24 +13,19 @@ import {
   Check,
   Clock,
   MoreVertical,
+  Sparkles,
 } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -63,6 +58,7 @@ import {
   useOrgMembers,
   useApproveNextAttempt,
   useUpdateCorrectiveActionStatus,
+  useUpdateCorrectiveActionProgress,
   useCancelActionPlan,
   useAddCorrectiveActionToPlan,
   useVerifications,
@@ -446,6 +442,22 @@ function CorrectiveActionCard({
 }) {
   const { data: verifications = [] } = useVerifications(action.actionId);
   const updateStatus = useUpdateCorrectiveActionStatus();
+  const updateProgress = useUpdateCorrectiveActionProgress();
+  const [progressoLocal, setProgressoLocal] = useState(action.percentual);
+  useEffect(() => setProgressoLocal(action.percentual), [action.percentual]);
+
+  function salvarProgresso(valor: number) {
+    if (valor === action.percentual) return;
+    updateProgress.mutate(
+      { id: action.actionId, percentComplete: valor },
+      {
+        onError: () => {
+          setProgressoLocal(action.percentual);
+          toast.error("Não foi possível salvar o progresso.");
+        },
+      },
+    );
+  }
   const encerrada = action.statusDb === "encerrada";
 
   function handleStart() {
@@ -520,9 +532,11 @@ function CorrectiveActionCard({
 
         {action.statusDb === "aguardando_aprovacao" && action.requiredApprovalRole && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[color:var(--warning)]/40 bg-[color:var(--warning)]/10 p-3">
-            <span className="text-xs font-semibold text-[color:var(--severity-high)]">
-              Aguardando aprovação de {REQUIRED_APPROVAL_ROLE_LABEL[action.requiredApprovalRole]}{" "}
-              para seguir
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--severity-high)]">
+              {action.aiAuthored && <Sparkles className="h-3.5 w-3.5" />}
+              {action.aiAuthored
+                ? `Sugestão de IA — aguardando aprovação de ${REQUIRED_APPROVAL_ROLE_LABEL[action.requiredApprovalRole]}`
+                : `Aguardando aprovação de ${REQUIRED_APPROVAL_ROLE_LABEL[action.requiredApprovalRole]} para seguir`}
             </span>
             {canApprove && (
               <Button
@@ -530,7 +544,7 @@ function CorrectiveActionCard({
                 className="h-7 rounded-md bg-brand text-xs text-brand-foreground hover:bg-brand/90"
                 onClick={onApprove}
               >
-                Aprovar próxima tentativa
+                {action.aiAuthored ? "Aprovar sugestão da IA" : "Aprovar próxima tentativa"}
               </Button>
             )}
           </div>
@@ -555,13 +569,24 @@ function CorrectiveActionCard({
           />
         </div>
 
+        {/* Item 12: percent_complete já era lido corretamente, mas não
+            existia nenhum controle pra escrever um valor intermediário —
+            só a aprovação final (que força 100%). */}
         {!encerrada && action.statusDb !== "aprovada" && (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Progresso</span>
-              <span className="font-medium text-foreground">{action.percentual}%</span>
+              <span className="font-medium text-foreground">{progressoLocal}%</span>
             </div>
-            <Progress value={action.percentual} className="h-1.5 bg-muted [&>div]:bg-brand" />
+            <Slider
+              value={[progressoLocal]}
+              onValueChange={(v) => setProgressoLocal(v[0])}
+              onValueCommit={(v) => salvarProgresso(v[0])}
+              min={0}
+              max={100}
+              step={5}
+              disabled={updateProgress.isPending}
+            />
           </div>
         )}
 
@@ -775,18 +800,15 @@ function AdicionarAcaoCorretivaDialog({
             </div>
             <div>
               <Label className="text-xs">Quem</Label>
-              <Select value={responsavelId} onValueChange={setResponsavelId}>
-                <SelectTrigger className="mt-1.5 rounded-lg">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {membrosOrdenados.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={responsavelId}
+                onValueChange={setResponsavelId}
+                placeholder="Selecione"
+                searchPlaceholder="Buscar por nome…"
+                emptyMessage="Nenhuma pessoa encontrada."
+                className="mt-1.5 rounded-lg"
+                options={membrosOrdenados.map((m) => ({ value: m.id, label: m.fullName }))}
+              />
             </div>
           </div>
           <div>

@@ -1,12 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Trash2, X } from "lucide-react";
 import { useEmployees, useJobPositions } from "@/lib/queries/pessoas";
 import type { ProcessFlowNode, ProcessFlowEdge, ProcessNodeType } from "@/lib/queries/processos";
@@ -36,30 +30,28 @@ function ResponsibleSelect({
   const { data: positions = [] } = useJobPositions();
   const value = employeeId ? `e:${employeeId}` : jobPositionId ? `p:${jobPositionId}` : undefined;
 
+  const options = [
+    ...[...positions]
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+      .map((p) => ({ value: `p:${p.id}`, label: p.nome, sublabel: "Cargo" })),
+    ...[...employees]
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+      .map((e) => ({ value: `e:${e.id}`, label: e.nome, sublabel: "Pessoa" })),
+  ];
+
   return (
-    <Select
+    <SearchableSelect
       value={value}
       onValueChange={(v) => {
         if (v.startsWith("e:")) onChange({ employeeId: v.slice(2), jobPositionId: null });
         else onChange({ employeeId: null, jobPositionId: v.slice(2) });
       }}
-    >
-      <SelectTrigger className="h-9 text-sm">
-        <SelectValue placeholder="Ninguém definido" />
-      </SelectTrigger>
-      <SelectContent>
-        {positions.map((p) => (
-          <SelectItem key={`p:${p.id}`} value={`p:${p.id}`}>
-            {p.nome} (cargo)
-          </SelectItem>
-        ))}
-        {employees.map((e) => (
-          <SelectItem key={`e:${e.id}`} value={`e:${e.id}`}>
-            {e.nome}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      placeholder="Ninguém definido"
+      searchPlaceholder="Buscar por nome ou cargo…"
+      emptyMessage="Nenhum resultado."
+      className="h-9 text-sm"
+      options={options}
+    />
   );
 }
 

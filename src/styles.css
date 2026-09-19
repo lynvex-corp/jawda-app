@@ -178,3 +178,15 @@
     color: var(--color-foreground);
   }
 }
+
+/* Bloco 10, item 7: primeira exportação real do sistema (Exportar RNC
+   PDF, nao-conformidades/detalhe.tsx) usa impressão do navegador — o
+   Sidebar do shadcn injeta a própria estrutura via portal/CSS interno
+   (data-sidebar), não dá pra escondê-lo só com className no componente
+   que o renderiza. */
+@media print {
+  [data-sidebar="sidebar"],
+  [data-sidebar="rail"] {
+    display: none !important;
+  }
+}

@@ -5,13 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { useAuditPlanItems, useUpsertPlanItem } from "@/lib/queries/audits";
 import { useOrgMembers } from "@/lib/queries/action-plans";
 
@@ -102,18 +96,16 @@ export function AbaPlano({ auditId }: { auditId: string }) {
           </div>
           <div>
             <Label className="text-xs">Auditor</Label>
-            <Select value={auditorId} onValueChange={setAuditorId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar" />
-              </SelectTrigger>
-              <SelectContent>
-                {members.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.fullName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={auditorId}
+              onValueChange={setAuditorId}
+              placeholder="Selecionar"
+              searchPlaceholder="Buscar por nome…"
+              emptyMessage="Nenhuma pessoa encontrada."
+              options={[...members]
+                .sort((a, b) => a.fullName.localeCompare(b.fullName, "pt-BR"))
+                .map((m) => ({ value: m.id, label: m.fullName }))}
+            />
           </div>
           <div className="md:col-span-5">
             <Label className="text-xs">Requisitos cobertos (separados por vírgula)</Label>

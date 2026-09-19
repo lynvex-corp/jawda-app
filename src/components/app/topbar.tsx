@@ -56,7 +56,7 @@ export function Topbar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md md:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md print:hidden md:px-6">
       <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
 
       {organizations.length > 1 && (

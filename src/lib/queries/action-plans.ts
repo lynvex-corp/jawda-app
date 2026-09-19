@@ -112,6 +112,16 @@ export const REQUIRED_APPROVAL_ROLE_LABEL: Record<RequiredApprovalRoleDb, string
   admin: "Administrador do Cliente",
 };
 
+/** Bloco 10, item 11: os 4 valores de PDCA (Plan/Do/Check/Act) eram
+ * exibidos direto em inglês — vinham de CORRECTIVE_STATUS_TO_PDCA sem
+ * nenhuma camada de tradução. */
+export const PDCA_LABEL_PT: Record<PDCA, string> = {
+  Plan: "Planejamento",
+  Do: "Execução",
+  Check: "Verificação",
+  Act: "Ação",
+};
+
 function initials(name: string) {
   return name
     .split(/\s+/)
@@ -173,6 +183,7 @@ export interface CorrectiveActionRow {
   approved_at: string | null;
   created_at: string;
   created_by: string;
+  ai_authored: boolean;
   who_responsible: { id: string; full_name: string } | null;
   action_plan: ActionPlanRow;
 }
@@ -240,6 +251,10 @@ export interface CorrectiveActionView extends PlanoAcao {
   why: string;
   onde: string;
   como: string;
+  /** Bloco 10, item 3: veio de proposta de IA aplicada no wizard —
+   * distingue "aguardando aprovação" por governança de IA de "aguardando
+   * aprovação" por reprovação escalada (mesmo status/mecanismo). */
+  aiAuthored: boolean;
 }
 
 function departamentoFromRole(role?: string | null) {
@@ -315,6 +330,7 @@ export function mapCorrectiveActionToView(
     why: row.why_justification,
     onde: row.where_location,
     como: row.how_method,
+    aiAuthored: row.ai_authored,
   };
 }
 
@@ -510,6 +526,12 @@ export interface CreateActionPlanInput {
     prazo: Date;
   };
   acoes: CreateActionPlanCorrectiveActionInput[];
+  /** Bloco 10, item 3: true quando a proposta de IA do wizard foi
+   * aplicada ao formulário (mesmo que editada depois — governança
+   * conservadora, igual à da NC). set_corrective_action_defaults
+   * (migration 20260920110100) força status 'aguardando_aprovacao' +
+   * required_approval_role 'quality_manager' ao inserir. */
+  aiAuthored?: boolean;
 }
 
 export function useCreateActionPlan() {
@@ -543,6 +565,7 @@ export function useCreateActionPlan() {
           how_method: a.como,
           how_much_cost: a.quanto,
           when_end: a.prazo.toISOString(),
+          ai_authored: input.aiAuthored ?? false,
         })),
       );
       if (actionsError) throw actionsError;
@@ -618,6 +641,35 @@ export function useUpdateCorrectiveActionStatus() {
       const { data, error } = await supabase
         .from("action_plan_corrective_actions")
         .update(patch)
+        .eq("id", id)
+        .select(CORRECTIVE_ACTION_SELECT)
+        .single();
+      if (error) throw error;
+      return data as unknown as CorrectiveActionRow;
+    },
+    onSuccess: (row) => {
+      queryClient.invalidateQueries({ queryKey: actionPlanKeys.correctiveActions() });
+      queryClient.invalidateQueries({
+        queryKey: actionPlanKeys.correctiveActionsByPlan(row.action_plan_id),
+      });
+      queryClient.invalidateQueries({ queryKey: actionPlanKeys.plan(row.action_plan_id) });
+    },
+  });
+}
+
+/** Bloco 10, item 12: "Progresso" lia percent_complete corretamente, mas
+ * não existia nenhuma tela que escrevesse um valor intermediário nessa
+ * coluna — só a aprovação final (que força 100%). Atualiza só o
+ * percentual, sem mexer em status (guard_corrective_action_update só
+ * reage a transição de status, então isso não aciona nenhuma trava). */
+export function useUpdateCorrectiveActionProgress() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, percentComplete }: { id: string; percentComplete: number }) => {
+      const { data, error } = await supabase
+        .from("action_plan_corrective_actions")
+        .update({ percent_complete: percentComplete })
         .eq("id", id)
         .select(CORRECTIVE_ACTION_SELECT)
         .single();

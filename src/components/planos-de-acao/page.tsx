@@ -25,6 +25,7 @@ import {
   Eye,
 } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +90,7 @@ import {
   mapCorrectiveActionToView,
   VERIFICATION_REASON_LABEL,
   REQUIRED_APPROVAL_ROLE_LABEL,
+  PDCA_LABEL_PT,
   type CorrectiveActionView,
 } from "@/lib/queries/action-plans";
 import { EffectivenessDialog } from "@/components/planos-de-acao/effectiveness-dialog";
@@ -260,7 +262,7 @@ function KanbanCard({
           variant="outline"
           className={cn("rounded-md border px-1.5 text-[10px]", pdcaClasses[p.pdca])}
         >
-          {p.pdca}
+          {PDCA_LABEL_PT[p.pdca]}
         </Badge>
       </div>
       <p className="mt-2 line-clamp-2 text-sm text-foreground">{p.descricao}</p>
@@ -827,12 +829,12 @@ export function PlanosDeAcaoPage() {
               </CardContent>
             </Card>
 
-            {/* Aging */}
+            {/* Item 10: "Aging de atrasos" -> "Planos em atraso" */}
             <Card className="rounded-xl border-border/80 shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <AlertOctagon className="h-4 w-4 text-[color:var(--severity-critical)]" /> Aging
-                  de atrasos
+                  <AlertOctagon className="h-4 w-4 text-[color:var(--severity-critical)]" /> Planos
+                  em atraso
                 </CardTitle>
                 <CardDescription>Planos atrasados por faixa de dias em atraso</CardDescription>
               </CardHeader>
@@ -911,19 +913,20 @@ export function PlanosDeAcaoPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={responsavel} onValueChange={setResponsavel}>
-                  <SelectTrigger className="h-9 rounded-lg lg:col-span-2">
-                    <SelectValue placeholder="Responsável" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {responsaveis.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {r}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Item 2: busca livre por nome — antes só dava pra rolar
+                    a lista de responsáveis. */}
+                <SearchableSelect
+                  value={responsavel}
+                  onValueChange={setResponsavel}
+                  placeholder="Responsável"
+                  searchPlaceholder="Buscar por nome…"
+                  emptyMessage="Nenhum responsável encontrado."
+                  className="h-9 rounded-lg lg:col-span-2"
+                  options={[
+                    { value: "all", label: "Todos" },
+                    ...responsaveis.map((r) => ({ value: r, label: r })),
+                  ]}
+                />
                 <Select value={departamento} onValueChange={setDepartamento}>
                   <SelectTrigger className="h-9 rounded-lg lg:col-span-2">
                     <SelectValue placeholder="Departamento" />
@@ -1058,7 +1061,7 @@ export function PlanosDeAcaoPage() {
                               variant="outline"
                               className={cn("rounded-md border font-normal", pdcaClasses[p.pdca])}
                             >
-                              {p.pdca}
+                              {PDCA_LABEL_PT[p.pdca]}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">

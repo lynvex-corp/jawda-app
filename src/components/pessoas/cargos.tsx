@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppShell } from "@/components/app/app-shell";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -907,21 +908,17 @@ function HrView({ canManage, canCreateLogin }: { canManage: boolean; canCreateLo
             </div>
             <div>
               <label className="text-xs font-medium">Cargo</label>
-              <Select
+              <SearchableSelect
                 value={novaPessoa.jobPositionId}
                 onValueChange={(v) => setNovaPessoa({ ...novaPessoa, jobPositionId: v })}
-              >
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue placeholder="Selecione um cargo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {positions.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione um cargo"
+                searchPlaceholder="Buscar cargo…"
+                emptyMessage="Nenhum cargo encontrado."
+                className="mt-1 h-9 text-sm"
+                options={[...positions]
+                  .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+                  .map((p) => ({ value: p.id, label: p.nome }))}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -1188,21 +1185,16 @@ function EditEmployeeForm({
         </div>
         <div>
           <label className="text-xs font-medium">Cargo</label>
-          <Select
+          <SearchableSelect
             value={form.jobPositionId}
             onValueChange={(v) => setForm({ ...form, jobPositionId: v })}
-          >
-            <SelectTrigger className="mt-1 h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {positions.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            searchPlaceholder="Buscar cargo…"
+            emptyMessage="Nenhum cargo encontrado."
+            className="mt-1 h-9 text-sm"
+            options={[...positions]
+              .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+              .map((p) => ({ value: p.id, label: p.nome }))}
+          />
         </div>
       </div>
       <DialogFooter>

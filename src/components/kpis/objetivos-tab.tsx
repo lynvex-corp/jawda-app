@@ -18,13 +18,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -290,18 +284,17 @@ function NovoObjetivoDialog({
             </div>
             <div className="space-y-1.5">
               <Label className="text-[11px]">Responsável</Label>
-              <Select value={responsavelId} onValueChange={setResponsavelId}>
-                <SelectTrigger className="rounded-lg text-xs">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {membros.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={responsavelId}
+                onValueChange={setResponsavelId}
+                placeholder="Selecione"
+                searchPlaceholder="Buscar por nome…"
+                emptyMessage="Nenhuma pessoa encontrada."
+                className="rounded-lg text-xs"
+                options={[...membros]
+                  .sort((a, b) => a.fullName.localeCompare(b.fullName, "pt-BR"))
+                  .map((m) => ({ value: m.id, label: m.fullName }))}
+              />
             </div>
           </div>
           <p className="rounded-lg bg-muted/40 p-2 text-[10px] text-muted-foreground">

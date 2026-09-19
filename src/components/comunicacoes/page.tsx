@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppShell } from "@/components/app/app-shell";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -187,6 +188,9 @@ function ProcessoCard({ p }: { p: CommunicationProcess }) {
 function ProcessosTab({ isAuthorized }: { isAuthorized: boolean }) {
   const { data: processes = [] } = useCommunicationProcesses();
   const { data: members = [] } = useOrgMembers();
+  const membrosOrdenados = [...members].sort((a, b) =>
+    a.fullName.localeCompare(b.fullName, "pt-BR"),
+  );
   const createProcess = useCreateCommunicationProcess();
 
   const internas = processes.filter((p) => p.type === "interna");
@@ -345,23 +349,15 @@ function ProcessosTab({ isAuthorized }: { isAuthorized: boolean }) {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">Quem comunica</label>
-                <Select
+                <SearchableSelect
                   value={form.communicatorId}
                   onValueChange={(v) => setForm({ ...form, communicatorId: v })}
-                >
-                  <SelectTrigger className="rounded-md">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[...members]
-                      .sort((a, b) => a.fullName.localeCompare(b.fullName))
-                      .map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.fullName}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Selecione"
+                  searchPlaceholder="Buscar por nome…"
+                  emptyMessage="Nenhuma pessoa encontrada."
+                  className="rounded-md"
+                  options={membrosOrdenados.map((m) => ({ value: m.id, label: m.fullName }))}
+                />
               </div>
             </div>
             <div className="grid grid-cols-[160px_1fr] gap-3">
@@ -613,23 +609,17 @@ function ComunicacoesTab() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">Processo (opcional)</label>
-                <Select
+                <SearchableSelect
                   value={form.communicationProcessId}
                   onValueChange={(v) => setForm({ ...form, communicationProcessId: v })}
-                >
-                  <SelectTrigger className="rounded-md">
-                    <SelectValue placeholder="Nenhum" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {processes
-                      .filter((p) => p.type === form.type)
-                      .map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.code} — {p.description}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Nenhum"
+                  searchPlaceholder="Buscar por código ou descrição…"
+                  emptyMessage="Nenhum processo encontrado."
+                  className="rounded-md"
+                  options={processes
+                    .filter((p) => p.type === form.type)
+                    .map((p) => ({ value: p.id, label: p.code, sublabel: p.description }))}
+                />
               </div>
             </div>
             <div className="space-y-1.5">

@@ -12,13 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/app/searchable-select";
 import { useCreateActionPlan, useOrgMembers } from "@/lib/queries/action-plans";
 import type { PlanoOrigemTipo } from "@/lib/mock-data";
 import { getErrorMessage } from "@/lib/utils";
@@ -174,18 +168,15 @@ export function GerarPlanoAcaoDialog({
             </div>
             <div>
               <Label className="text-xs">Quem</Label>
-              <Select value={responsavelId} onValueChange={setResponsavelId}>
-                <SelectTrigger className="mt-1.5 rounded-lg">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {membrosOrdenados.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={responsavelId}
+                onValueChange={setResponsavelId}
+                placeholder="Selecione"
+                searchPlaceholder="Buscar por nome…"
+                emptyMessage="Nenhuma pessoa encontrada."
+                className="mt-1.5 rounded-lg"
+                options={membrosOrdenados.map((m) => ({ value: m.id, label: m.fullName }))}
+              />
             </div>
           </div>
           <div>
