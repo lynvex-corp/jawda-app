@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -22,6 +22,23 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +55,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useActionPlan,
@@ -47,6 +64,7 @@ import {
   useApproveNextAttempt,
   useUpdateCorrectiveActionStatus,
   useCancelActionPlan,
+  useAddCorrectiveActionToPlan,
   useVerifications,
   useActionPlanActivityLog,
   mapCorrectiveActionToView,
@@ -55,6 +73,7 @@ import {
   ACTION_PLAN_STATUS_LABEL,
   ORIGIN_DB_TO_UI,
   type CorrectiveActionView,
+  type OrgMember,
 } from "@/lib/queries/action-plans";
 import { EffectivenessDialog } from "@/components/planos-de-acao/effectiveness-dialog";
 import { planoStatusClasses } from "@/lib/mock-data";
@@ -88,6 +107,7 @@ export function PlanoDetailPage() {
   const [evalTarget, setEvalTarget] = useState<CorrectiveActionView | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [addActionOpen, setAddActionOpen] = useState(false);
 
   const roleByUserId = useMemo(
     () => Object.fromEntries(orgMembers.map((m) => [m.id, m.role])),
@@ -265,6 +285,22 @@ export function PlanoDetailPage() {
                   ({acoesAtivas.length} ativa(s) de {actions.length})
                 </span>
               </h2>
+              {actions.length === 0 && (
+                <Card className="rounded-xl border-dashed border-border/80">
+                  <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Este plano ainda não tem nenhuma ação corretiva — o 5W2H nunca foi preenchido.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => setAddActionOpen(true)}
+                      className="rounded-lg bg-brand text-white hover:bg-brand/90"
+                    >
+                      Adicionar ação corretiva
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
               {actions.map((a) => (
                 <CorrectiveActionCard
                   key={a.actionId}
@@ -356,6 +392,13 @@ export function PlanoDetailPage() {
       </div>
 
       <EffectivenessDialog action={evalTarget} onClose={() => setEvalTarget(null)} />
+
+      <AdicionarAcaoCorretivaDialog
+        open={addActionOpen}
+        onOpenChange={setAddActionOpen}
+        actionPlanId={plan.id}
+        orgMembers={orgMembers}
+      />
 
       <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <AlertDialogContent>
@@ -622,5 +665,174 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="text-right font-medium text-foreground">{value}</dd>
     </div>
+  );
+}
+
+/** Bloco 9-b: destrava planos que nasceram sem ação corretiva (bug da
+ * Estratégia/Riscos anterior ao Bloco 8) — mesmo formulário 5W2H do wizard
+ * de "Novo Plano de Ação", só que gravando na ação corretiva de um plano
+ * que já existe (useAddCorrectiveActionToPlan) em vez de criar plano novo. */
+function AdicionarAcaoCorretivaDialog({
+  open,
+  onOpenChange,
+  actionPlanId,
+  orgMembers,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  actionPlanId: string;
+  orgMembers: OrgMember[];
+}) {
+  const addAction = useAddCorrectiveActionToPlan();
+  const membrosOrdenados = [...orgMembers].sort((a, b) =>
+    a.fullName.localeCompare(b.fullName, "pt-BR"),
+  );
+
+  const [oque, setOque] = useState("");
+  const [porque, setPorque] = useState("");
+  const [onde, setOnde] = useState("");
+  const [responsavelId, setResponsavelId] = useState("");
+  const [como, setComo] = useState("");
+  const [quanto, setQuanto] = useState("0");
+  const [prazo, setPrazo] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setOque("");
+    setPorque("");
+    setOnde("");
+    setResponsavelId("");
+    setComo("");
+    setQuanto("0");
+    setPrazo("");
+  }, [open]);
+
+  const invalido =
+    !oque.trim() || !porque.trim() || !onde.trim() || !responsavelId || !como.trim() || !prazo;
+
+  const confirmar = () => {
+    if (invalido) {
+      toast.error("Preencha todos os campos obrigatórios do 5W2H");
+      return;
+    }
+    addAction.mutate(
+      {
+        actionPlanId,
+        oque: oque.trim(),
+        porque: porque.trim(),
+        onde: onde.trim(),
+        responsavelId,
+        como: como.trim(),
+        quanto: Number(quanto) || 0,
+        prazo: new Date(prazo),
+      },
+      {
+        onSuccess: () => {
+          toast.success("Ação corretiva adicionada");
+          onOpenChange(false);
+        },
+        onError: (e) =>
+          toast.error("Não foi possível adicionar a ação", { description: getErrorMessage(e) }),
+      },
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>Adicionar ação corretiva</DialogTitle>
+          <DialogDescription>
+            Este plano foi gerado sem ação corretiva (bug já corrigido) — preencha o 5W2H para ele
+            passar a aparecer normalmente.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[55vh] space-y-3 overflow-y-auto pr-1 text-sm">
+          <div>
+            <Label className="text-xs">O quê</Label>
+            <Textarea
+              value={oque}
+              onChange={(e) => setOque(e.target.value)}
+              className="mt-1.5 min-h-[60px] rounded-lg text-sm"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Por quê</Label>
+            <Textarea
+              value={porque}
+              onChange={(e) => setPorque(e.target.value)}
+              className="mt-1.5 min-h-[50px] rounded-lg text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Onde</Label>
+              <Input
+                value={onde}
+                onChange={(e) => setOnde(e.target.value)}
+                className="mt-1.5 rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Quem</Label>
+              <Select value={responsavelId} onValueChange={setResponsavelId}>
+                <SelectTrigger className="mt-1.5 rounded-lg">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {membrosOrdenados.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Como</Label>
+            <Textarea
+              value={como}
+              onChange={(e) => setComo(e.target.value)}
+              className="mt-1.5 min-h-[50px] rounded-lg text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Quando — prazo</Label>
+              <Input
+                type="date"
+                value={prazo}
+                onChange={(e) => setPrazo(e.target.value)}
+                className="mt-1.5 rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Quanto custa (R$)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={quanto}
+                onChange={(e) => setQuanto(e.target.value)}
+                className="mt-1.5 rounded-lg text-sm"
+              />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={confirmar}
+            disabled={addAction.isPending}
+            className="bg-brand text-white hover:bg-brand/90"
+          >
+            {addAction.isPending ? "Adicionando…" : "Adicionar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

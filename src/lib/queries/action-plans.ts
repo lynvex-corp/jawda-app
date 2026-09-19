@@ -556,6 +556,44 @@ export function useCreateActionPlan() {
   });
 }
 
+/** Bloco 9-b: "Adicionar ação corretiva" a um plano que já existe e ainda
+ * não tem nenhuma — destrava os planos gerados pela Estratégia/Riscos
+ * antes da correção do Bloco 8 (cabeçalho criado, ação corretiva nunca
+ * pedida). Mesmo insert que o segundo passo de useCreateActionPlan já
+ * fazia, só que mirando um action_plan_id existente em vez de um recém-
+ * criado. org_id/unit_id/seq continuam vindo do trigger
+ * set_corrective_action_defaults (20260729150200) — nunca do client. */
+export function useAddCorrectiveActionToPlan() {
+  const supabase = getSupabaseBrowserClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      actionPlanId,
+      ...input
+    }: { actionPlanId: string } & CreateActionPlanCorrectiveActionInput) => {
+      const { error } = await supabase.from("action_plan_corrective_actions").insert({
+        action_plan_id: actionPlanId,
+        what_description: input.oque,
+        why_justification: input.porque,
+        where_location: input.onde,
+        who_responsible_id: input.responsavelId,
+        how_method: input.como,
+        how_much_cost: input.quanto,
+        when_end: input.prazo.toISOString(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({
+        queryKey: actionPlanKeys.correctiveActionsByPlan(vars.actionPlanId),
+      });
+      queryClient.invalidateQueries({ queryKey: actionPlanKeys.correctiveActions() });
+      queryClient.invalidateQueries({ queryKey: actionPlanKeys.plan(vars.actionPlanId) });
+      queryClient.invalidateQueries({ queryKey: actionPlanKeys.plans() });
+    },
+  });
+}
+
 /* ============================================================
  * Transições de status de uma ação corretiva (execução / pedido de
  * verificação). Aprovação de escalonamento e verificação de eficácia têm
