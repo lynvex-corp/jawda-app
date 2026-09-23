@@ -116,7 +116,7 @@ export function ApresentacaoEmpresaTab({ isDiretoria }: { isDiretoria: boolean }
               <Button
                 size="sm"
                 onClick={formalizar}
-                disabled={formalize.isPending}
+                disabled={formalize.isPending || content.trim() === ""}
                 className="rounded-lg bg-brand text-white hover:bg-brand/90"
               >
                 Formalizar

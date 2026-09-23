@@ -233,7 +233,7 @@ export function PoliticaQualidadeTab({ isDiretoria }: { isDiretoria: boolean }) 
             </Button>
             <Button
               onClick={confirmarFormalizacao}
-              disabled={formalize.isPending}
+              disabled={formalize.isPending || content.trim() === ""}
               className="bg-brand text-white hover:bg-brand/90"
             >
               Formalizar

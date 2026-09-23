@@ -366,7 +366,7 @@ export function PartesInteressadasPage() {
             </Button>
             <Button
               onClick={confirmarFormalizacao}
-              disabled={formalize.isPending}
+              disabled={formalize.isPending || stakeholders.length === 0}
               className="bg-brand text-white hover:bg-brand/90"
             >
               Formalizar

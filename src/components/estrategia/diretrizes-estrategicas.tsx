@@ -382,7 +382,10 @@ export function DiretrizesEstrategicasPage({ embedded = false }: { embedded?: bo
             </Button>
             <Button
               onClick={confirmarFormalizacao}
-              disabled={formalize.isPending}
+              disabled={
+                formalize.isPending ||
+                (missao.trim() === "" && visao.trim() === "" && proposito.trim() === "")
+              }
               className="bg-brand text-white hover:bg-brand/90"
             >
               Formalizar
