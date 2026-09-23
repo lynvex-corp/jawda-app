@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { useExportOrganizationData } from "@/lib/queries/org-access";
+import { useOrgTheme } from "@/lib/queries/org-theme";
 import { getErrorMessage } from "@/lib/utils";
 
 const CARGO_POR_PAPEL: Record<string, string> = {
@@ -38,6 +39,8 @@ export function Topbar() {
   const navigate = useNavigate();
   const { profile, currentOrg, organizations, signOut, switchOrganization } = useAuth();
   const exportData = useExportOrganizationData();
+  const { data: orgTheme } = useOrgTheme();
+  const orgLabel = currentOrg?.trade_name || currentOrg?.legal_name || "Selecionar empresa";
 
   const nome = profile?.full_name ?? "…";
   const cargo = currentOrg ? (CARGO_POR_PAPEL[currentOrg.role] ?? currentOrg.role) : "";
@@ -59,14 +62,28 @@ export function Topbar() {
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md print:hidden md:px-6">
       <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
 
-      {organizations.length > 1 && (
+      {/* Bug 1 (troca de logo): antes só aparecia algo aqui quando o
+          usuário tinha mais de uma organização (o seletor). Com uma única
+          organização — o caso da imensa maioria dos clientes, incluindo a
+          Cedro — ficava um vazio ao lado do botão de colapsar. Agora a
+          logo + nome do cliente aparecem sempre; o dropdown de troca só
+          substitui esse bloco estático quando há de fato mais de uma
+          organização para trocar. */}
+      {organizations.length > 1 ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               className="hidden h-9 gap-2 rounded-lg px-3 text-sm font-medium text-foreground hover:bg-brand-soft/60 md:inline-flex"
             >
-              {currentOrg?.trade_name || currentOrg?.legal_name || "Selecionar empresa"}
+              {orgTheme?.logoUrl && (
+                <img
+                  src={orgTheme.logoUrl}
+                  alt=""
+                  className="h-5 w-5 shrink-0 rounded object-contain"
+                />
+              )}
+              {orgLabel}
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
@@ -84,6 +101,19 @@ export function Topbar() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+      ) : (
+        currentOrg && (
+          <div className="hidden h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground md:inline-flex">
+            {orgTheme?.logoUrl && (
+              <img
+                src={orgTheme.logoUrl}
+                alt=""
+                className="h-5 w-5 shrink-0 rounded object-contain"
+              />
+            )}
+            {orgLabel}
+          </div>
+        )
       )}
 
       <div className="relative ml-auto hidden max-w-md flex-1 md:block">

@@ -328,12 +328,24 @@ export function AppSidebar() {
                     className="h-5 w-5 shrink-0 rounded object-contain"
                   />
                 )}
-                <div className="truncate text-xs font-medium text-foreground" title={orgName}>
+                <div
+                  className="truncate text-xs font-medium text-sidebar-foreground"
+                  title={orgName}
+                >
                   {orgName}
                 </div>
               </div>
             )}
-            <div className="text-[10px] text-muted-foreground">Jawda versão 1</div>
+            {/* Bug 2 (troca de logo): esse rodapé mora dentro da sidebar,
+                cuja cor de fundo é customizável por organização
+                (sidebar_color, Bloco 6) com contraste calculado só para
+                --sidebar-foreground. text-muted-foreground é calculado
+                contra --background (a superfície principal), não contra
+                --sidebar — em qualquer org com sidebar_color fora do
+                padrão isso quebra o contraste. Trocado para
+                text-sidebar-foreground (com opacidade, pra continuar
+                lendo como texto secundário). */}
+            <div className="text-[10px] text-sidebar-foreground/70">Jawda versão 1.0</div>
           </div>
         )}
       </SidebarFooter>
