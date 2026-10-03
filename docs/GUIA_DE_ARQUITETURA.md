@@ -166,6 +166,22 @@ O que ainda fica de fora entra nos meses seguintes sobre a fundação, sem retra
 - NC encerrada **não reabre** — cria nova (vínculo com a antiga preservado no banco para reincidência na v2.0)
 - **Nada apaga** — soft delete com motivo obrigatório
 
+### Solução de Problemas (A3) — sub-feature de Não Conformidades
+Metodologia A3 (baseada em PDCA, norma PNR-000028 da Vale) para problema com causa a investigar que pede um pequeno projeto — diferente da NC simples, que só pede correção pontual. **Não é módulo contratável separado:** vive dentro de `non_conformity`, sem linha em `contract_modules` nem toggle no jawda-admin.
+- Código: `SP_[SEQ]_[ANO]` (contador próprio por org/ano, prefixo fixo). Tabela `problem_solutions` (migration `20261003090000`).
+- Os 7 campos: Definição do Problema, Situação Atual, Meta (SMART), Análise da Causa Raiz (5 Porquês), Situação Futura/Contramedidas, Principais Entregas, Indicador. Mais o título e, ao encerrar, Lições aprendidas (passo 8). **A simplicidade dos 7 campos é intencional — não adicionar campos.**
+- Criável do zero (`/nao-conformidades/solucoes/nova`) ou a partir de uma NC (`?ncId=`, pré-preenche a definição do problema). Qualquer perfil que cria NC cria A3 — a RLS espelha a de `ncs` (sem regra por papel; inclui `user_has_unit_access` e `org_can_write`).
+- Encerrado ou cancelado **não reabre**. Nada apaga: cancelar exige motivo.
+- Sem "Sugerir com IA" no A3 (evita a governança de aprovação de IA da NC) — decisão por enquanto, não regra.
+
+**Decisões de modelagem (e por quê):**
+1. **Plano gerado SEM `nc_id`.** Com `nc_id`, a trigger de sincronização da NC colocaria a NC de origem em `em_tratativa` e a fecharia pela eficácia do plano — mudaria o comportamento da NC. O vínculo NC → A3 fica só em `problem_solutions.nc_origin_id`. A NC existente não muda em nada.
+2. **Entregas (milestones) não têm tabela própria:** cada uma é uma linha de `action_plan_corrective_actions` de um `action_plans` com `origin_type='solucao_problemas'`. A tela de Planos de Ação lê essa tabela; plano sem ação corretiva fica invisível (bug do Bloco 8). O status da entrega vem da própria ação.
+3. **5W2H automático:** a ação corretiva exige 5W2H completo, mas a entrega só tem Ação, Responsável e Data. Preenche-se `por quê` = "Entrega do A3 SP_xxx: <definição do problema>", `onde`/`como` = "Conforme A3 SP_xxx", custo 0 — editáveis depois no plano.
+4. **Causa raiz reaproveita as colunas no padrão da NC** (`five_whys` jsonb + `root_cause_text`) dentro de `problem_solutions`. Não se generalizou a estrutura da NC: ela não tem tabela própria (vive em colunas de `ncs`) e migrar mudaria o fluxo da NC. O componente de UI é o mesmo (`CincoPorques`, extraído do wizard da NC); a regra "5º porquê consolida a causa raiz até edição manual" foi replicada no formulário do A3, não compartilhada.
+5. **Vínculo nos dois sentidos:** `action_plans.problem_solution_id` (com CHECK: só origem `solucao_problemas`) e `problem_solutions.milestones_plan_id` (atalho), mantidos por trigger — o client faz um insert só.
+6. **Integridade entre orgs por trigger:** NC, indicador e plano referenciados precisam ser da mesma org (FK sozinha não impede apontar para outra org). Log de auditoria só por trigger (21.6).
+
 ### Planos de Ação
 - Código: `PA_[SEQ]_[ANO]`
 - Só ações **corretivas** e **contingência** na v1 (sem preventiva ou melhoria)
@@ -426,5 +442,7 @@ Descoberto auditando o convite de dono de empresa (ABA 8): `auth.admin.inviteUse
 Toda alteração de arquitetura precisa passar por este documento antes de virar código. Se o Claude Code for programar algo que contradiz este documento, ele deve parar e apontar a contradição, não implementar.
 
 **Revisão registrada em:** fim das Abas 4-7 (padrões 21.1 a 21.5), depois estendida na Aba 12 (21.6), depois antes da migração dos módulos novos (21.7 e 21.8), depois com a revisão da seção 3 sobre hospedagem (Vercel com região `gru1` fixada, aprovado para produção real, com VPS Hostinger mantido como evolução futura), depois com a descoberta da allowlist de Redirect URLs do Supabase Auth (21.9), e agora (Bloco 6, item 0) com a correção da seção 9 — o escopo real da execução já ultrapassava o que a seção descrevia como "fora da v1" havia várias abas, e o documento só foi corrigido agora.
+
+**Revisão de 2026-10-03:** seção 10 ganhou "Solução de Problemas (A3)".
 
 **Próxima revisão prevista:** ao final da personalização de tema dinâmico por empresa (Bloco 6, itens 10-12), quando a seção 5 ("o sistema se pinta sozinho no carregamento") deixar de ser promessa e passar a descrever comportamento real.
