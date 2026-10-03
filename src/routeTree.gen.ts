@@ -9,128 +9,118 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UsuariosRouteImport } from './routes/usuarios'
-import { Route as TreinamentosRouteImport } from './routes/treinamentos'
-import { Route as SuporteRouteImport } from './routes/suporte'
-import { Route as RiscosRouteImport } from './routes/riscos'
-import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
-import { Route as ProdutoServicoRouteImport } from './routes/produto-servico'
-import { Route as ProcessosRouteImport } from './routes/processos'
-import { Route as PrimeiroAcessoRouteImport } from './routes/primeiro-acesso'
-import { Route as PlanosDeAcaoRouteImport } from './routes/planos-de-acao'
-import { Route as PartesInteressadasRouteImport } from './routes/partes-interessadas'
-import { Route as NaoConformidadesRouteImport } from './routes/nao-conformidades'
-import { Route as MudancasSgRouteImport } from './routes/mudancas-sg'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as IndicadoresRouteImport } from './routes/indicadores'
-import { Route as ImpersonarRouteImport } from './routes/impersonar'
-import { Route as IdentidadeOrganizacionalRouteImport } from './routes/identidade-organizacional'
-import { Route as EscopoSistemaRouteImport } from './routes/escopo-sistema'
-import { Route as DocumentosRouteImport } from './routes/documentos'
-import { Route as DiretrizesEstrategicasRouteImport } from './routes/diretrizes-estrategicas'
-import { Route as CulturaDaQualidadeRouteImport } from './routes/cultura-da-qualidade'
-import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
-import { Route as ComunicacoesRouteImport } from './routes/comunicacoes'
-import { Route as CargosRouteImport } from './routes/cargos'
-import { Route as AvaliacaoPerformanceRouteImport } from './routes/avaliacao-performance'
-import { Route as AuditoriasRouteImport } from './routes/auditorias'
-import { Route as AquisicaoRouteImport } from './routes/aquisicao'
-import { Route as AprendizagemRouteImport } from './routes/aprendizagem'
-import { Route as AnaliseCenarioRouteImport } from './routes/analise-cenario'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ProcessosIndexRouteImport } from './routes/processos.index'
-import { Route as PlanosDeAcaoIndexRouteImport } from './routes/planos-de-acao.index'
-import { Route as NaoConformidadesIndexRouteImport } from './routes/nao-conformidades.index'
-import { Route as IndicadoresIndexRouteImport } from './routes/indicadores.index'
-import { Route as DocumentosIndexRouteImport } from './routes/documentos.index'
+import { Route as AnaliseCenarioRouteImport } from './routes/analise-cenario'
+import { Route as AprendizagemRouteImport } from './routes/aprendizagem'
+import { Route as AquisicaoRouteImport } from './routes/aquisicao'
+import { Route as AuditoriasRouteImport } from './routes/auditorias'
+import { Route as AvaliacaoPerformanceRouteImport } from './routes/avaliacao-performance'
+import { Route as CargosRouteImport } from './routes/cargos'
+import { Route as ComunicacoesRouteImport } from './routes/comunicacoes'
+import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as CulturaDaQualidadeRouteImport } from './routes/cultura-da-qualidade'
+import { Route as DiretrizesEstrategicasRouteImport } from './routes/diretrizes-estrategicas'
+import { Route as DocumentosRouteImport } from './routes/documentos'
+import { Route as EscopoSistemaRouteImport } from './routes/escopo-sistema'
+import { Route as IdentidadeOrganizacionalRouteImport } from './routes/identidade-organizacional'
+import { Route as ImpersonarRouteImport } from './routes/impersonar'
+import { Route as IndicadoresRouteImport } from './routes/indicadores'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MudancasSgRouteImport } from './routes/mudancas-sg'
+import { Route as NaoConformidadesRouteImport } from './routes/nao-conformidades'
+import { Route as PartesInteressadasRouteImport } from './routes/partes-interessadas'
+import { Route as PlanosDeAcaoRouteImport } from './routes/planos-de-acao'
+import { Route as PrimeiroAcessoRouteImport } from './routes/primeiro-acesso'
+import { Route as ProcessosRouteImport } from './routes/processos'
+import { Route as ProdutoServicoRouteImport } from './routes/produto-servico'
+import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
+import { Route as RiscosRouteImport } from './routes/riscos'
+import { Route as SuporteRouteImport } from './routes/suporte'
+import { Route as TreinamentosRouteImport } from './routes/treinamentos'
+import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as AuditoriasIndexRouteImport } from './routes/auditorias.index'
-import { Route as SuporteIdRouteImport } from './routes/suporte.$id'
-import { Route as ProcessosIdRouteImport } from './routes/processos.$id'
-import { Route as PlanosDeAcaoNovoRouteImport } from './routes/planos-de-acao.novo'
-import { Route as PlanosDeAcaoIdRouteImport } from './routes/planos-de-acao.$id'
-import { Route as NaoConformidadesNovaRouteImport } from './routes/nao-conformidades.nova'
-import { Route as NaoConformidadesIdRouteImport } from './routes/nao-conformidades.$id'
-import { Route as IndicadoresIdRouteImport } from './routes/indicadores.$id'
-import { Route as AuditoriasNovaRouteImport } from './routes/auditorias.nova'
 import { Route as AuditoriasIdRouteImport } from './routes/auditorias.$id'
-import { Route as NaoConformidadesSolucoesIndexRouteImport } from './routes/nao-conformidades.solucoes.index'
-import { Route as NaoConformidadesSolucoesNovaRouteImport } from './routes/nao-conformidades.solucoes.nova'
-import { Route as NaoConformidadesSolucoesIdRouteImport } from './routes/nao-conformidades.solucoes.$id'
+import { Route as AuditoriasNovaRouteImport } from './routes/auditorias.nova'
+import { Route as DocumentosIndexRouteImport } from './routes/documentos.index'
+import { Route as IndicadoresIndexRouteImport } from './routes/indicadores.index'
+import { Route as IndicadoresIdRouteImport } from './routes/indicadores.$id'
+import { Route as NaoConformidadesIndexRouteImport } from './routes/nao-conformidades.index'
+import { Route as NaoConformidadesIdRouteImport } from './routes/nao-conformidades.$id'
+import { Route as NaoConformidadesNovaRouteImport } from './routes/nao-conformidades.nova'
+import { Route as PlanosDeAcaoIndexRouteImport } from './routes/planos-de-acao.index'
+import { Route as PlanosDeAcaoIdRouteImport } from './routes/planos-de-acao.$id'
+import { Route as PlanosDeAcaoNovoRouteImport } from './routes/planos-de-acao.novo'
+import { Route as ProcessosIndexRouteImport } from './routes/processos.index'
+import { Route as ProcessosIdRouteImport } from './routes/processos.$id'
+import { Route as SuporteIdRouteImport } from './routes/suporte.$id'
 import { Route as DocumentosAnaliseCriticaIdRouteImport } from './routes/documentos.analise-critica.$id'
+import { Route as NaoConformidadesSolucoesIndexRouteImport } from './routes/nao-conformidades.solucoes.index'
+import { Route as NaoConformidadesSolucoesIdRouteImport } from './routes/nao-conformidades.solucoes.$id'
+import { Route as NaoConformidadesSolucoesNovaRouteImport } from './routes/nao-conformidades.solucoes.nova'
 
-const UsuariosRoute = UsuariosRouteImport.update({
-  id: '/usuarios',
-  path: '/usuarios',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TreinamentosRoute = TreinamentosRouteImport.update({
-  id: '/treinamentos',
-  path: '/treinamentos',
+const AnaliseCenarioRoute = AnaliseCenarioRouteImport.update({
+  id: '/analise-cenario',
+  path: '/analise-cenario',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SuporteRoute = SuporteRouteImport.update({
-  id: '/suporte',
-  path: '/suporte',
+const AprendizagemRoute = AprendizagemRouteImport.update({
+  id: '/aprendizagem',
+  path: '/aprendizagem',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RiscosRoute = RiscosRouteImport.update({
-  id: '/riscos',
-  path: '/riscos',
+const AquisicaoRoute = AquisicaoRouteImport.update({
+  id: '/aquisicao',
+  path: '/aquisicao',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
-  id: '/redefinir-senha',
-  path: '/redefinir-senha',
+const AuditoriasRoute = AuditoriasRouteImport.update({
+  id: '/auditorias',
+  path: '/auditorias',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProdutoServicoRoute = ProdutoServicoRouteImport.update({
-  id: '/produto-servico',
-  path: '/produto-servico',
+const AvaliacaoPerformanceRoute = AvaliacaoPerformanceRouteImport.update({
+  id: '/avaliacao-performance',
+  path: '/avaliacao-performance',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProcessosRoute = ProcessosRouteImport.update({
-  id: '/processos',
-  path: '/processos',
+const CargosRoute = CargosRouteImport.update({
+  id: '/cargos',
+  path: '/cargos',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PrimeiroAcessoRoute = PrimeiroAcessoRouteImport.update({
-  id: '/primeiro-acesso',
-  path: '/primeiro-acesso',
+const ComunicacoesRoute = ComunicacoesRouteImport.update({
+  id: '/comunicacoes',
+  path: '/comunicacoes',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlanosDeAcaoRoute = PlanosDeAcaoRouteImport.update({
-  id: '/planos-de-acao',
-  path: '/planos-de-acao',
+const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PartesInteressadasRoute = PartesInteressadasRouteImport.update({
-  id: '/partes-interessadas',
-  path: '/partes-interessadas',
+const CulturaDaQualidadeRoute = CulturaDaQualidadeRouteImport.update({
+  id: '/cultura-da-qualidade',
+  path: '/cultura-da-qualidade',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NaoConformidadesRoute = NaoConformidadesRouteImport.update({
-  id: '/nao-conformidades',
-  path: '/nao-conformidades',
+const DiretrizesEstrategicasRoute = DiretrizesEstrategicasRouteImport.update({
+  id: '/diretrizes-estrategicas',
+  path: '/diretrizes-estrategicas',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MudancasSgRoute = MudancasSgRouteImport.update({
-  id: '/mudancas-sg',
-  path: '/mudancas-sg',
+const DocumentosRoute = DocumentosRouteImport.update({
+  id: '/documentos',
+  path: '/documentos',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndicadoresRoute = IndicadoresRouteImport.update({
-  id: '/indicadores',
-  path: '/indicadores',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImpersonarRoute = ImpersonarRouteImport.update({
-  id: '/impersonar',
-  path: '/impersonar',
+const EscopoSistemaRoute = EscopoSistemaRouteImport.update({
+  id: '/escopo-sistema',
+  path: '/escopo-sistema',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IdentidadeOrganizacionalRoute =
@@ -139,139 +129,84 @@ const IdentidadeOrganizacionalRoute =
     path: '/identidade-organizacional',
     getParentRoute: () => rootRouteImport,
   } as any)
-const EscopoSistemaRoute = EscopoSistemaRouteImport.update({
-  id: '/escopo-sistema',
-  path: '/escopo-sistema',
+const ImpersonarRoute = ImpersonarRouteImport.update({
+  id: '/impersonar',
+  path: '/impersonar',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DocumentosRoute = DocumentosRouteImport.update({
-  id: '/documentos',
-  path: '/documentos',
+const IndicadoresRoute = IndicadoresRouteImport.update({
+  id: '/indicadores',
+  path: '/indicadores',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DiretrizesEstrategicasRoute = DiretrizesEstrategicasRouteImport.update({
-  id: '/diretrizes-estrategicas',
-  path: '/diretrizes-estrategicas',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CulturaDaQualidadeRoute = CulturaDaQualidadeRouteImport.update({
-  id: '/cultura-da-qualidade',
-  path: '/cultura-da-qualidade',
+const MudancasSgRoute = MudancasSgRouteImport.update({
+  id: '/mudancas-sg',
+  path: '/mudancas-sg',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
-  id: '/configuracoes',
-  path: '/configuracoes',
+const NaoConformidadesRoute = NaoConformidadesRouteImport.update({
+  id: '/nao-conformidades',
+  path: '/nao-conformidades',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ComunicacoesRoute = ComunicacoesRouteImport.update({
-  id: '/comunicacoes',
-  path: '/comunicacoes',
+const PartesInteressadasRoute = PartesInteressadasRouteImport.update({
+  id: '/partes-interessadas',
+  path: '/partes-interessadas',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CargosRoute = CargosRouteImport.update({
-  id: '/cargos',
-  path: '/cargos',
+const PlanosDeAcaoRoute = PlanosDeAcaoRouteImport.update({
+  id: '/planos-de-acao',
+  path: '/planos-de-acao',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AvaliacaoPerformanceRoute = AvaliacaoPerformanceRouteImport.update({
-  id: '/avaliacao-performance',
-  path: '/avaliacao-performance',
+const PrimeiroAcessoRoute = PrimeiroAcessoRouteImport.update({
+  id: '/primeiro-acesso',
+  path: '/primeiro-acesso',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuditoriasRoute = AuditoriasRouteImport.update({
-  id: '/auditorias',
-  path: '/auditorias',
+const ProcessosRoute = ProcessosRouteImport.update({
+  id: '/processos',
+  path: '/processos',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AquisicaoRoute = AquisicaoRouteImport.update({
-  id: '/aquisicao',
-  path: '/aquisicao',
+const ProdutoServicoRoute = ProdutoServicoRouteImport.update({
+  id: '/produto-servico',
+  path: '/produto-servico',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AprendizagemRoute = AprendizagemRouteImport.update({
-  id: '/aprendizagem',
-  path: '/aprendizagem',
+const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AnaliseCenarioRoute = AnaliseCenarioRouteImport.update({
-  id: '/analise-cenario',
-  path: '/analise-cenario',
+const RiscosRoute = RiscosRouteImport.update({
+  id: '/riscos',
+  path: '/riscos',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const SuporteRoute = SuporteRouteImport.update({
+  id: '/suporte',
+  path: '/suporte',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProcessosIndexRoute = ProcessosIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ProcessosRoute,
+const TreinamentosRoute = TreinamentosRouteImport.update({
+  id: '/treinamentos',
+  path: '/treinamentos',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const PlanosDeAcaoIndexRoute = PlanosDeAcaoIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PlanosDeAcaoRoute,
-} as any)
-const NaoConformidadesIndexRoute = NaoConformidadesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => NaoConformidadesRoute,
-} as any)
-const IndicadoresIndexRoute = IndicadoresIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => IndicadoresRoute,
-} as any)
-const DocumentosIndexRoute = DocumentosIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DocumentosRoute,
+const UsuariosRoute = UsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuditoriasIndexRoute = AuditoriasIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuditoriasRoute,
-} as any)
-const SuporteIdRoute = SuporteIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => SuporteRoute,
-} as any)
-const ProcessosIdRoute = ProcessosIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ProcessosRoute,
-} as any)
-const PlanosDeAcaoNovoRoute = PlanosDeAcaoNovoRouteImport.update({
-  id: '/novo',
-  path: '/novo',
-  getParentRoute: () => PlanosDeAcaoRoute,
-} as any)
-const PlanosDeAcaoIdRoute = PlanosDeAcaoIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => PlanosDeAcaoRoute,
-} as any)
-const NaoConformidadesNovaRoute = NaoConformidadesNovaRouteImport.update({
-  id: '/nova',
-  path: '/nova',
-  getParentRoute: () => NaoConformidadesRoute,
-} as any)
-const NaoConformidadesIdRoute = NaoConformidadesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => NaoConformidadesRoute,
-} as any)
-const IndicadoresIdRoute = IndicadoresIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => IndicadoresRoute,
-} as any)
-const AuditoriasNovaRoute = AuditoriasNovaRouteImport.update({
-  id: '/nova',
-  path: '/nova',
   getParentRoute: () => AuditoriasRoute,
 } as any)
 const AuditoriasIdRoute = AuditoriasIdRouteImport.update({
@@ -279,16 +214,81 @@ const AuditoriasIdRoute = AuditoriasIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AuditoriasRoute,
 } as any)
+const AuditoriasNovaRoute = AuditoriasNovaRouteImport.update({
+  id: '/nova',
+  path: '/nova',
+  getParentRoute: () => AuditoriasRoute,
+} as any)
+const DocumentosIndexRoute = DocumentosIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DocumentosRoute,
+} as any)
+const IndicadoresIndexRoute = IndicadoresIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => IndicadoresRoute,
+} as any)
+const IndicadoresIdRoute = IndicadoresIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => IndicadoresRoute,
+} as any)
+const NaoConformidadesIndexRoute = NaoConformidadesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => NaoConformidadesRoute,
+} as any)
+const NaoConformidadesIdRoute = NaoConformidadesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => NaoConformidadesRoute,
+} as any)
+const NaoConformidadesNovaRoute = NaoConformidadesNovaRouteImport.update({
+  id: '/nova',
+  path: '/nova',
+  getParentRoute: () => NaoConformidadesRoute,
+} as any)
+const PlanosDeAcaoIndexRoute = PlanosDeAcaoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlanosDeAcaoRoute,
+} as any)
+const PlanosDeAcaoIdRoute = PlanosDeAcaoIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => PlanosDeAcaoRoute,
+} as any)
+const PlanosDeAcaoNovoRoute = PlanosDeAcaoNovoRouteImport.update({
+  id: '/novo',
+  path: '/novo',
+  getParentRoute: () => PlanosDeAcaoRoute,
+} as any)
+const ProcessosIndexRoute = ProcessosIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProcessosRoute,
+} as any)
+const ProcessosIdRoute = ProcessosIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProcessosRoute,
+} as any)
+const SuporteIdRoute = SuporteIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => SuporteRoute,
+} as any)
+const DocumentosAnaliseCriticaIdRoute =
+  DocumentosAnaliseCriticaIdRouteImport.update({
+    id: '/analise-critica/$id',
+    path: '/analise-critica/$id',
+    getParentRoute: () => DocumentosRoute,
+  } as any)
 const NaoConformidadesSolucoesIndexRoute =
   NaoConformidadesSolucoesIndexRouteImport.update({
     id: '/solucoes/',
     path: '/solucoes/',
-    getParentRoute: () => NaoConformidadesRoute,
-  } as any)
-const NaoConformidadesSolucoesNovaRoute =
-  NaoConformidadesSolucoesNovaRouteImport.update({
-    id: '/solucoes/nova',
-    path: '/solucoes/nova',
     getParentRoute: () => NaoConformidadesRoute,
   } as any)
 const NaoConformidadesSolucoesIdRoute =
@@ -297,11 +297,11 @@ const NaoConformidadesSolucoesIdRoute =
     path: '/solucoes/$id',
     getParentRoute: () => NaoConformidadesRoute,
   } as any)
-const DocumentosAnaliseCriticaIdRoute =
-  DocumentosAnaliseCriticaIdRouteImport.update({
-    id: '/analise-critica/$id',
-    path: '/analise-critica/$id',
-    getParentRoute: () => DocumentosRoute,
+const NaoConformidadesSolucoesNovaRoute =
+  NaoConformidadesSolucoesNovaRouteImport.update({
+    id: '/solucoes/nova',
+    path: '/solucoes/nova',
+    getParentRoute: () => NaoConformidadesRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -630,193 +630,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/usuarios': {
-      id: '/usuarios'
-      path: '/usuarios'
-      fullPath: '/usuarios'
-      preLoaderRoute: typeof UsuariosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/treinamentos': {
-      id: '/treinamentos'
-      path: '/treinamentos'
-      fullPath: '/treinamentos'
-      preLoaderRoute: typeof TreinamentosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/suporte': {
-      id: '/suporte'
-      path: '/suporte'
-      fullPath: '/suporte'
-      preLoaderRoute: typeof SuporteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/riscos': {
-      id: '/riscos'
-      path: '/riscos'
-      fullPath: '/riscos'
-      preLoaderRoute: typeof RiscosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/redefinir-senha': {
-      id: '/redefinir-senha'
-      path: '/redefinir-senha'
-      fullPath: '/redefinir-senha'
-      preLoaderRoute: typeof RedefinirSenhaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/produto-servico': {
-      id: '/produto-servico'
-      path: '/produto-servico'
-      fullPath: '/produto-servico'
-      preLoaderRoute: typeof ProdutoServicoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/processos': {
-      id: '/processos'
-      path: '/processos'
-      fullPath: '/processos'
-      preLoaderRoute: typeof ProcessosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/primeiro-acesso': {
-      id: '/primeiro-acesso'
-      path: '/primeiro-acesso'
-      fullPath: '/primeiro-acesso'
-      preLoaderRoute: typeof PrimeiroAcessoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/planos-de-acao': {
-      id: '/planos-de-acao'
-      path: '/planos-de-acao'
-      fullPath: '/planos-de-acao'
-      preLoaderRoute: typeof PlanosDeAcaoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/partes-interessadas': {
-      id: '/partes-interessadas'
-      path: '/partes-interessadas'
-      fullPath: '/partes-interessadas'
-      preLoaderRoute: typeof PartesInteressadasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/nao-conformidades': {
-      id: '/nao-conformidades'
-      path: '/nao-conformidades'
-      fullPath: '/nao-conformidades'
-      preLoaderRoute: typeof NaoConformidadesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mudancas-sg': {
-      id: '/mudancas-sg'
-      path: '/mudancas-sg'
-      fullPath: '/mudancas-sg'
-      preLoaderRoute: typeof MudancasSgRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/indicadores': {
-      id: '/indicadores'
-      path: '/indicadores'
-      fullPath: '/indicadores'
-      preLoaderRoute: typeof IndicadoresRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/impersonar': {
-      id: '/impersonar'
-      path: '/impersonar'
-      fullPath: '/impersonar'
-      preLoaderRoute: typeof ImpersonarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/identidade-organizacional': {
-      id: '/identidade-organizacional'
-      path: '/identidade-organizacional'
-      fullPath: '/identidade-organizacional'
-      preLoaderRoute: typeof IdentidadeOrganizacionalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/escopo-sistema': {
-      id: '/escopo-sistema'
-      path: '/escopo-sistema'
-      fullPath: '/escopo-sistema'
-      preLoaderRoute: typeof EscopoSistemaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/documentos': {
-      id: '/documentos'
-      path: '/documentos'
-      fullPath: '/documentos'
-      preLoaderRoute: typeof DocumentosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/diretrizes-estrategicas': {
-      id: '/diretrizes-estrategicas'
-      path: '/diretrizes-estrategicas'
-      fullPath: '/diretrizes-estrategicas'
-      preLoaderRoute: typeof DiretrizesEstrategicasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cultura-da-qualidade': {
-      id: '/cultura-da-qualidade'
-      path: '/cultura-da-qualidade'
-      fullPath: '/cultura-da-qualidade'
-      preLoaderRoute: typeof CulturaDaQualidadeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/configuracoes': {
-      id: '/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/configuracoes'
-      preLoaderRoute: typeof ConfiguracoesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/comunicacoes': {
-      id: '/comunicacoes'
-      path: '/comunicacoes'
-      fullPath: '/comunicacoes'
-      preLoaderRoute: typeof ComunicacoesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cargos': {
-      id: '/cargos'
-      path: '/cargos'
-      fullPath: '/cargos'
-      preLoaderRoute: typeof CargosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/avaliacao-performance': {
-      id: '/avaliacao-performance'
-      path: '/avaliacao-performance'
-      fullPath: '/avaliacao-performance'
-      preLoaderRoute: typeof AvaliacaoPerformanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auditorias': {
-      id: '/auditorias'
-      path: '/auditorias'
-      fullPath: '/auditorias'
-      preLoaderRoute: typeof AuditoriasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/aquisicao': {
-      id: '/aquisicao'
-      path: '/aquisicao'
-      fullPath: '/aquisicao'
-      preLoaderRoute: typeof AquisicaoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/aprendizagem': {
-      id: '/aprendizagem'
-      path: '/aprendizagem'
-      fullPath: '/aprendizagem'
-      preLoaderRoute: typeof AprendizagemRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analise-cenario': {
@@ -826,109 +644,200 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnaliseCenarioRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/aprendizagem': {
+      id: '/aprendizagem'
+      path: '/aprendizagem'
+      fullPath: '/aprendizagem'
+      preLoaderRoute: typeof AprendizagemRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/processos/': {
-      id: '/processos/'
-      path: '/'
-      fullPath: '/processos/'
-      preLoaderRoute: typeof ProcessosIndexRouteImport
-      parentRoute: typeof ProcessosRoute
+    '/aquisicao': {
+      id: '/aquisicao'
+      path: '/aquisicao'
+      fullPath: '/aquisicao'
+      preLoaderRoute: typeof AquisicaoRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/planos-de-acao/': {
-      id: '/planos-de-acao/'
-      path: '/'
-      fullPath: '/planos-de-acao/'
-      preLoaderRoute: typeof PlanosDeAcaoIndexRouteImport
-      parentRoute: typeof PlanosDeAcaoRoute
+    '/auditorias': {
+      id: '/auditorias'
+      path: '/auditorias'
+      fullPath: '/auditorias'
+      preLoaderRoute: typeof AuditoriasRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/nao-conformidades/': {
-      id: '/nao-conformidades/'
-      path: '/'
-      fullPath: '/nao-conformidades/'
-      preLoaderRoute: typeof NaoConformidadesIndexRouteImport
-      parentRoute: typeof NaoConformidadesRoute
+    '/avaliacao-performance': {
+      id: '/avaliacao-performance'
+      path: '/avaliacao-performance'
+      fullPath: '/avaliacao-performance'
+      preLoaderRoute: typeof AvaliacaoPerformanceRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/indicadores/': {
-      id: '/indicadores/'
-      path: '/'
-      fullPath: '/indicadores/'
-      preLoaderRoute: typeof IndicadoresIndexRouteImport
-      parentRoute: typeof IndicadoresRoute
+    '/cargos': {
+      id: '/cargos'
+      path: '/cargos'
+      fullPath: '/cargos'
+      preLoaderRoute: typeof CargosRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/documentos/': {
-      id: '/documentos/'
-      path: '/'
-      fullPath: '/documentos/'
-      preLoaderRoute: typeof DocumentosIndexRouteImport
-      parentRoute: typeof DocumentosRoute
+    '/comunicacoes': {
+      id: '/comunicacoes'
+      path: '/comunicacoes'
+      fullPath: '/comunicacoes'
+      preLoaderRoute: typeof ComunicacoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracoes': {
+      id: '/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cultura-da-qualidade': {
+      id: '/cultura-da-qualidade'
+      path: '/cultura-da-qualidade'
+      fullPath: '/cultura-da-qualidade'
+      preLoaderRoute: typeof CulturaDaQualidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diretrizes-estrategicas': {
+      id: '/diretrizes-estrategicas'
+      path: '/diretrizes-estrategicas'
+      fullPath: '/diretrizes-estrategicas'
+      preLoaderRoute: typeof DiretrizesEstrategicasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documentos': {
+      id: '/documentos'
+      path: '/documentos'
+      fullPath: '/documentos'
+      preLoaderRoute: typeof DocumentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/escopo-sistema': {
+      id: '/escopo-sistema'
+      path: '/escopo-sistema'
+      fullPath: '/escopo-sistema'
+      preLoaderRoute: typeof EscopoSistemaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/identidade-organizacional': {
+      id: '/identidade-organizacional'
+      path: '/identidade-organizacional'
+      fullPath: '/identidade-organizacional'
+      preLoaderRoute: typeof IdentidadeOrganizacionalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/impersonar': {
+      id: '/impersonar'
+      path: '/impersonar'
+      fullPath: '/impersonar'
+      preLoaderRoute: typeof ImpersonarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/indicadores': {
+      id: '/indicadores'
+      path: '/indicadores'
+      fullPath: '/indicadores'
+      preLoaderRoute: typeof IndicadoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mudancas-sg': {
+      id: '/mudancas-sg'
+      path: '/mudancas-sg'
+      fullPath: '/mudancas-sg'
+      preLoaderRoute: typeof MudancasSgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nao-conformidades': {
+      id: '/nao-conformidades'
+      path: '/nao-conformidades'
+      fullPath: '/nao-conformidades'
+      preLoaderRoute: typeof NaoConformidadesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partes-interessadas': {
+      id: '/partes-interessadas'
+      path: '/partes-interessadas'
+      fullPath: '/partes-interessadas'
+      preLoaderRoute: typeof PartesInteressadasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/planos-de-acao': {
+      id: '/planos-de-acao'
+      path: '/planos-de-acao'
+      fullPath: '/planos-de-acao'
+      preLoaderRoute: typeof PlanosDeAcaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/primeiro-acesso': {
+      id: '/primeiro-acesso'
+      path: '/primeiro-acesso'
+      fullPath: '/primeiro-acesso'
+      preLoaderRoute: typeof PrimeiroAcessoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/processos': {
+      id: '/processos'
+      path: '/processos'
+      fullPath: '/processos'
+      preLoaderRoute: typeof ProcessosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/produto-servico': {
+      id: '/produto-servico'
+      path: '/produto-servico'
+      fullPath: '/produto-servico'
+      preLoaderRoute: typeof ProdutoServicoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/redefinir-senha': {
+      id: '/redefinir-senha'
+      path: '/redefinir-senha'
+      fullPath: '/redefinir-senha'
+      preLoaderRoute: typeof RedefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/riscos': {
+      id: '/riscos'
+      path: '/riscos'
+      fullPath: '/riscos'
+      preLoaderRoute: typeof RiscosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/suporte': {
+      id: '/suporte'
+      path: '/suporte'
+      fullPath: '/suporte'
+      preLoaderRoute: typeof SuporteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/treinamentos': {
+      id: '/treinamentos'
+      path: '/treinamentos'
+      fullPath: '/treinamentos'
+      preLoaderRoute: typeof TreinamentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/usuarios': {
+      id: '/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/auditorias/': {
       id: '/auditorias/'
       path: '/'
       fullPath: '/auditorias/'
       preLoaderRoute: typeof AuditoriasIndexRouteImport
-      parentRoute: typeof AuditoriasRoute
-    }
-    '/suporte/$id': {
-      id: '/suporte/$id'
-      path: '/$id'
-      fullPath: '/suporte/$id'
-      preLoaderRoute: typeof SuporteIdRouteImport
-      parentRoute: typeof SuporteRoute
-    }
-    '/processos/$id': {
-      id: '/processos/$id'
-      path: '/$id'
-      fullPath: '/processos/$id'
-      preLoaderRoute: typeof ProcessosIdRouteImport
-      parentRoute: typeof ProcessosRoute
-    }
-    '/planos-de-acao/novo': {
-      id: '/planos-de-acao/novo'
-      path: '/novo'
-      fullPath: '/planos-de-acao/novo'
-      preLoaderRoute: typeof PlanosDeAcaoNovoRouteImport
-      parentRoute: typeof PlanosDeAcaoRoute
-    }
-    '/planos-de-acao/$id': {
-      id: '/planos-de-acao/$id'
-      path: '/$id'
-      fullPath: '/planos-de-acao/$id'
-      preLoaderRoute: typeof PlanosDeAcaoIdRouteImport
-      parentRoute: typeof PlanosDeAcaoRoute
-    }
-    '/nao-conformidades/nova': {
-      id: '/nao-conformidades/nova'
-      path: '/nova'
-      fullPath: '/nao-conformidades/nova'
-      preLoaderRoute: typeof NaoConformidadesNovaRouteImport
-      parentRoute: typeof NaoConformidadesRoute
-    }
-    '/nao-conformidades/$id': {
-      id: '/nao-conformidades/$id'
-      path: '/$id'
-      fullPath: '/nao-conformidades/$id'
-      preLoaderRoute: typeof NaoConformidadesIdRouteImport
-      parentRoute: typeof NaoConformidadesRoute
-    }
-    '/indicadores/$id': {
-      id: '/indicadores/$id'
-      path: '/$id'
-      fullPath: '/indicadores/$id'
-      preLoaderRoute: typeof IndicadoresIdRouteImport
-      parentRoute: typeof IndicadoresRoute
-    }
-    '/auditorias/nova': {
-      id: '/auditorias/nova'
-      path: '/nova'
-      fullPath: '/auditorias/nova'
-      preLoaderRoute: typeof AuditoriasNovaRouteImport
       parentRoute: typeof AuditoriasRoute
     }
     '/auditorias/$id': {
@@ -938,18 +847,109 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuditoriasIdRouteImport
       parentRoute: typeof AuditoriasRoute
     }
+    '/auditorias/nova': {
+      id: '/auditorias/nova'
+      path: '/nova'
+      fullPath: '/auditorias/nova'
+      preLoaderRoute: typeof AuditoriasNovaRouteImport
+      parentRoute: typeof AuditoriasRoute
+    }
+    '/documentos/': {
+      id: '/documentos/'
+      path: '/'
+      fullPath: '/documentos/'
+      preLoaderRoute: typeof DocumentosIndexRouteImport
+      parentRoute: typeof DocumentosRoute
+    }
+    '/indicadores/': {
+      id: '/indicadores/'
+      path: '/'
+      fullPath: '/indicadores/'
+      preLoaderRoute: typeof IndicadoresIndexRouteImport
+      parentRoute: typeof IndicadoresRoute
+    }
+    '/indicadores/$id': {
+      id: '/indicadores/$id'
+      path: '/$id'
+      fullPath: '/indicadores/$id'
+      preLoaderRoute: typeof IndicadoresIdRouteImport
+      parentRoute: typeof IndicadoresRoute
+    }
+    '/nao-conformidades/': {
+      id: '/nao-conformidades/'
+      path: '/'
+      fullPath: '/nao-conformidades/'
+      preLoaderRoute: typeof NaoConformidadesIndexRouteImport
+      parentRoute: typeof NaoConformidadesRoute
+    }
+    '/nao-conformidades/$id': {
+      id: '/nao-conformidades/$id'
+      path: '/$id'
+      fullPath: '/nao-conformidades/$id'
+      preLoaderRoute: typeof NaoConformidadesIdRouteImport
+      parentRoute: typeof NaoConformidadesRoute
+    }
+    '/nao-conformidades/nova': {
+      id: '/nao-conformidades/nova'
+      path: '/nova'
+      fullPath: '/nao-conformidades/nova'
+      preLoaderRoute: typeof NaoConformidadesNovaRouteImport
+      parentRoute: typeof NaoConformidadesRoute
+    }
+    '/planos-de-acao/': {
+      id: '/planos-de-acao/'
+      path: '/'
+      fullPath: '/planos-de-acao/'
+      preLoaderRoute: typeof PlanosDeAcaoIndexRouteImport
+      parentRoute: typeof PlanosDeAcaoRoute
+    }
+    '/planos-de-acao/$id': {
+      id: '/planos-de-acao/$id'
+      path: '/$id'
+      fullPath: '/planos-de-acao/$id'
+      preLoaderRoute: typeof PlanosDeAcaoIdRouteImport
+      parentRoute: typeof PlanosDeAcaoRoute
+    }
+    '/planos-de-acao/novo': {
+      id: '/planos-de-acao/novo'
+      path: '/novo'
+      fullPath: '/planos-de-acao/novo'
+      preLoaderRoute: typeof PlanosDeAcaoNovoRouteImport
+      parentRoute: typeof PlanosDeAcaoRoute
+    }
+    '/processos/': {
+      id: '/processos/'
+      path: '/'
+      fullPath: '/processos/'
+      preLoaderRoute: typeof ProcessosIndexRouteImport
+      parentRoute: typeof ProcessosRoute
+    }
+    '/processos/$id': {
+      id: '/processos/$id'
+      path: '/$id'
+      fullPath: '/processos/$id'
+      preLoaderRoute: typeof ProcessosIdRouteImport
+      parentRoute: typeof ProcessosRoute
+    }
+    '/suporte/$id': {
+      id: '/suporte/$id'
+      path: '/$id'
+      fullPath: '/suporte/$id'
+      preLoaderRoute: typeof SuporteIdRouteImport
+      parentRoute: typeof SuporteRoute
+    }
+    '/documentos/analise-critica/$id': {
+      id: '/documentos/analise-critica/$id'
+      path: '/analise-critica/$id'
+      fullPath: '/documentos/analise-critica/$id'
+      preLoaderRoute: typeof DocumentosAnaliseCriticaIdRouteImport
+      parentRoute: typeof DocumentosRoute
+    }
     '/nao-conformidades/solucoes/': {
       id: '/nao-conformidades/solucoes/'
       path: '/solucoes'
       fullPath: '/nao-conformidades/solucoes/'
       preLoaderRoute: typeof NaoConformidadesSolucoesIndexRouteImport
-      parentRoute: typeof NaoConformidadesRoute
-    }
-    '/nao-conformidades/solucoes/nova': {
-      id: '/nao-conformidades/solucoes/nova'
-      path: '/solucoes/nova'
-      fullPath: '/nao-conformidades/solucoes/nova'
-      preLoaderRoute: typeof NaoConformidadesSolucoesNovaRouteImport
       parentRoute: typeof NaoConformidadesRoute
     }
     '/nao-conformidades/solucoes/$id': {
@@ -959,12 +959,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NaoConformidadesSolucoesIdRouteImport
       parentRoute: typeof NaoConformidadesRoute
     }
-    '/documentos/analise-critica/$id': {
-      id: '/documentos/analise-critica/$id'
-      path: '/analise-critica/$id'
-      fullPath: '/documentos/analise-critica/$id'
-      preLoaderRoute: typeof DocumentosAnaliseCriticaIdRouteImport
-      parentRoute: typeof DocumentosRoute
+    '/nao-conformidades/solucoes/nova': {
+      id: '/nao-conformidades/solucoes/nova'
+      path: '/solucoes/nova'
+      fullPath: '/nao-conformidades/solucoes/nova'
+      preLoaderRoute: typeof NaoConformidadesSolucoesNovaRouteImport
+      parentRoute: typeof NaoConformidadesRoute
     }
   }
 }
