@@ -23,7 +23,8 @@ export type OriginTypeDb =
   | "analise_critica"
   | "reclamacao_cliente"
   | "melhoria_continua"
-  | "estrategia";
+  | "estrategia"
+  | "solucao_problemas";
 
 export type CorrectiveActionStatusDb =
   | "aguardando_aprovacao"
@@ -55,6 +56,7 @@ export const ORIGIN_DB_TO_UI: Record<OriginTypeDb, PlanoOrigemTipo> = {
   reclamacao_cliente: "Reclamação de Cliente",
   melhoria_continua: "Melhoria Contínua",
   estrategia: "Estratégia",
+  solucao_problemas: "Solução de Problemas",
 };
 
 export const ORIGIN_UI_TO_DB: Record<PlanoOrigemTipo, OriginTypeDb> = Object.fromEntries(
@@ -141,6 +143,7 @@ export interface ActionPlanRow {
   unit_id: string | null;
   code: string;
   nc_id: string | null;
+  problem_solution_id: string | null;
   origin_type: OriginTypeDb;
   problem_description: string;
   contingency_description: string | null;
@@ -154,6 +157,7 @@ export interface ActionPlanRow {
   cancelled_by: string | null;
   cancel_reason: string | null;
   nc: { id: string; code: string } | null;
+  problem_solution: { id: string; code: string } | null;
   contingency_responsible: { full_name: string } | null;
 }
 
@@ -211,7 +215,7 @@ export interface VerificationRow {
 }
 
 const ACTION_PLAN_SELECT =
-  "*, nc:ncs!nc_id(id, code), contingency_responsible:profiles!contingency_responsible_id(full_name)";
+  "*, nc:ncs!nc_id(id, code), problem_solution:problem_solutions!problem_solution_id(id, code), contingency_responsible:profiles!contingency_responsible_id(full_name)";
 
 const CORRECTIVE_ACTION_SELECT = `
   *,
@@ -519,6 +523,8 @@ export interface CreateActionPlanInput {
   origem: PlanoOrigemTipo;
   problema: string;
   ncId?: string;
+  /** Solução de Problemas (A3) que gerou o plano — exige origem "Solução de Problemas". */
+  problemSolutionId?: string;
   unitId?: string;
   contingencia?: {
     descricao: string;
@@ -545,6 +551,7 @@ export function useCreateActionPlan() {
           origin_type: ORIGIN_UI_TO_DB[input.origem],
           problem_description: input.problema,
           nc_id: input.ncId ?? null,
+          problem_solution_id: input.problemSolutionId ?? null,
           unit_id: input.unitId ?? null,
           contingency_description: input.contingencia?.descricao ?? null,
           contingency_responsible_id: input.contingencia?.responsavelId ?? null,

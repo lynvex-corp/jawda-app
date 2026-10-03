@@ -63,6 +63,9 @@
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-soft: var(--brand-soft);
+  --color-sp: var(--sp);
+  --color-sp-foreground: var(--sp-foreground);
+  --color-sp-soft: var(--sp-soft);
   --color-severity-low: var(--severity-low);
   --color-severity-medium: var(--severity-medium);
   --color-severity-high: var(--severity-high);
@@ -98,6 +101,10 @@
   --brand: oklch(0.4 0.11 258);                 /* #1F4E8C */
   --brand-foreground: oklch(1 0 0);
   --brand-soft: oklch(0.94 0.02 258);           /* #DCE6F5 */
+  /* Solução de Problemas (A3): roxo neutro, distinto do vermelho/laranja de alerta da NC */
+  --sp: oklch(0.48 0.14 295);
+  --sp-foreground: oklch(1 0 0);
+  --sp-soft: oklch(0.95 0.02 295);
   --success: oklch(0.62 0.15 148);
   --warning: oklch(0.78 0.15 78);
   --severity-low: oklch(0.7 0.01 260);          /* cinza */
@@ -145,6 +152,9 @@
   --brand: oklch(0.62 0.14 258);
   --brand-foreground: oklch(0.99 0 0);
   --brand-soft: oklch(0.3 0.06 260);
+  --sp: oklch(0.68 0.13 295);
+  --sp-foreground: oklch(0.99 0 0);
+  --sp-soft: oklch(0.3 0.06 295);
   --success: oklch(0.7 0.15 148);
   --warning: oklch(0.82 0.15 78);
   --severity-low: oklch(0.6 0.01 260);

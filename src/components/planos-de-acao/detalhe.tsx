@@ -318,6 +318,20 @@ export function PlanoDetailPage() {
                 <dl className="space-y-3 text-xs">
                   <InfoRow label="Origem" value={ORIGIN_DB_TO_UI[plan.origin_type]} />
                   {plan.nc && <InfoRow label="NC de origem" value={plan.nc.code} />}
+                  {plan.problem_solution && (
+                    <InfoRow
+                      label="Solução de Problemas"
+                      value={
+                        <Link
+                          to="/nao-conformidades/solucoes/$id"
+                          params={{ id: plan.problem_solution.id }}
+                          className="text-sp hover:underline"
+                        >
+                          {plan.problem_solution.code}
+                        </Link>
+                      }
+                    />
+                  )}
                   <InfoRow label="Criado em" value={fmtDate(plan.created_at)} />
                 </dl>
                 <Separator />
@@ -684,7 +698,7 @@ function FiveW({
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <dt className="text-muted-foreground">{label}</dt>

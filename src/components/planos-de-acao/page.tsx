@@ -112,6 +112,7 @@ const ORIGENS: PlanoOrigemTipo[] = [
   "Análise Crítica",
   "Reclamação de Cliente",
   "Melhoria Contínua",
+  "Solução de Problemas",
 ];
 
 const PERIODOS = [
@@ -133,6 +134,7 @@ const origemIcon: Record<PlanoOrigemTipo, typeof AlertTriangle> = {
   "Reclamação de Cliente": MessageSquare,
   "Melhoria Contínua": Sparkles,
   Estratégia: Target,
+  "Solução de Problemas": Target,
 };
 
 const origemBadge: Record<PlanoOrigemTipo, string> = {
@@ -150,6 +152,7 @@ const origemBadge: Record<PlanoOrigemTipo, string> = {
   "Melhoria Contínua":
     "bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30",
   Estratégia: "bg-brand-soft text-brand border-brand/20",
+  "Solução de Problemas": "bg-sp-soft text-sp border-sp/30",
 };
 
 function formatDate(iso: string) {

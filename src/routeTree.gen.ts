@@ -53,6 +53,9 @@ import { Route as NaoConformidadesIdRouteImport } from './routes/nao-conformidad
 import { Route as IndicadoresIdRouteImport } from './routes/indicadores.$id'
 import { Route as AuditoriasNovaRouteImport } from './routes/auditorias.nova'
 import { Route as AuditoriasIdRouteImport } from './routes/auditorias.$id'
+import { Route as NaoConformidadesSolucoesIndexRouteImport } from './routes/nao-conformidades.solucoes.index'
+import { Route as NaoConformidadesSolucoesNovaRouteImport } from './routes/nao-conformidades.solucoes.nova'
+import { Route as NaoConformidadesSolucoesIdRouteImport } from './routes/nao-conformidades.solucoes.$id'
 import { Route as DocumentosAnaliseCriticaIdRouteImport } from './routes/documentos.analise-critica.$id'
 
 const UsuariosRoute = UsuariosRouteImport.update({
@@ -276,6 +279,24 @@ const AuditoriasIdRoute = AuditoriasIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AuditoriasRoute,
 } as any)
+const NaoConformidadesSolucoesIndexRoute =
+  NaoConformidadesSolucoesIndexRouteImport.update({
+    id: '/solucoes/',
+    path: '/solucoes/',
+    getParentRoute: () => NaoConformidadesRoute,
+  } as any)
+const NaoConformidadesSolucoesNovaRoute =
+  NaoConformidadesSolucoesNovaRouteImport.update({
+    id: '/solucoes/nova',
+    path: '/solucoes/nova',
+    getParentRoute: () => NaoConformidadesRoute,
+  } as any)
+const NaoConformidadesSolucoesIdRoute =
+  NaoConformidadesSolucoesIdRouteImport.update({
+    id: '/solucoes/$id',
+    path: '/solucoes/$id',
+    getParentRoute: () => NaoConformidadesRoute,
+  } as any)
 const DocumentosAnaliseCriticaIdRoute =
   DocumentosAnaliseCriticaIdRouteImport.update({
     id: '/analise-critica/$id',
@@ -329,6 +350,9 @@ export interface FileRoutesByFullPath {
   '/planos-de-acao/': typeof PlanosDeAcaoIndexRoute
   '/processos/': typeof ProcessosIndexRoute
   '/documentos/analise-critica/$id': typeof DocumentosAnaliseCriticaIdRoute
+  '/nao-conformidades/solucoes/$id': typeof NaoConformidadesSolucoesIdRoute
+  '/nao-conformidades/solucoes/nova': typeof NaoConformidadesSolucoesNovaRoute
+  '/nao-conformidades/solucoes/': typeof NaoConformidadesSolucoesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -370,6 +394,9 @@ export interface FileRoutesByTo {
   '/planos-de-acao': typeof PlanosDeAcaoIndexRoute
   '/processos': typeof ProcessosIndexRoute
   '/documentos/analise-critica/$id': typeof DocumentosAnaliseCriticaIdRoute
+  '/nao-conformidades/solucoes/$id': typeof NaoConformidadesSolucoesIdRoute
+  '/nao-conformidades/solucoes/nova': typeof NaoConformidadesSolucoesNovaRoute
+  '/nao-conformidades/solucoes': typeof NaoConformidadesSolucoesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -418,6 +445,9 @@ export interface FileRoutesById {
   '/planos-de-acao/': typeof PlanosDeAcaoIndexRoute
   '/processos/': typeof ProcessosIndexRoute
   '/documentos/analise-critica/$id': typeof DocumentosAnaliseCriticaIdRoute
+  '/nao-conformidades/solucoes/$id': typeof NaoConformidadesSolucoesIdRoute
+  '/nao-conformidades/solucoes/nova': typeof NaoConformidadesSolucoesNovaRoute
+  '/nao-conformidades/solucoes/': typeof NaoConformidadesSolucoesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -467,6 +497,9 @@ export interface FileRouteTypes {
     | '/planos-de-acao/'
     | '/processos/'
     | '/documentos/analise-critica/$id'
+    | '/nao-conformidades/solucoes/$id'
+    | '/nao-conformidades/solucoes/nova'
+    | '/nao-conformidades/solucoes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -508,6 +541,9 @@ export interface FileRouteTypes {
     | '/planos-de-acao'
     | '/processos'
     | '/documentos/analise-critica/$id'
+    | '/nao-conformidades/solucoes/$id'
+    | '/nao-conformidades/solucoes/nova'
+    | '/nao-conformidades/solucoes'
   id:
     | '__root__'
     | '/'
@@ -555,6 +591,9 @@ export interface FileRouteTypes {
     | '/planos-de-acao/'
     | '/processos/'
     | '/documentos/analise-critica/$id'
+    | '/nao-conformidades/solucoes/$id'
+    | '/nao-conformidades/solucoes/nova'
+    | '/nao-conformidades/solucoes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -899,6 +938,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuditoriasIdRouteImport
       parentRoute: typeof AuditoriasRoute
     }
+    '/nao-conformidades/solucoes/': {
+      id: '/nao-conformidades/solucoes/'
+      path: '/solucoes'
+      fullPath: '/nao-conformidades/solucoes/'
+      preLoaderRoute: typeof NaoConformidadesSolucoesIndexRouteImport
+      parentRoute: typeof NaoConformidadesRoute
+    }
+    '/nao-conformidades/solucoes/nova': {
+      id: '/nao-conformidades/solucoes/nova'
+      path: '/solucoes/nova'
+      fullPath: '/nao-conformidades/solucoes/nova'
+      preLoaderRoute: typeof NaoConformidadesSolucoesNovaRouteImport
+      parentRoute: typeof NaoConformidadesRoute
+    }
+    '/nao-conformidades/solucoes/$id': {
+      id: '/nao-conformidades/solucoes/$id'
+      path: '/solucoes/$id'
+      fullPath: '/nao-conformidades/solucoes/$id'
+      preLoaderRoute: typeof NaoConformidadesSolucoesIdRouteImport
+      parentRoute: typeof NaoConformidadesRoute
+    }
     '/documentos/analise-critica/$id': {
       id: '/documentos/analise-critica/$id'
       path: '/analise-critica/$id'
@@ -957,12 +1017,18 @@ interface NaoConformidadesRouteChildren {
   NaoConformidadesIdRoute: typeof NaoConformidadesIdRoute
   NaoConformidadesNovaRoute: typeof NaoConformidadesNovaRoute
   NaoConformidadesIndexRoute: typeof NaoConformidadesIndexRoute
+  NaoConformidadesSolucoesIdRoute: typeof NaoConformidadesSolucoesIdRoute
+  NaoConformidadesSolucoesNovaRoute: typeof NaoConformidadesSolucoesNovaRoute
+  NaoConformidadesSolucoesIndexRoute: typeof NaoConformidadesSolucoesIndexRoute
 }
 
 const NaoConformidadesRouteChildren: NaoConformidadesRouteChildren = {
   NaoConformidadesIdRoute: NaoConformidadesIdRoute,
   NaoConformidadesNovaRoute: NaoConformidadesNovaRoute,
   NaoConformidadesIndexRoute: NaoConformidadesIndexRoute,
+  NaoConformidadesSolucoesIdRoute: NaoConformidadesSolucoesIdRoute,
+  NaoConformidadesSolucoesNovaRoute: NaoConformidadesSolucoesNovaRoute,
+  NaoConformidadesSolucoesIndexRoute: NaoConformidadesSolucoesIndexRoute,
 }
 
 const NaoConformidadesRouteWithChildren =

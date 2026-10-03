@@ -347,11 +347,24 @@ export function NaoConformidadesPage() {
                 encerramento dentro do prazo.
               </p>
             </div>
-            <Button asChild className="rounded-lg bg-brand text-brand-foreground hover:bg-brand/90">
-              <Link to="/nao-conformidades/nova">
-                <Plus className="mr-1 h-4 w-4" /> Nova Não Conformidade
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                asChild
+                className="rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
+              >
+                <Link to="/nao-conformidades/nova">
+                  <Plus className="mr-1 h-4 w-4" /> Nova Não Conformidade
+                </Link>
+              </Button>
+              <Button asChild className="rounded-lg bg-sp text-sp-foreground hover:bg-sp/90">
+                <Link to="/nao-conformidades/solucoes/nova">
+                  <Plus className="mr-1 h-4 w-4" /> Nova Solução de Problema
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-lg">
+                <Link to="/nao-conformidades/solucoes">Ver Soluções de Problemas</Link>
+              </Button>
+            </div>
           </div>
 
           {/* KPIs */}

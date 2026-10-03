@@ -484,6 +484,29 @@ export function NCDetailPage() {
                 </CardContent>
               </Card>
             )}
+            <Card className="rounded-xl border-sp/20 bg-sp-soft/20 shadow-sm">
+              <CardContent className="space-y-3 p-5">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="h-4 w-4 text-sp" />
+                  <h3 className="text-sm font-semibold text-foreground">Solução de Problemas</h3>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Para problemas com causa a investigar. A descrição desta NC já vai preenchida na
+                  Definição do Problema.
+                </p>
+                <Button
+                  asChild
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-1 rounded-lg border-sp/40 text-sp hover:bg-sp-soft"
+                >
+                  <Link to="/nao-conformidades/solucoes/nova" search={{ ncId: nc.id }}>
+                    Gerar Solução de Problemas a partir desta NC
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
             {!planoVinculado && (
               <Card className="rounded-xl border-brand/20 bg-brand-soft/20 shadow-sm">
                 <CardContent className="space-y-3 p-5">
