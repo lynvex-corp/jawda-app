@@ -101,7 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Jawda / Sistema de Gestão: plataforma SaaS B2B para não conformidades, auditorias, riscos e indicadores da qualidade (ISO 9001).",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Jawda / Sistema de Gestão" },
       {
         name: "twitter:description",
@@ -110,13 +110,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       {
         property: "og:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a650a87d-e380-41ac-a38c-24dd5c537b09/id-preview-2cb0a50b--ea696609-cdc5-42ee-8ca4-50002a796220.lovable.app-1784171387099.png",
+        content: "/icon-512.png",
       },
       {
         name: "twitter:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a650a87d-e380-41ac-a38c-24dd5c537b09/id-preview-2cb0a50b--ea696609-cdc5-42ee-8ca4-50002a796220.lovable.app-1784171387099.png",
+        content: "/icon-512.png",
       },
     ],
     links: [
