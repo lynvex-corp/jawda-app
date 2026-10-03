@@ -101,7 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Jawda / Sistema de Gestão: plataforma SaaS B2B para não conformidades, auditorias, riscos e indicadores da qualidade (ISO 9001).",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Jawda / Sistema de Gestão" },
       {
         name: "twitter:description",
@@ -110,11 +110,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       {
         property: "og:image",
-        content: "/icon-512.png",
+        content: "https://jawda-app.vercel.app/og-image.png",
       },
       {
         name: "twitter:image",
-        content: "/icon-512.png",
+        content: "https://jawda-app.vercel.app/og-image.png",
       },
     ],
     links: [
